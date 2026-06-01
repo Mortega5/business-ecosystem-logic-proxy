@@ -22,103 +22,10 @@ const utils = require('./../../lib/utils')
 const tmfUtils = require('./../../lib/tmfUtils')
 const axios = require('axios')
 const config = require('./../../config')
+const { validateRetrieving, validateOwnerSellerPost, validateNameAndDescription, getPrevVersion, validateOwnerSeller } = require('./../../lib/resourceUtils')
 
 const resource = (function (){
 
-    const validateRetrieving = function(req, callback) {
-        // Check if the request is a list of resources specifications
-        if (req.path.endsWith('resourceSpecification') && req.user != null) {
-            return tmfUtils.filterRelatedPartyFields(req, () => tmfUtils.ensureRelatedPartyIncluded(req, callback));
-        } else {
-            callback(null);
-        }
-        // validate if a resource specification is returned only by the owner
-    };
-
-    const getResourceAPIUrl = function(path) {
-        const resPath = path.replace(`/${config.endpoints.resource.path}/`, '')
-
-        return utils.getAPIURL(
-            config.endpoints.resource.appSsl,
-            config.endpoints.resource.host,
-            config.endpoints.resource.port,
-            `${config.endpoints.resource.apiPath}/${resPath}`
-        );
-    };
-
-    const retrieveAsset = function(path, callback) {
-        const uri = getResourceAPIUrl(path);
-
-        axios.get(uri).then((response) => {
-            if (response.status >= 400) {
-                callback({
-                    status: response.status
-                });
-            } else {
-                callback(null, {
-                    status: response.status,
-                    body: response.data
-                });
-            }
-        }).catch((err) => {
-            let errCb = {
-                status: err.status
-            }
-
-            if (err.response) {
-                errCb = {
-                    status: err.response.status
-                }
-            }
-            callback(errCb);
-        })
-    };
-
-    const getPrevVersion = function(req, callback) {
-        retrieveAsset(req.apiUrl, (err, response) => {
-            if (err) {
-                if (err.status === 404) {
-                    callback({
-                        status: 404,
-                        message: 'The required resource does not exist'
-                    });
-                } else {
-                    callback({
-                        status: 500,
-                        message: 'The required resource cannot be created/updated'
-                    });
-                }
-            } else {
-                req.prevBody = response.body
-                callback(null)
-            }
-        });
-    }
-
-    const parseBody = function (req, callback) {
-        try {
-            req.parsedBody = JSON.parse(req.body);
-        } catch (e) {
-            callback({
-                status: 400,
-                message: 'The provided body is not a valid JSON'
-            });
-
-            return; // EXIT
-        }
-        callback(null)
-    }
-
-    const validateOwnerSeller = function(req, callback) {
-        if (!tmfUtils.hasPartyRole(req, req.prevBody.relatedParty, config.roles.seller) || !utils.hasRole(req.user, config.roles.seller)) {
-            callback({
-                status: 403,
-                message: 'Unauthorized to update non-owned/non-seller resource specs'
-            });
-        } else{
-            callback(null)
-        }
-    };
 
     const getProductSpecs = function (ref, fields, callback){
         const endpoint = config.endpoints.catalog
@@ -186,52 +93,10 @@ const resource = (function (){
 
     }
 
-   const validateFields = function(req, callback) {
-        const resourceSpec = req.parsedBody
-        if(resourceSpec && resourceSpec.name!==null && resourceSpec.name!==undefined){ // resourceSpec.name === '' should enter here
-            const errorMessage = tmfUtils.validateNameField(resourceSpec.name, 'Resource spec');
-            if (errorMessage) {
-                return callback({
-                    status: 422,
-                    message: errorMessage
-                });
-            }
-        } else if(resourceSpec && req.method === 'POST'){ // resourceSpec.name is null or undefined and it is a POST request
-            return callback({
-                status: 422,
-                message: 'Resource spec name is mandatory'
-            });
-        }
-        if (resourceSpec && resourceSpec.description) {
-            const errorMessage = tmfUtils.validateDescriptionField(resourceSpec.description, 'Resource spec');
-            if (errorMessage) {
-                return callback({
-                    status: 422,
-                    message: errorMessage
-                });
-            }
-        }
-        callback(null)
-    }
-
-    const validateOwnerSellerPost = function(req, callback) {
-        const body = req.parsedBody
-
-        if (!tmfUtils.hasPartyRole(req, body.relatedParty, config.roles.seller) || !utils.hasRole(req.user, config.roles.seller)) {
-            callback({
-                status: 403,
-                message: 'Unauthorized to create non-owned/non-seller resource specs'
-            });
-        }
-        else{
-            callback(null)
-        }
-    };
-
     const validators = {
         GET: [validateRetrieving],
-        POST: [utils.validateLoggedIn, parseBody, validateOwnerSellerPost, validateFields],
-        PATCH: [utils.validateLoggedIn, parseBody, getPrevVersion, validateUpdate, validateOwnerSeller, validateFields],
+        POST: [utils.validateLoggedIn, utils.parseBody, validateOwnerSellerPost, validateNameAndDescription],
+        PATCH: [utils.validateLoggedIn, utils.parseBody, getPrevVersion(config.endpoints.resource), validateUpdate, validateOwnerSeller, validateNameAndDescription],
         PUT: [utils.methodNotAllowed],
         DELETE: [utils.methodNotAllowed]
     };
