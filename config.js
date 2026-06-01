@@ -302,6 +302,13 @@ config.endpoints = {
         apiPath: '',
         host: 'search-service-svc.billing.svc.cluster.local',
         port: '8080'
+    },
+    software: {
+        path: 'software',
+        apiPath: '',
+        host: 'host.docker.internal',
+        port: '8632',
+        appSsl: false
     }
 };
 
@@ -636,6 +643,15 @@ config.endpoints.search.host = process.env.BAE_LP_ENDPOINT_SEARCH_HOST || config
 
 if (!!process.env.BAE_LP_ENDPOINT_SEARCH_SECURED) {
     config.endpoints.search.appSsl = process.env.BAE_LP_ENDPOINT_SEARCH_SECURED == 'true';
+}
+
+// Software management
+config.endpoints.software.apiPath = process.env.BAE_LP_ENDPOINT_SOFTWARE_PATH || config.endpoints.software.apiPath;
+config.endpoints.software.port = process.env.BAE_LP_ENDPOINT_SOFTWARE_PORT || config.endpoints.software.port;
+config.endpoints.software.host = process.env.BAE_LP_ENDPOINT_SOFTWARE_HOST || config.endpoints.software.host;
+
+if (!!process.env.BAE_LP_ENDPOINT_SOFTWARE_SECURED) {
+    config.endpoints.software.appSsl = process.env.BAE_LP_ENDPOINT_SOFTWARE_SECURED == 'true';
 }
 
 
