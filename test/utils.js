@@ -204,6 +204,13 @@ var defaultConfig = {
 			host: 'search.com',
 			port: '8637',
 			appSsl: false
+		},
+		software: {
+			path: 'software',
+			apiPath: '',
+			host: 'host.docker.internal',
+			port: '8632',
+			appSsl: false
 		}
 	},
 	revenueModel: 30,
