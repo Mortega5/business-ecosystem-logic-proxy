@@ -40,6 +40,7 @@ const { revenue } = require('./tmf-apis/revenue')
 const { invoicing } = require('./tmf-apis/invoicing')
 const { search } = require('./tmf-apis/search')
 const { ai } = require('./tmf-apis/ai')
+const { software } = require('./tmf-apis/software')
 
 // Other dependencies
 const logger = require('./../lib/logger').logger.getLogger('TMF')
@@ -72,6 +73,7 @@ function tmf() {
 	apiControllers[config.endpoints.invoicing.path] = invoicing;
 	apiControllers[config.endpoints.search.path] = search;
 	apiControllers[config.endpoints.ai.path] = ai;
+	apiControllers[config.endpoints.software.path] = software;
 
 	const newApis = [
 		config.endpoints.party.path,
@@ -89,7 +91,8 @@ function tmf() {
 		config.endpoints.revenue.path,
 		config.endpoints.invoicing.path,
 		config.endpoints.search.path,
-		config.endpoints.ai.path
+		config.endpoints.ai.path,
+		config.endpoints.software.path
 	]
 
 	const getAPIName = function(apiUrl) {
@@ -111,11 +114,11 @@ function tmf() {
 	//   /catalog/some-id/productOffering -> /productOffering
 	function getResourcePath(pathArray) {
 		pathLength = pathArray.length
-		pathModulo = pathLength % 2 
+		pathModulo = pathLength % 2
 		switch(pathModulo) {
 			case 1:
 				return "/" + pathArray[pathLength-1];
-			case 0: 
+			case 0:
 				return "/" + pathArray[pathLength-2] + "/" + pathArray[pathLength-1];
 		}
 	}
@@ -139,7 +142,7 @@ function tmf() {
 
 	function queryToParams(query) {
 		queryParts = query.split("&")
-		params = [] 
+		params = []
 		for(let i = 0; i < queryParts.length; i++) {
 			params.push(queryParts[i].split("="))
 		}
@@ -168,7 +171,7 @@ function tmf() {
 						newQueryString = newQueryString + "&" + queryParams[i].join("=")
 					}
 					return newQueryString
-				}				
+				}
 			} else {
 				return "category=" + categoryQuery
 			}
@@ -188,11 +191,11 @@ function tmf() {
 		if (queryPart) {
 			return utils.getAPIProtocol(api) + '://' + utils.getAPIHost(api) + ':' + utils.getAPIPort(api) + utils.getAPIPath(api) + getResourcePath(pathArray) + "?" + queryPart
 		} else {
-			return utils.getAPIProtocol(api) + '://' + utils.getAPIHost(api) + ':' + utils.getAPIPort(api) + + utils.getAPIPath(api) + getResourcePath(pathArray)
+			return utils.getAPIProtocol(api) + '://' + utils.getAPIHost(api) + ':' + utils.getAPIPort(api) + utils.getAPIPath(api) + getResourcePath(pathArray)
 		}
 	}
 
-	
+
 	const handleCatalogRequests = function(req, res, api) {
 		pathArray = req.path.split("/")
 		catalogId = getCatalogIdFromPath(pathArray)
@@ -251,7 +254,7 @@ function tmf() {
 				proxyRequest(req, res, api, options)
 			})
 		}
-			
+
 	};
 
 	async function buildOptions(req, url) {
@@ -333,7 +336,7 @@ function tmf() {
 
 			const completeRequest = function(resp) {
 				res.status(resp.status);
-				
+
 				for (let header in resp.headers) {
 					res.setHeader(header, resp.headers[header]);
 				}

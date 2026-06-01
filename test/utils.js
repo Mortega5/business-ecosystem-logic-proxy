@@ -204,7 +204,14 @@ var defaultConfig = {
 			host: 'ai.com',
 			port: '8637',
 			appSsl: false
-		}
+		},
+		software: {
+			path: 'software',
+			apiPath: '',
+			host: 'host.docker.internal',
+			port: '8632',
+			appSsl: false
+		},
 	},
 	revenueModel: 30,
 	complianceServerUrl: 'https://compliance.com',
