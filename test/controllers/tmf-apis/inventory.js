@@ -107,11 +107,16 @@ describe('Inventory API', function() {
             });
         });
 
-        const testRetrieval = function(filterRelatedPartyFields, expectedErr, done) {
+        const testRetrieval = function(path, expectAppendCalled, done) {
             let ensureRelatedPartyIncludedCalled = false;
+            let appendPartyRoleQueryCalled = false;
 
             const tmfUtils = {
-                filterRelatedPartyFields: filterRelatedPartyFields,
+                appendPartyRoleQuery: function(req, partyId, roleName) {
+                    appendPartyRoleQueryCalled = true;
+                    expect(partyId).toBe(req.user.partyId);
+                    expect(roleName).toBe(config.roles.customer);
+                },
 
                 ensureRelatedPartyIncluded: function(req, callback) {
                     ensureRelatedPartyIncludedCalled = true;
@@ -127,67 +132,28 @@ describe('Inventory API', function() {
 
             const req = {
                 method: 'GET',
-                path: '/example/api/path/product'
+                path: path,
+                apiUrl: '/example/api/path/product',
+                query: {},
+                user: { partyId: 'test-user' }
             };
 
             const inventoryApi = getInventoryAPI(tmfUtils, utils);
 
             inventoryApi.checkPermissions(req, function(err) {
                 expect(ensureRelatedPartyIncludedCalled).toBe(true);
-                expect(err).toEqual(expectedErr);
+                expect(appendPartyRoleQueryCalled).toBe(expectAppendCalled);
+                expect(err).toBeNull();
                 done();
             });
         };
 
-        it('should call callback with error when retrieving list of products and filter related party fields fails', function(done) {
-            const error = {
-                status: 401,
-                message: 'Invalid filters'
-            };
-
-            const filterRelatedPartyFields = function(req, callback) {
-                callback(error);
-            };
-
-            testRetrieval(filterRelatedPartyFields, error, done);
+        it('should append party role query when retrieving the list of products', function(done) {
+            testRetrieval('/example/api/path/product', true, done);
         });
 
-        it('should call callback without errors when user is allowed to retrieve the list of products', function(done) {
-            const filterRelatedPartyFields = function(req, callback) {
-                callback();
-            };
-
-            testRetrieval(filterRelatedPartyFields, null, done);
-        });
-
-        it('should call callback without error when retrieving a single product', function(done) {
-            let ensureRelatedPartyIncludedCalled = false;
-
-            const tmfUtils = {
-                ensureRelatedPartyIncluded: function(req, callback) {
-                    ensureRelatedPartyIncludedCalled = true;
-                    callback(null);
-                }
-            };
-
-            const utils = {
-                validateLoggedIn: function(req, callback) {
-                    callback(null);
-                }
-            };
-
-            const req = {
-                method: 'GET',
-                path: '/example/api/path/product/7'
-            };
-
-            const inventoryApi = getInventoryAPI(tmfUtils, utils);
-
-            inventoryApi.checkPermissions(req, function(err) {
-                expect(ensureRelatedPartyIncludedCalled).toBe(true);
-                expect(err).toBe(null);
-                done();
-            });
+        it('should not append party role query when retrieving a single product', function(done) {
+            testRetrieval('/example/api/path/product/7', false, done);
         });
     });
 

@@ -28,13 +28,12 @@ const inventory = (function() {
     const validateRetrieving = function(req, callback) {
         // Check if requesting a list of a single product
         if (req.path.endsWith('product')) {
-            tmfUtils.filterRelatedPartyFields(req, callback);
-        } else {
-            callback();
+            tmfUtils.appendPartyRoleQuery(req, req.user.partyId, config.roles.customer);
         }
 
         // For validating the retrieving of a single product it is necessary to read the product first
         // so it is done in postvalidation method
+        callback(null);
     };
 
     const validators = {
@@ -65,13 +64,6 @@ const inventory = (function() {
                 status: 403,
                 message: 'You are not authorized to retrieve the specified product from the inventory'
             });
-        } else if (Array.isArray(body)) {
-            // TODO: This filter should be done by API itself
-            const newBody = body.filter((product) => {
-                return tmfUtils.hasPartyRole(req, product.relatedParty, config.roles.customer)
-            })
-            utils.updateResponseBody(req, newBody)
-            callback(null)
         } else {
             callback(null);
         }
