@@ -26,13 +26,12 @@ const resourceInventory = (function() {
     const validateRetrieving = function(req, callback) {
         // Check if requesting a list of a single resource
         if (req.path.endsWith('resource')) {
-            tmfUtils.filterRelatedPartyFields(req, callback);
-        } else {
-            callback();
+            tmfUtils.appendPartyRoleQuery(req, req.user.partyId, config.roles.customer);
         }
 
         // For validating the retrieving of a single resource it is necessary to read the resource first
         // so it is done in postvalidation method
+        callback(null);
     };
 
     const validators = {
@@ -62,13 +61,6 @@ const resourceInventory = (function() {
                 status: 403,
                 message: 'You are not authorized to retrieve the specified resource from the inventory'
             });
-        } else if (Array.isArray(body)) {
-            // TODO: This filter should be done by API itself
-            const newBody = body.filter((resource) => {
-                return tmfUtils.hasPartyRole(req, resource.relatedParty, config.roles.customer)
-            })
-            utils.updateResponseBody(req, newBody)
-            callback(null)
         } else {
             callback(null);
         }

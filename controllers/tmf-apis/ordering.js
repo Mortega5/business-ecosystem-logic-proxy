@@ -55,7 +55,11 @@ const ordering = (function() {
     //////////////////////////////////////////////////////////////////////////////////////////////
 
     const validateRetrieving = function(req, callback) {
-        tmfUtils.filterRelatedPartyWithRole(req, [config.roles.customer.toLowerCase(), config.roles.seller.toLowerCase()], callback);
+        const role = req.query['relatedParty.role'] && req.query['relatedParty.role'].toLowerCase() === SELLER.toLowerCase()
+            ? SELLER
+            : CUSTOMER;
+        tmfUtils.appendPartyRoleQuery(req, req.user.partyId, role);
+        callback(null);
     };
 
     //////////////////////////////////////////////////////////////////////////////////////////////
@@ -727,14 +731,7 @@ const ordering = (function() {
     const executePostValidation = function(req, callback) {
         // TODO: Filter the result of the PATCH request
         if (['GET', 'PUT'].indexOf(req.method.toUpperCase()) >= 0) {
-            filterOrderItems(req, (err) => {
-                if (req.method.toUpperCase() != 'GET' || err != null) {
-                    callback(err)
-                } else {
-                    // Filter results
-                    filterOrders(req, callback)
-                }
-            });
+            filterOrderItems(req, callback);
         } else if (req.method === 'POST') {
             const tasks = [];
             tasks.push(notifyOrder.bind(this, req));

@@ -26,13 +26,12 @@ const serviceInventory = (function() {
     const validateRetrieving = function(req, callback) {
         // Check if requesting a list of a single service
         if (req.path.endsWith('service')) {
-            tmfUtils.filterRelatedPartyFields(req, callback);
-        } else {
-            callback();
+            tmfUtils.appendPartyRoleQuery(req, req.user.partyId, config.roles.customer);
         }
 
         // For validating the retrieving of a single service it is necessary to read the service first
         // so it is done in postvalidation method
+        callback(null);
     };
 
     const validators = {
@@ -57,19 +56,11 @@ const serviceInventory = (function() {
         const body = req.body;
 
         // Check if the user is allowed to retrieve the requested service
-        console.log(body)
         if (!Array.isArray(body) && !tmfUtils.hasPartyRole(req, body.relatedParty, config.roles.customer)) {
             callback({
                 status: 403,
                 message: 'You are not authorized to retrieve the specified service from the inventory'
             });
-        } else if (Array.isArray(body)) {
-            // TODO: This filter should be done by API itself
-            const newBody = body.filter((service) => {
-                return tmfUtils.hasPartyRole(req, service.relatedParty, config.roles.customer)
-            })
-            utils.updateResponseBody(req, newBody)
-            callback(null)
         } else {
             callback(null);
         }
