@@ -335,7 +335,9 @@ function tmf() {
 
 	const proxyRequest = function(req, res, api, options) {
 		// PROXY THE REQUEST
+		const proxyStart = Date.now();
 		axios.request(options).then((response) => {
+			utils.logOutgoing(logger, 'info', req, `OUTGOING - ${options.method || req.method} ${options.url} - ${response.status} - ${Date.now() - proxyStart}ms`);
 
 			const completeRequest = function(resp) {
 				res.status(resp.status);
@@ -404,8 +406,7 @@ function tmf() {
 				completeRequest(result);
 			}
 		}).catch((err) => {
-			console.log(err)
-			utils.log(logger, 'error', req, 'Proxy error: ' + err.message);
+			utils.logOutgoing(logger, 'error', req, `OUTGOING - ${options.method || req.method} ${options.url} - ERROR - ${Date.now() - proxyStart}ms - ${err.message}`, err.response?.data ?? err);
 
 			if (err.response) {
                 res.status(err.response.status).json(err.response.data)
