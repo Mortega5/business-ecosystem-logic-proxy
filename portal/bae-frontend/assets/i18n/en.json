@@ -887,6 +887,29 @@
       "_no_billing_rates": "No billing rates found",
       "_period_coverage": "Period Coverage"
     },
+    "CREATE_SOFTWARE": {
+      "_back": "Back",
+      "_create": "Create Software",
+      "_status": "Status",
+      "_new": "New Software",
+      "_steps": "Steps",
+      "_general": "General",
+      "_general_info": "Software's general information",
+      "_actions": "Actions",
+      "_type": "Type",
+      "_preview": "Preview",
+      "_show_preview": "Show preview",
+      "_name": "Name",
+      "_description": "Description",
+      "_next": "Next",
+      "_summary": "Software's summary",
+      "_finish": "Finish"
+    },
+    "UPDATE_SOFTWARE": {
+      "_save": "Save",
+      "_edit": "Update Software Resource",
+      "_update": "Update Software"
+    },
     "CREATE_CATALOG": {
       "_back": "Back",
       "_create": "Create catalogue",
@@ -1122,7 +1145,9 @@
       "_description": "Description",
       "_next": "Next",
       "_finish": "Finish",
-      "_create_res": "Create resource"
+      "_create_res": "Create resource",
+      "_base_template": "Template",
+      "_no_config": "No configuration required for the selected template."
     },
     "UPDATE_RES_SPEC": {
       "_back": "Back",
@@ -1151,7 +1176,8 @@
       "_description": "Description",
       "_next": "Next",
       "_finish": "Finish",
-      "_update_res": "Update resource"
+      "_update_res": "Update resource",
+      "_no_config": "No configuration required for the selected template."
     },
     "CREATE_SERV_SPEC": {
       "_back": "Back",
@@ -1413,12 +1439,14 @@
     },
     "OFFERINGS": {
       "_catalogs": "Catalogues",
+      "_softwares": "Software",
       "_offers": "Offer",
       "_no_offer": "No offerings included.",
       "_no_offerings": "There's no product offerings.",
       "_no_prod": "There's no product specifications.",
       "_no_prod_rel": "There's no product specifications, so you can't create relationships.",
       "_no_cat": "There's no catalogues.",
+      "_no_software": "There's no softwares.",
       "_no_categories": "There's no categories.",
       "_no_res": "There's no resource specifications",
       "_no_serv": "There's no service specifications",
@@ -1457,7 +1485,9 @@
       "_role": "Role",
       "_choose": "Choose between our Catalogues",
       "_offerings": "Offerings",
-      "_my_offerings": "My offerings"
+      "_my_offerings": "My offerings",
+      "_add_new_software": "Add new Software",
+      "_create_custom_offer": "Create custom offer"
     },
     "ADMIN": {
       "_admin": "Administration",
@@ -1965,7 +1995,11 @@
     "_applied_billing_rates": "Applied Billing Rates",
     "_product_acbr_ref": "Product ACBR reference",
     "_no_billing_rates": "No billing rates found",
-    "_period_coverage": "Period Coverage"
+    "_period_coverage": "Period Coverage",
+    "_download": "Download",
+    "_edit": "Edit",
+    "_save": "Save",
+    "_cancel": "Cancel"
   },
   "CREATE_CATALOG": {
     "_back": "Back",
@@ -1984,6 +2018,40 @@
     "_next": "Next",
     "_summary": "Catalogue's summary",
     "_finish": "Finish"
+  },
+  "CREATE_SOFTWARE": {
+    "_back": "Back",
+    "_create": "Create Software",
+    "_status": "Status",
+    "_new": "New Software",
+    "_steps": "Steps",
+    "_general": "General",
+    "_general_info": "Software's general information",
+    "_actions": "Actions",
+    "_type": "Type",
+    "_preview": "Preview",
+    "_show_preview": "Show preview",
+    "_name": "Name",
+    "_description": "Description",
+    "_next": "Next",
+    "_summary": "Software's summary",
+    "_finish": "Finish",
+    "_no_chars": "No characteristics included.",
+    "_new_char": "Create new characteristic",
+    "_values": "Values",
+    "_add_char_value": "Add value",
+    "_save_char": "Save characteristic",
+    "_range": "Range",
+    "_add_value": "Add value",
+    "_amount": "Amount",
+    "_unit": "Unit",
+    "_from": "From",
+    "_to": "To"
+  },
+  "UPDATE_SOFTWARE": {
+    "_save": "Save",
+    "_edit": "Update Software Resource",
+    "_update": "Update Software"
   },
   "UPDATE_CATALOG": {
     "_back": "Back",
@@ -2093,7 +2161,10 @@
     "_dsp_endpoint_url_placeholder": "https://example.com/endpoint",
     "_dsp_endpoint_description": "Description",
     "_dsp_endpoint_description_placeholder": "Describe this endpoint...",
-    "_dsp_add_endpoint": "Add Endpoint"
+    "_dsp_add_endpoint": "Add Endpoint",
+    "_base_template": "Template",
+    "_configurable": "Configurable",
+    "_no_config": "No configuration required for the selected template."
   },
   "UPDATE_PROD_SPEC": {
     "_back": "Back",
@@ -2209,7 +2280,10 @@
     "_description": "Description",
     "_next": "Next",
     "_finish": "Finish",
-    "_create_res": "Create resource"
+    "_create_res": "Create resource",
+    "_base_template": "Template",
+    "_configurable": "Configurable",
+    "_no_config": "No configuration required for the selected template."
   },
   "UPDATE_RES_SPEC": {
     "_back": "Back",
@@ -2238,7 +2312,34 @@
     "_description": "Description",
     "_next": "Next",
     "_finish": "Finish",
-    "_update_res": "Update resource"
+    "_update_res": "Update resource",
+    "_no_config": "No configuration required for the selected template."
+  },
+  "BLUEPRINT_PROD": {
+    "_items": "Components",
+    "_no_items": "No components added yet. Add at least one to continue.",
+    "_add_item": "Add component",
+    "_load_more": "Load more",
+    "_orchestration_plan": "Orchestration Plan",
+    "_step_id": "Step ID",
+    "_step_service": "Service",
+    "_step_depends_on": "Depends On",
+    "_step_wait_healthy": "Wait for Healthy",
+    "_step_timeout": "Timeout (seconds)",
+    "_step_on_failure": "On Failure",
+    "_add_step": "Add Step",
+    "_update_step": "Update Step",
+    "_cancel": "Cancel",
+    "_no_steps": "No steps added yet.",
+    "_actions": "Actions",
+    "_edit_step": "Edit step",
+    "_delete_step": "Delete step",
+    "_none": "None",
+    "_on_failure_abort": "Abort",
+    "_on_failure_continue": "Continue",
+    "_on_failure_retry": "Retry",
+    "_helm_values_override": "Helm Values Override",
+    "_cycle_error": "Cyclic dependency detected. A step cannot depend on itself or on a step that transitively depends on it."
   },
   "CREATE_SERV_SPEC": {
     "_back": "Back",
@@ -2505,12 +2606,14 @@
   },
   "OFFERINGS": {
     "_catalogs": "Catalogues",
+    "_softwares": "Software",
     "_offers": "Offer",
     "_no_offer": "No offerings included.",
     "_no_offerings": "There's no product offerings.",
     "_no_prod": "There's no product specifications.",
     "_no_prod_rel": "There's no product specifications, so you can't create relationships.",
     "_no_cat": "There's no catalogues.",
+    "_no_software": "There's no softwares.",
     "_no_categories": "There's no categories.",
     "_no_res": "There's no resource specifications",
     "_no_serv": "There's no service specifications",
@@ -2542,6 +2645,7 @@
     "_prod_offer": "Product offer",
     "_add_new_offer": "Add new product offer",
     "_add_new_catalog": "Add new catalogue",
+    "_add_new_software": "Add new Software",
     "_filter_role": "Filter by role",
     "_seller": "Seller",
     "_owner": "Owner",
@@ -2549,7 +2653,8 @@
     "_role": "Role",
     "_choose": "Choose between our Catalogues",
     "_offerings": "Offerings",
-    "_my_offerings": "My offerings"
+    "_my_offerings": "My offerings",
+    "_create_custom_offer": "Create custom offer"
   },
   "ADMIN": {
     "_admin": "Administration",
@@ -2677,7 +2782,13 @@
     "_show_customer_details": "Show Customer Details",
     "_img": "Img",
     "_price_plan": "Price Plan",
-    "_state": "State"
+    "_state": "State",
+    "_show_notes": "Show notes",
+    "_acknowledge_order": "Acknowledge the order item",
+    "_reject_order": "Reject the order item",
+    "_start_treatment": "Start order treatment",
+    "_complete_order": "Order completely treated",
+    "_fail_order": "Order completely failed"
   },
   "FORMS": {
     "PROCUREMENT_MODE": {
@@ -2764,6 +2875,16 @@
       "_actions": "Actions",
       "_delete_price_comp": "Are you sure you want to delete this Price Component?",
       "_unable_undone": "This action can't be undone."
+    },
+    "PAGINATED_TABLE": {
+      "_rows_per_page": "Rows per page",
+      "_showing": "Showing {{rangeStart}}-{{rangeEnd}} of {{total}}",
+      "_first": "First page",
+      "_previous": "Previous page",
+      "_next": "Next page",
+      "_last": "Last page",
+      "_error_loading": "Error loading data",
+      "_selected_count": "{{count}} selected"
     }
   },
   "USAGE_SPECS": {
@@ -2833,5 +2954,24 @@
     "_thanks": "Thank you for contacting DOME Marketplace.",
     "_footer_title": "How would you rate your overall experience with DOME?",
     "_footer_improve": "How can we improve DOME?"
+  },
+  "CHAR_SPEC": {
+    "_char_name": "Name",
+    "_configurable": "Configurable",
+    "_description": "Description",
+    "_value_type": "Value Type",
+    "_type_string": "String",
+    "_type_number": "Number",
+    "_type_range": "Range",
+    "_type_boolean": "Boolean",
+    "_type_object": "Object (JSON)",
+    "_value": "Value",
+    "_unit": "Unit of Measure",
+    "_value_from": "From",
+    "_value_to": "To",
+    "_is_default": "Default Value",
+    "_add_value": "Add Value",
+    "_true": "True",
+    "_false": "False"
   }
 }
