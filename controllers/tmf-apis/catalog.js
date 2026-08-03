@@ -90,7 +90,14 @@ const catalog = (function() {
 
     const getDependencySpecs = function (endpoint, path, refs, fields, callback){
 
-        const specPath = `/${path}?id=${tmfUtils.refsToQuery(refs)}&fields=${fields}`
+        let specPath = '';
+        // If there is only one id, get the asset directly to speed up API response.
+        if (!!refs && refs.length === 1) {
+            specPath = `/${path}/${tmfUtils.refsToQuery(refs)}?fields=${fields}`
+         } else {
+            specPath = `/${path}?id=${tmfUtils.refsToQuery(refs)}&fields=${fields}`
+         }
+
         const uri = utils.getAPIURL(
             endpoint.appSsl,
             endpoint.host,
@@ -98,9 +105,14 @@ const catalog = (function() {
             `${endpoint.apiPath}${specPath}`
         );
         axios.get(uri).then((response) => {
+            let body = response.data;
+            if (!Array.isArray(body)) {
+                body = body ? [body] : [];
+            }
+
             callback(null, {
                 status: response.status,
-                body: response.data
+                body: body
             });
 
         }).catch((err) => {
@@ -272,7 +284,7 @@ const catalog = (function() {
                         const product = result.body;
                         isOwner = tmfUtils.isOwner(req, product);
                     }
-                 
+
                     hdlrCallback(isOwner);
                 });
             } else {
@@ -917,13 +929,13 @@ const catalog = (function() {
                             message: 'Missing required field href in bundleProductSpecification'
                         });
                     }
-    
+
                     retrieveProduct(spec.id, function(err, result) {
                         if (err) {
                             taskCallback(err);
                         } else {
                             const product = result.body;
-    
+
                             // Validate that the bundle products belong to the same owner
                             if (!tmfUtils.isOwner(req, product)) {
                                 return taskCallback({
