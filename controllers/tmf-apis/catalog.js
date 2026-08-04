@@ -335,7 +335,10 @@ const catalog = (function() {
                 const catalog = result.body;
                 if (catalog.category && catalog.category.length > 0) {
                     if (offeringBody.category) {
-                        offeringBody.category.push(catalog.category[0])
+                        const alreadyIncluded = offeringBody.category.some((cat) => cat.id === catalog.category[0].id)
+                        if (!alreadyIncluded) {
+                            offeringBody.category.push(catalog.category[0])
+                        }
                     } else {
                         offeringBody.category = [catalog.category[0]];
                     }
