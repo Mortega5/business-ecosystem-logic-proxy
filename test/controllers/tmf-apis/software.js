@@ -386,7 +386,11 @@ describe('Software API', function() {
                 const resourceMock = nock(SERVER)
                     .get(apiPath + '/resource')
                     .query({ 'resourceSpecification.id': 'urn:sw:1', fields: 'lifecycleStatus' })
-                    .reply(200, [{ id: 'res1', lifecycleStatus: 'Active' }]);
+                    .reply(200, [
+                        { id: 'res1', lifecycleStatus: 'Active' },
+                        { id: 'res2', lifecycleStatus: 'Retired' },
+                        { id: 'res3', lifecycleStatus: 'Active' }
+                    ]);
 
                 testUpdateSpec('urn:sw:1', {
                     id: 'urn:sw:1',
@@ -394,7 +398,7 @@ describe('Software API', function() {
                     relatedParty: ownerRelatedParty
                 }, { lifecycleStatus: 'Retired' }, {
                     status: 409,
-                    message: RETIRE_ERROR
+                    message: `${RETIRE_ERROR} (blocked by resources res1, res3)`
                 }, done, resourceMock);
             });
 
