@@ -2,7 +2,7 @@ const async = require('async')
 const config = require('./../../config')
 const utils = require('./../../lib/utils')
 const tmfUtils = require('./../../lib/tmfUtils')
-const { validateRetrieving, validateOwnerSellerPost, validateNameAndDescription, getPrevVersion, validateOwnerSeller, canRetireSpec } = require('./../../lib/resourceUtils')
+const { validateRetrieving, validateOwnerSellerPost, validateNameAndDescription, getPrevVersion, validateOwnerSeller, getBlockingResources } = require('./../../lib/resourceUtils')
 const axios = require('axios')
 
 const logger = require('./../../lib/logger').logger.getLogger('TMF')
@@ -39,8 +39,17 @@ const software = (function () {
             });
 
         }).catch((err) => {
+            let backendMessage = err.message;
+            if (err.response) {
+                try {
+                    backendMessage = JSON.stringify(err.response.data);
+                } catch (e) {
+                    backendMessage = String(err.response.data);
+                }
+            }
             callback({
-                status: err.status
+                status: err.response ? err.response.status : 500,
+                message: `It was impossible to retrieve the resources linked to the resource spec: ${backendMessage}`
             });
         })
     }
@@ -69,11 +78,12 @@ const software = (function () {
                 if (err) {
                     return callback(err)
                 }
-                const data = response.body
-                if (canRetireSpec(data)) {
+                const blockingResources = getBlockingResources(response.body)
+                if (blockingResources.length > 0) {
+                    const blockingIds = blockingResources.map(resource => resource.id).join(', ');
                     return callback({
                         status: 409,
-                        message: `Cannot retire a resource spec without retiring all resources linked with it`
+                        message: `Cannot retire a resource spec without retiring all resources linked with it (blocked by resources ${blockingIds})`
                     })
                 }
                 callback(null)

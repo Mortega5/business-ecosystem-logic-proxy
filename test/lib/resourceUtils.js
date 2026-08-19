@@ -326,33 +326,41 @@ describe('resourceUtils', function() {
         });
     });
 
-    // ─── canRetireSpec ────────────────────────────────────────────────────────
+    // ─── getBlockingResources ─────────────────────────────────────────────────
 
-    describe('canRetireSpec', function() {
+    describe('getBlockingResources', function() {
 
-        it('should return false when all resources are retired or obsolete', function() {
+        it('should return an empty array when all resources are retired or obsolete', function() {
             const data = [
                 { lifecycleStatus: 'Retired' },
                 { lifecycleStatus: 'Obsolete' }
             ];
-            expect(resourceUtils.canRetireSpec(data)).toBe(false);
+            expect(resourceUtils.getBlockingResources(data)).toEqual([]);
         });
 
-        it('should return true when at least one resource is active', function() {
+        it('should return the resources that are not retired/obsolete', function() {
             const data = [
-                { lifecycleStatus: 'Active' },
-                { lifecycleStatus: 'Retired' }
+                { id: 'res1', lifecycleStatus: 'Active' },
+                { id: 'res2', lifecycleStatus: 'Retired' }
             ];
-            expect(resourceUtils.canRetireSpec(data)).toBe(true);
+            expect(resourceUtils.getBlockingResources(data)).toEqual([{ id: 'res1', lifecycleStatus: 'Active' }]);
         });
 
-        it('should return false for empty array', function() {
-            expect(resourceUtils.canRetireSpec([])).toBe(false);
+        it('should return an empty array for empty array', function() {
+            expect(resourceUtils.getBlockingResources([])).toEqual([]);
         });
 
-        it('should return true for null or undefined (conservative: no data means cannot confirm retirement is safe)', function() {
-            expect(resourceUtils.canRetireSpec(null)).toBe(true);
-            expect(resourceUtils.canRetireSpec(undefined)).toBe(true);
+        it('should return an empty array for null or undefined (no data means no linked resources)', function() {
+            expect(resourceUtils.getBlockingResources(null)).toEqual([]);
+            expect(resourceUtils.getBlockingResources(undefined)).toEqual([]);
+        });
+
+        it('should treat a resource with no lifecycleStatus as blocking instead of throwing', function() {
+            const data = [
+                { id: 'res1', lifecycleStatus: 'Retired' },
+                { id: 'res-without-status' }
+            ];
+            expect(resourceUtils.getBlockingResources(data)).toEqual([{ id: 'res-without-status' }]);
         });
     });
 });

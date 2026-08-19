@@ -103,8 +103,8 @@ function tmf() {
 	};
 
 	const sendError = function(res, err) {
-		const status = err.status;
-		const errMsg = err.message;
+		const status = err.status || 500;
+		const errMsg = err.message || 'Internal server error';
 
 		res.status(status);
 		res.json({ error: errMsg });
