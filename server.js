@@ -562,7 +562,8 @@ app.get('/config', async (_, res) => {
         learUrl: config.learUrl,
         launchValidationEnabled: featureFlags.launchValidationEnabled,
         searchFilters: searchFilters,
-        tenderDevButtonsOpenCloseEnabled: featureFlags.tenderDevButtonsOpenCloseEnabled
+        tenderDevButtonsOpenCloseEnabled: featureFlags.tenderDevButtonsOpenCloseEnabled,
+        dspContractDefinitionSchema: config.dspContractDefinitionSchema
     })
 })
 
