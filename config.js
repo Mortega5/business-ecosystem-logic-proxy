@@ -869,3 +869,9 @@ if (!!process.env.BAE_LP_ENDPOINT_AI_SECURED) {
 if (!!process.env.BAE_LP_TENDER_DEV_BUTTON_ENABLED) {
     config.tenderDevButtonsOpenCloseEnabled = process.env.BAE_LP_TENDER_DEV_BUTTON_ENABLED == 'true';
 }
+
+config.dspContractDefinitionSchema = 'https://gist.githubusercontent.com/vramperez/e50df47dde789a05e0a4bdca39cf7349/raw/54a6b39beffc0c309db08f7e80c6a532a0ce9765/deployment-definition.json'
+
+if (!!process.env.BAE_LP_DSP_CONTRACT_DEFINITION_SCHEMA) {
+    config.dspContractDefinitionSchema = process.env.BAE_LP_DSP_CONTRACT_DEFINITION_SCHEMA;
+}
