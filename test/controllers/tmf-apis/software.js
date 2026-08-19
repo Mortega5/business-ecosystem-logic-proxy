@@ -223,6 +223,50 @@ describe('Software API', function() {
                     message: 'Unauthorized to create non-owned/non-seller resource specs'
                 }, done);
             });
+
+            it('should get/create a SoftwareSupportPackage when creating a SoftwareSpecification', function(done) {
+                const specMock = nock(SERVER)
+                    .get(apiPath + '/resourceSpecification')
+                    .query({ '@type': 'SoftwareSupportPackageSpecification' })
+                    .reply(200, [])
+                    .post(apiPath + '/resourceSpecification')
+                    .reply(201, { id: 'urn:sw:support-spec:1', type: 'SoftwareSupportPackageSpec' });
+
+                const packageMock = nock(SERVER)
+                    .post(apiPath + '/resource')
+                    .reply(201, { id: 'urn:sw:support-package:1', type: 'SoftwareSupportPackage' });
+
+                const utils = {
+                    validateLoggedIn: function(req, callback) { callback(null); },
+                    methodNotAllowed: methodNotAllowed,
+                    parseBody: parseBody,
+                    updateBody: function(req, newBody) { req.body = JSON.stringify(newBody); }
+                };
+
+                const softwareAPI = getSoftwareAPI({}, utils);
+                const req = {
+                    user: seller,
+                    method: 'POST',
+                    body: JSON.stringify({
+                        id: 'swSpec',
+                        '@type': 'SoftwareSpecification',
+                        name: 'valid name',
+                        relatedParty: ownerRelatedParty
+                    }),
+                    apiUrl: '/' + config.endpoints.software.path + path,
+                    url: path,
+                    hostname: config.endpoints.software.host,
+                    headers: {}
+                };
+
+                softwareAPI.checkPermissions(req, function(err) {
+                    expect(err).toBe(null);
+                    expect(JSON.parse(req.body).softwareSupportPackage).toEqual({ id: 'urn:sw:support-package:1' });
+                    specMock.done();
+                    packageMock.done();
+                    done();
+                });
+            });
         });
 
         describe('update', function() {
@@ -354,6 +398,92 @@ describe('Software API', function() {
                 }, done, resourceMock);
             });
 
+            it('should patch the linked SoftwareSupportPackage when resourceCharacteristic is updated', function(done) {
+                const prevBody = {
+                    id: 'urn:sw:1',
+                    '@type': 'SoftwareSpecification',
+                    lifecycleStatus: 'Active',
+                    relatedParty: ownerRelatedParty,
+                    softwareSupportPackage: { id: 'urn:sw:support-package:1' }
+                };
+
+                nock(SERVER).get(apiPath + path + '/urn:sw:1').reply(200, prevBody);
+
+                const patchMock = nock(SERVER)
+                    .patch(apiPath + '/resource/urn:sw:support-package:1', {
+                        resourceCharacteristic: [{ name: 'cpu', value: '2' }]
+                    })
+                    .reply(200, {});
+
+                const utils = {
+                    validateLoggedIn: (req, callback) => callback(null),
+                    methodNotAllowed: methodNotAllowed,
+                    parseBody: parseBody,
+                    updateBody: function(req, newBody) { req.body = JSON.stringify(newBody); }
+                };
+
+                const softwareAPI = getSoftwareAPI({}, utils);
+                const req = {
+                    user: seller,
+                    method: 'PATCH',
+                    body: JSON.stringify({ resourceCharacteristic: [{ name: 'cpu', value: '2' }] }),
+                    apiUrl: '/' + config.endpoints.software.path + path + '/urn:sw:1',
+                    url: path + '/urn:sw:1',
+                    hostname: config.endpoints.software.host,
+                    headers: {}
+                };
+
+                softwareAPI.checkPermissions(req, function(err) {
+                    expect(err).toBe(null);
+                    expect(JSON.parse(req.body).resourceCharacteristic).toBeUndefined();
+                    patchMock.done();
+                    done();
+                });
+            });
+
+            it('should raise 500 if the software support package cannot be updated', function(done) {
+                const prevBody = {
+                    id: 'urn:sw:1',
+                    '@type': 'SoftwareSpecification',
+                    lifecycleStatus: 'Active',
+                    relatedParty: ownerRelatedParty,
+                    softwareSupportPackage: { id: 'urn:sw:support-package:1' }
+                };
+
+                nock(SERVER).get(apiPath + path + '/urn:sw:1').reply(200, prevBody);
+
+                const patchMock = nock(SERVER)
+                    .patch(apiPath + '/resource/urn:sw:support-package:1')
+                    .reply(500);
+
+                const utils = {
+                    validateLoggedIn: (req, callback) => callback(null),
+                    methodNotAllowed: methodNotAllowed,
+                    parseBody: parseBody,
+                    updateBody: function(req, newBody) { req.body = JSON.stringify(newBody); }
+                };
+
+                const softwareAPI = getSoftwareAPI({}, utils);
+                const req = {
+                    user: seller,
+                    method: 'PATCH',
+                    body: JSON.stringify({ resourceCharacteristic: [{ name: 'cpu', value: '2' }] }),
+                    apiUrl: '/' + config.endpoints.software.path + path + '/urn:sw:1',
+                    url: path + '/urn:sw:1',
+                    hostname: config.endpoints.software.host,
+                    headers: {}
+                };
+
+                softwareAPI.checkPermissions(req, function(err) {
+                    expect(err).toEqual({
+                        status: 500,
+                        message: 'It was impossible to update the software support package'
+                    });
+                    patchMock.done();
+                    done();
+                });
+            });
+
         });
 
         describe('not allowed methods', function() {
@@ -376,6 +506,103 @@ describe('Software API', function() {
 
             it('should raise 405 for DELETE requests', function(done) {
                 testNotAllowedMethod('DELETE', done);
+            });
+        });
+    });
+
+    describe('handle API error', function() {
+
+        const getAPIURL = function(ssl, host, port, path) {
+            return (ssl ? 'https' : 'http') + '://' + host + ':' + port + path;
+        };
+
+        it('should remove the orphan SoftwareSupportPackage when creating a SoftwareSpecification fails', function(done) {
+            const deleteMock = nock(SERVER)
+                .delete(apiPath + '/resource/urn:sw:support-package:1')
+                .reply(204);
+
+            const utils = { getAPIURL: getAPIURL };
+            const softwareAPI = getSoftwareAPI({}, utils);
+
+            const response = {
+                status: 422,
+                method: 'POST',
+                reqBody: JSON.stringify({
+                    '@type': 'SoftwareSpecification',
+                    name: 'valid name',
+                    relatedParty: ownerRelatedParty,
+                    softwareSupportPackage: { id: 'urn:sw:support-package:1' }
+                })
+            };
+
+            softwareAPI.handleAPIError(response, function(err) {
+                expect(err).toBe(null);
+                deleteMock.done();
+                done();
+            });
+        });
+
+        it('should not attempt to delete anything when the failed request has no softwareSupportPackage', function(done) {
+            const utils = { getAPIURL: getAPIURL };
+            const softwareAPI = getSoftwareAPI({}, utils);
+
+            const response = {
+                status: 422,
+                method: 'POST',
+                reqBody: JSON.stringify({
+                    '@type': 'SoftwareSpecification',
+                    name: 'valid name',
+                    relatedParty: ownerRelatedParty
+                })
+            };
+
+            softwareAPI.handleAPIError(response, function(err) {
+                expect(err).toBe(null);
+                expect(nock.pendingMocks().length).toBe(0);
+                done();
+            });
+        });
+
+        it('should not attempt to delete anything when the failed request is not a SoftwareSpecification', function(done) {
+            const utils = { getAPIURL: getAPIURL };
+            const softwareAPI = getSoftwareAPI({}, utils);
+
+            const response = {
+                status: 422,
+                method: 'POST',
+                reqBody: JSON.stringify({
+                    name: 'valid name',
+                    relatedParty: ownerRelatedParty,
+                    softwareSupportPackage: { id: 'urn:sw:support-package:1' }
+                })
+            };
+
+            softwareAPI.handleAPIError(response, function(err) {
+                expect(err).toBe(null);
+                expect(nock.pendingMocks().length).toBe(0);
+                done();
+            });
+        });
+
+        it('should not attempt to delete the SoftwareSupportPackage when a PATCH fails', function(done) {
+            const utils = { getAPIURL: getAPIURL };
+            const softwareAPI = getSoftwareAPI({}, utils);
+
+            const response = {
+                status: 422,
+                method: 'PATCH',
+                reqBody: JSON.stringify({
+                    '@type': 'SoftwareSpecification',
+                    name: 'valid name',
+                    relatedParty: ownerRelatedParty,
+                    softwareSupportPackage: { id: 'urn:sw:support-package:1' }
+                })
+            };
+
+            softwareAPI.handleAPIError(response, function(err) {
+                expect(err).toBe(null);
+                expect(nock.pendingMocks().length).toBe(0);
+                done();
             });
         });
     });
