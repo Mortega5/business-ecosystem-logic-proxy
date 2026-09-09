@@ -471,6 +471,57 @@ describe('Auth lib', function () {
     }).catch(done.fail);
   });
 
+  it('authMiddleware refresh is single-flight when two requests race on the same refreshToken', function (done) {
+    const stubs = makeStubs();
+    const { auth, authMiddleware } = loadSUT(stubs);
+
+    auth({ provider: 'fiware' }).then(function ({ STRATEGY }) {
+      const nearExp = Math.floor(Date.now() / 1000) + 4;
+
+      stubs.partyStub.partyClient.getIndividualsByQuery.and.returnValue(Promise.resolve({ body: [] }));
+      stubs.partyStub.partyClient.createIndividual.and.returnValue(Promise.resolve({ body: { id: 'INDIV-R' } }));
+
+      const prof = baseProfile({ expire: nearExp });
+
+      STRATEGY.__triggerVerify('TOKEN-R', 'REFRESH-R', prof).then(function () {
+        // Resolve asynchronously so both concurrent calls are in-flight before either completes,
+        // simulating two requests racing to refresh at (almost) the same time.
+        const refreshSpy = spyOn(STRATEGY, 'refresh').and.callFake(function (refreshToken, cb) {
+          setTimeout(function () { cb(null, 'TOKEN-R-NEW', 'REFRESH-R-NEW'); }, 10);
+        });
+
+        const mw = authMiddleware({ local: { STRATEGY } });
+
+        const makeReq = () => ({
+          user: Object.assign({}, prof, { accessToken: 'TOKEN-R', refreshToken: 'REFRESH-R' }),
+          session: { passport: {}, save: function (cb) { cb && cb(); } }
+        });
+
+        const req1 = makeReq();
+        const req2 = makeReq();
+        const res = {};
+
+        let completed = 0;
+        const onDone = function () {
+          completed++;
+          if (completed === 2) {
+            try {
+              expect(refreshSpy.calls.count()).toBe(1);
+              expect(req1.user.accessToken).toBe('TOKEN-R-NEW');
+              expect(req2.user.accessToken).toBe('TOKEN-R-NEW');
+              done();
+            } catch (e) {
+              done.fail(e);
+            }
+          }
+        };
+
+        mw.headerAuthentication(req1, res, onDone);
+        mw.headerAuthentication(req2, res, onDone);
+      }).catch(done.fail);
+    }).catch(done.fail);
+  });
+
     describe('buildOrganization branches', function() {
 
     it('creates organization when none exists and includes country characteristic', function(done) {
