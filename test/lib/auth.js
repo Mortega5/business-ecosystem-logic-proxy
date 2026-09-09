@@ -522,6 +522,56 @@ describe('Auth lib', function () {
     }).catch(done.fail);
   });
 
+  it('authMiddleware refresh does not crash the process with an unhandled rejection when the refresh call fails', function (done) {
+    const stubs = makeStubs();
+    const { auth, authMiddleware } = loadSUT(stubs);
+
+    const onUnhandledRejection = function (reason) {
+      done.fail('Unhandled rejection: ' + reason);
+    };
+    process.once('unhandledRejection', onUnhandledRejection);
+
+    auth({ provider: 'fiware' }).then(function ({ STRATEGY }) {
+      const nearExp = Math.floor(Date.now() / 1000) + 4;
+
+      stubs.partyStub.partyClient.getIndividualsByQuery.and.returnValue(Promise.resolve({ body: [] }));
+      stubs.partyStub.partyClient.createIndividual.and.returnValue(Promise.resolve({ body: { id: 'INDIV-R' } }));
+
+      const prof = baseProfile({ expire: nearExp });
+
+      STRATEGY.__triggerVerify('TOKEN-R', 'REFRESH-R', prof).then(function () {
+        spyOn(STRATEGY, 'refresh').and.callFake(function (refreshToken, cb) {
+          setTimeout(function () { cb(new Error('refresh rejected by IDP')); }, 10);
+        });
+
+        // headerAuthentication never calls next() on this error path - it goes through
+        // sendUnauthorized instead, so hook that (already a spy from makeStubs) to know when it settled.
+        stubs.utilsStub.sendUnauthorized.and.callFake((res, msg) => {
+          res.statusCode = 401;
+          res.body = { error: msg };
+          // Give any dangling unhandled-rejection microtask a chance to surface before asserting.
+          setImmediate(function () {
+            try {
+              process.removeListener('unhandledRejection', onUnhandledRejection);
+              expect(res.statusCode).toBe(401);
+              done();
+            } catch (e) {
+              done.fail(e);
+            }
+          });
+        });
+
+        const mw = authMiddleware({ local: { STRATEGY } });
+        const req = { user: Object.assign({}, prof, { accessToken: 'TOKEN-R', refreshToken: 'REFRESH-R' }), session: { passport: {}, save: function (cb) { cb && cb(); } } };
+        const res = { statusCode: null, body: null };
+
+        mw.headerAuthentication(req, res, function () {
+          done.fail('next() should not be called on a failed refresh');
+        });
+      }).catch(done.fail);
+    }).catch(done.fail);
+  });
+
     describe('buildOrganization branches', function() {
 
     it('creates organization when none exists and includes country characteristic', function(done) {
