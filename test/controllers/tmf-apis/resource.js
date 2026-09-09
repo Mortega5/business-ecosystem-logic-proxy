@@ -102,6 +102,10 @@ describe('ResourceSpecification API', function() {
             it('should reject not authenticated PATCH requests', function(done) {
                 testNotLoggedIn('PATCH', done);
             });
+
+            it('should reject not authenticated DELETE requests', function(done) {
+                testNotLoggedIn('DELETE', done);
+            });
         });
 
         describe('retrieval', function() {
@@ -338,6 +342,131 @@ describe('ResourceSpecification API', function() {
             });
         });
 
+        describe('delete', () => {
+
+            function testDeleteSpec(resId, prevBody, expectedErr, done, extraNock) {
+                nock(url).get(`${apiPath}${path}/${resId}`).reply(200, prevBody);
+
+                const resourceAPI = getResourceSpecAPI(makeTmfUtils(), makeUtils());
+                const req = {
+                    user: seller,
+                    method: 'DELETE',
+                    apiUrl: `/${config.endpoints.resource.path}${path}/${resId}`,
+                    url: `${path}/${resId}`,
+                    hostname: config.endpoints.resource.host,
+                    headers: {}
+                };
+
+                resourceAPI.checkPermissions(req, (err) => {
+                    if (!expectedErr) {
+                        expect(err).toBe(null);
+                        expect(req.method).toBe('PATCH');
+                        expect(JSON.parse(req.body)).toEqual({ lifecycleStatus: 'Retired' });
+                        expect(req.headers['content-type']).toBe('application/json');
+                    } else {
+                        expect(err).toEqual(expectedErr);
+                    }
+                    if (extraNock) {
+                        extraNock.done();
+                    }
+                    done();
+                });
+            }
+
+            const ownedSpec = {
+                id: 'urn:resource-spec:1',
+                lifecycleStatus: 'Active',
+                relatedParty: [{ id: 'test', role: 'Seller' }]
+            };
+
+            it('should retire an owned resource specification', (done) => {
+                testDeleteSpec('urn:resource-spec:1', ownedSpec, null, done);
+            });
+
+            it('should raise a 403 if the user is not the owner', (done) => {
+                testDeleteSpec('urn:resource-spec:1', {
+                    id: 'urn:resource-spec:1',
+                    lifecycleStatus: 'Active',
+                    relatedParty: [{ id: 'other', role: 'Seller' }]
+                }, {
+                    status: 403,
+                    message: 'The user making the request is not the owner of the accessed resource'
+                }, done);
+            });
+
+            it('should raise a 409 if the resource specification is already retired', (done) => {
+                testDeleteSpec('urn:resource-spec:1', {
+                    id: 'urn:resource-spec:1',
+                    lifecycleStatus: 'Retired',
+                    relatedParty: [{ id: 'test', role: 'Seller' }]
+                }, {
+                    status: 409,
+                    message: 'The resource is already retired'
+                }, done);
+            });
+
+            it('should raise a 404 if the resource specification does not exist', (done) => {
+                nock(url).get(`${apiPath}${path}/urn:resource-spec:1`).reply(404);
+
+                const resourceAPI = getResourceSpecAPI(makeTmfUtils(), makeUtils());
+                const req = {
+                    user: seller,
+                    method: 'DELETE',
+                    apiUrl: `/${config.endpoints.resource.path}${path}/urn:resource-spec:1`,
+                    url: `${path}/urn:resource-spec:1`,
+                    hostname: config.endpoints.resource.host,
+                    headers: {}
+                };
+
+                resourceAPI.checkPermissions(req, (err) => {
+                    expect(err).toEqual({ status: 404, message: 'The required resource does not exist' });
+                    done();
+                });
+            });
+
+            it('should raise a 500 if the resource specification cannot be retrieved', (done) => {
+                nock(url).get(`${apiPath}${path}/urn:resource-spec:1`).reply(500);
+
+                const resourceAPI = getResourceSpecAPI(makeTmfUtils(), makeUtils());
+                const req = {
+                    user: seller,
+                    method: 'DELETE',
+                    apiUrl: `/${config.endpoints.resource.path}${path}/urn:resource-spec:1`,
+                    url: `${path}/urn:resource-spec:1`,
+                    hostname: config.endpoints.resource.host,
+                    headers: {}
+                };
+
+                resourceAPI.checkPermissions(req, (err) => {
+                    expect(err).toEqual({
+                        status: 500,
+                        message: 'The TMForum APIs fails to retrieve the object you are trying to delete'
+                    });
+                    done();
+                });
+            });
+
+            it('should raise a 405 when the accessed resource is not a soft-deletable one', (done) => {
+                const resourceAPI = getResourceSpecAPI(makeTmfUtils(), makeUtils());
+                const req = {
+                    user: seller,
+                    method: 'DELETE',
+                    apiUrl: `/${config.endpoints.resource.path}/resourceCategory/1`,
+                    url: '/resourceCategory/1',
+                    hostname: config.endpoints.resource.host,
+                    headers: {}
+                };
+
+                resourceAPI.checkPermissions(req, (err) => {
+                    expect(err).toEqual({
+                        status: 405,
+                        message: 'The HTTP method DELETE is not allowed in the accessed API'
+                    });
+                    done();
+                });
+            });
+        });
+
         describe('not allowed method', function() {
 
             function testNotAllowedMethod(method, done) {
@@ -353,10 +482,6 @@ describe('ResourceSpecification API', function() {
 
             it('should raise 405 for PUT', function(done) {
                 testNotAllowedMethod('PUT', done);
-            });
-
-            it('should raise 405 for DELETE', function(done) {
-                testNotAllowedMethod('DELETE', done);
             });
         });
     });

@@ -87,6 +87,11 @@ const catalog = (function() {
             allowedProductImageTypes.has(attachment.attachmentType.trim().toLowerCase());
     };
 
+    // Resource types DELETE can soft-delete (retire). Add a name here to support it -
+    // softDelete resolves the backend path as /<resourceType>/<id>, no new branch needed.
+    const softDeletableResources = ['catalog', 'productOffering', 'productSpecification'];
+    const softDeletePattern = new RegExp(`/(${softDeletableResources.join('|')})/([^/]+)/?$`);
+
     const retrieveAsset = function(assetPath, callback) {
         if (!assetPath.startsWith('/')) {
             assetPath = `/${assetPath}`;
@@ -2486,16 +2491,6 @@ const catalog = (function() {
         }
     };
 
-    const isCategory = function(req, callback) {
-        if (!categoryPattern.test(req.apiUrl)) {
-            return callback({
-                status: 405,
-                message: 'The HTTP method DELETE is not allowed in the accessed API'
-            });
-        }
-        callback(null);
-    };
-
     const processQuery = async (req, callback) => {
         const query = req.query || {}
 
@@ -2673,6 +2668,76 @@ const catalog = (function() {
             logger.error('Error parsing query string for ' + resourceName + ' retrieval');
         }
     }
+
+    //////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////// DELETE ///////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////////////////
+
+    // DELETE is implemented as a soft delete of one of softDeletableResources: the resource
+    // must exist and not already be retired, and the caller must own it. On success the
+    // request is rewritten into a PATCH that sets lifecycleStatus to Retired, so the generic
+    // proxy forwards that PATCH and the backend's 200 OK response is what reaches the client.
+    const softDelete = function(req, callback) {
+        const match = req.apiUrl.match(softDeletePattern);
+
+        if (!match) {
+            return utils.methodNotAllowed(req, callback);
+        }
+
+        const assetPath = `/${match[1]}/${match[2]}`;
+
+        retrieveAsset(assetPath, function(err, result) {
+            if (err) {
+                if (err.status === 404) {
+                    return callback({
+                        status: 404,
+                        message: 'The required resource does not exist'
+                    });
+                }
+                return callback({
+                    status: 500,
+                    message: 'The TMForum APIs fails to retrieve the object you are trying to delete'
+                });
+            }
+
+            const previousBody = result.body;
+
+            const finishSoftDelete = function(ownerAsset) {
+                if (!tmfUtils.isOwner(req, ownerAsset)) {
+                    return callback({
+                        status: 403,
+                        message: 'The user making the request is not the owner of the accessed resource'
+                    });
+                }
+
+                const lifecycleStatus = previousBody.lifecycleStatus ? previousBody.lifecycleStatus.toLowerCase() : '';
+
+                if (lifecycleStatus === RETIRED_STATE) {
+                    return callback({
+                        status: 409,
+                        message: 'The resource is already retired'
+                    });
+                }
+
+                req.method = 'PATCH';
+                req.headers['content-type'] = 'application/json';
+                utils.updateBody(req, { lifecycleStatus: 'Retired' });
+                callback(null);
+            };
+
+            // Offerings don't always carry their own relatedParty; ownership then falls
+            // back to the linked product's relatedParty (same rule as validateAssetPermissions).
+            if (!previousBody.relatedParty && previousBody.productSpecification) {
+                retrieveProduct(previousBody.productSpecification.id, function(err, productResult) {
+                    finishSoftDelete(err ? {} : productResult.body);
+                });
+            } else {
+                finishSoftDelete(previousBody);
+            }
+        });
+    };
+
+
     //////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////// COMMON ///////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////////////////////////
@@ -2682,7 +2747,7 @@ const catalog = (function() {
         POST: [utils.validateLoggedIn, validateCreation],
         PATCH: [utils.validateLoggedIn, validateUpdate],
         PUT: [utils.methodNotAllowed],
-        DELETE: [utils.validateLoggedIn, isCategory, validateUpdate]
+        DELETE: [utils.validateLoggedIn, softDelete]
     };
 
     const checkPermissions = function(req, callback) {
