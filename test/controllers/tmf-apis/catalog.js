@@ -4139,11 +4139,13 @@ describe('Catalog API', function() {
             const res_url = res_prt+ '://' + config.endpoints.resource.host + ':' + config.endpoints.resource.port;
 
             const serviceStatus = (launchApiError !== serviceLaunchFail)? 200 : 500
-            previousAssetBody.serviceSpecification.push(queryRef) //not important, but it needs to be filled with smth
+            // Two refs (not one) so getDependencySpecs takes its multi-ref/query-string branch,
+            // matching the nock below. The actual values don't matter: refsToQuery is mocked above.
+            previousAssetBody.serviceSpecification.push(...queryRef.split(','))
             serviceParam = nock(serv_url).get('/api/serviceSpecification').query({id: queryRef, fields: 'lifecycleStatus'}).reply(serviceStatus, [])
 
             if (launchError !== serviceLaunchFail && launchApiError !== serviceLaunchFail){
-                previousAssetBody.resourceSpecification.push(queryRef)
+                previousAssetBody.resourceSpecification.push(...queryRef.split(','))
                 const resourceStatus = (launchApiError !== resourceLaunchFail)? 200 : 500
 
                 resourceParam = nock(res_url).get('/api/resourceSpecification').query({id: queryRef, fields: 'lifecycleStatus'}).reply(resourceStatus, [])
