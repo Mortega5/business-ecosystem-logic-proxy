@@ -87,6 +87,10 @@ describe('ServiceSpecification API', function() {
             it('should reject not authenticated PATCH requests', function(done) {
                 testNotLoggedIn('PATCH', done);
             });
+
+            it('should reject not authenticated DELETE requests', function(done) {
+                testNotLoggedIn('DELETE', done);
+            });
         });
 
         describe('retrieval', function() {
@@ -483,6 +487,143 @@ describe('ServiceSpecification API', function() {
             })
         })
 
+        describe('delete', () => {
+            function testDeleteService(serviceId, prevBody, isOwner, expectedErr, done, extraNock) {
+                const checkOwnerMethod = jasmine.createSpy();
+                checkOwnerMethod.and.returnValue(isOwner);
+
+                const utils = {
+                    validateLoggedIn: (req, callback) => {
+                        callback(null);
+                    },
+                    updateBody: (req, newBody) => {
+                        req.body = JSON.stringify(newBody);
+                    },
+                    methodNotAllowed: (req, callback) => {
+                        callback({
+                            status: 405,
+                            message: 'The HTTP method ' + req.method + ' is not allowed in the accessed API'
+                        });
+                    }
+                }
+
+                const tmfUtils = {
+                    isOwner: checkOwnerMethod
+                }
+
+                const serviceAPI = getServiceSpecAPI(tmfUtils, utils);
+                const req = {
+                    user: seller,
+                    method: 'DELETE',
+                    apiUrl: `/${config.endpoints.service.path}${path}/${serviceId}`,
+                    url: `${path}/${serviceId}`,
+                    hostname: config.endpoints.service.host,
+                    headers: {}
+                }
+
+                serviceAPI.checkPermissions(req, (err) => {
+                    if (!expectedErr) {
+                        expect(err).toBe(null)
+                        expect(req.method).toBe('PATCH')
+                        expect(JSON.parse(req.body)).toEqual({ lifecycleStatus: 'Retired' })
+                        expect(req.headers['content-type']).toBe('application/json')
+                    } else {
+                        expect(err).toEqual(expectedErr)
+                    }
+                    if (extraNock) {
+                        extraNock.done()
+                    }
+                    done()
+                })
+            }
+
+            it('should retire an owned service specification', (done) => {
+                const nockMock = nock(url).get(`/api${path}/urn:service-spec:1`).reply(200, {
+                    id: 'urn:service-spec:1',
+                    lifecycleStatus: 'Active',
+                    relatedParty: [{ id: 'testParty', role: 'Seller' }]
+                });
+
+                testDeleteService('urn:service-spec:1', {}, true, null, done, nockMock);
+            });
+
+            it('should raise a 403 if the user is not the owner', (done) => {
+                nock(url).get(`/api${path}/urn:service-spec:1`).reply(200, {
+                    id: 'urn:service-spec:1',
+                    lifecycleStatus: 'Active',
+                    relatedParty: [{ id: 'other', role: 'Seller' }]
+                });
+
+                testDeleteService('urn:service-spec:1', {}, false, {
+                    status: 403,
+                    message: 'The user making the request is not the owner of the accessed resource'
+                }, done);
+            });
+
+            it('should raise a 409 if the service specification is already retired', (done) => {
+                nock(url).get(`/api${path}/urn:service-spec:1`).reply(200, {
+                    id: 'urn:service-spec:1',
+                    lifecycleStatus: 'Retired',
+                    relatedParty: [{ id: 'testParty', role: 'Seller' }]
+                });
+
+                testDeleteService('urn:service-spec:1', {}, true, {
+                    status: 409,
+                    message: 'The resource is already retired'
+                }, done);
+            });
+
+            it('should raise a 404 if the service specification does not exist', (done) => {
+                nock(url).get(`/api${path}/urn:service-spec:1`).reply(404);
+
+                testDeleteService('urn:service-spec:1', {}, true, {
+                    status: 404,
+                    message: 'The required resource does not exist'
+                }, done);
+            });
+
+            it('should raise a 500 if the service specification cannot be retrieved', (done) => {
+                nock(url).get(`/api${path}/urn:service-spec:1`).reply(500);
+
+                testDeleteService('urn:service-spec:1', {}, true, {
+                    status: 500,
+                    message: 'The TMForum APIs fails to retrieve the object you are trying to delete'
+                }, done);
+            });
+
+            it('should raise a 405 when the accessed resource is not a soft-deletable one', (done) => {
+                const utils = {
+                    validateLoggedIn: (req, callback) => {
+                        callback(null);
+                    },
+                    methodNotAllowed: (req, callback) => {
+                        callback({
+                            status: 405,
+                            message: 'The HTTP method ' + req.method + ' is not allowed in the accessed API'
+                        });
+                    }
+                }
+
+                const serviceAPI = getServiceSpecAPI({}, utils);
+                const req = {
+                    user: seller,
+                    method: 'DELETE',
+                    apiUrl: `/${config.endpoints.service.path}/serviceCategory/1`,
+                    url: '/serviceCategory/1',
+                    hostname: config.endpoints.service.host,
+                    headers: {}
+                }
+
+                serviceAPI.checkPermissions(req, (err) => {
+                    expect(err).toEqual({
+                        status: 405,
+                        message: 'The HTTP method DELETE is not allowed in the accessed API'
+                    })
+                    done()
+                })
+            });
+        })
+
         describe('not allowed method', function() {
             function testNotAllowedMethod(method, done) {
                 var serviceAPI = getServiceSpecAPI({}, {});
@@ -497,7 +638,6 @@ describe('ServiceSpecification API', function() {
             }
             it('should raise 405 not allowed method', function(done) {
                 testNotAllowedMethod('PUT', done)
-                testNotAllowedMethod('DELETE', done)
             })
         })
     })

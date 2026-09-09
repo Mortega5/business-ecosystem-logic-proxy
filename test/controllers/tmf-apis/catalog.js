@@ -3589,10 +3589,6 @@ describe('Catalog API', function() {
         testUpdate('PATCH', 404, isOwnerTrue, 404, 'The required resource does not exist', done);
     });
 
-    it('should not allow to make delete requests to the catalog API when no accessing category API', function(done) {
-        testUpdate('DELETE', null, isOwnerTrue, 405, INVALID_METHOD, done);
-    });
-
     // OFFERINGS
 
     var getProductSpecification = function(path) {
@@ -5699,26 +5695,150 @@ describe('Catalog API', function() {
         });
     };
 
-    it('should allow to delete category when admin', function(done) {
-        testUpdateCategory('DELETE', true, { status: 200, body: {} }, null, null, null, null, null, done);
+    it('should raise 405 when trying to delete a category (soft delete only supports catalogs, offerings and products)', function(done) {
+        const catalogApi = getCatalogApi({}, {}, { validateLoggedIn: validateLoggedOk });
+        const req = {
+            method: 'DELETE',
+            apiUrl: basepath + '/category/7',
+            user: { id: 'test', roles: [] }
+        };
+
+        catalogApi.checkPermissions(req, function(err) {
+            expect(err).toEqual({
+                status: 405,
+                message: INVALID_METHOD
+            });
+            done();
+        });
     });
 
-    it('should not allow to delete category when no admin', function(done) {
-        testUpdateCategory(
-            'DELETE',
-            false,
-            { status: 200, body: {} },
-            null,
-            null,
-            null,
-            403,
-            ONLY_ADMINS_MODIFY_CATEGORIES,
-            done
-        );
-    });
+    describe('soft delete', function() {
+        const updateBodySpy = function(req, newBody) {
+            req.body = JSON.stringify(newBody);
+        };
 
-    it('should not allow to delete category when category cannot be retrieved', function(done) {
-        testUpdateCategory('DELETE', false, { status: 500, body: {} }, null, null, null, 500, FAILED_TO_RETRIEVE, done);
+        function testSoftDelete(resourcePath, isOwnerMethod, expectedErr, done, extraNock) {
+            const utils = {
+                validateLoggedIn: validateLoggedOk,
+                updateBody: updateBodySpy
+            };
+
+            const tmfUtils = {
+                isOwner: isOwnerMethod
+            };
+
+            const catalogApi = getCatalogApi({}, tmfUtils, utils);
+
+            const req = {
+                method: 'DELETE',
+                apiUrl: basepath + resourcePath,
+                user: { id: 'test', roles: [] },
+                headers: {}
+            };
+
+            catalogApi.checkPermissions(req, function(err) {
+                if (!expectedErr) {
+                    expect(err).toBe(null);
+                    expect(req.method).toBe('PATCH');
+                    expect(JSON.parse(req.body)).toEqual({ lifecycleStatus: 'Retired' });
+                    expect(req.headers['content-type']).toBe('application/json');
+                } else {
+                    expect(err).toEqual(expectedErr);
+                }
+                if (extraNock) {
+                    extraNock.done();
+                }
+                done();
+            });
+        }
+
+        it('should retire an owned catalog', function(done) {
+            const nockMock = nock(SERVER).get('/api/catalog/urn:catalog:1').reply(200, {
+                id: 'urn:catalog:1',
+                lifecycleStatus: 'Active',
+                relatedParty: [{ id: 'test', role: 'Seller' }]
+            });
+
+            testSoftDelete('/catalog/urn:catalog:1', isOwnerTrue, null, done, nockMock);
+        });
+
+        it('should raise a 403 if the user is not the owner of the catalog', function(done) {
+            nock(SERVER).get('/api/catalog/urn:catalog:1').reply(200, {
+                id: 'urn:catalog:1',
+                lifecycleStatus: 'Active',
+                relatedParty: [{ id: 'other', role: 'Seller' }]
+            });
+
+            testSoftDelete('/catalog/urn:catalog:1', isOwnerFalse, {
+                status: 403,
+                message: 'The user making the request is not the owner of the accessed resource'
+            }, done);
+        });
+
+        it('should raise a 409 if the catalog is already retired', function(done) {
+            nock(SERVER).get('/api/catalog/urn:catalog:1').reply(200, {
+                id: 'urn:catalog:1',
+                lifecycleStatus: 'Retired',
+                relatedParty: [{ id: 'test', role: 'Seller' }]
+            });
+
+            testSoftDelete('/catalog/urn:catalog:1', isOwnerTrue, {
+                status: 409,
+                message: 'The resource is already retired'
+            }, done);
+        });
+
+        it('should raise a 404 if the catalog does not exist', function(done) {
+            nock(SERVER).get('/api/catalog/urn:catalog:1').reply(404);
+
+            testSoftDelete('/catalog/urn:catalog:1', isOwnerTrue, {
+                status: 404,
+                message: 'The required resource does not exist'
+            }, done);
+        });
+
+        it('should raise a 500 if the catalog cannot be retrieved', function(done) {
+            nock(SERVER).get('/api/catalog/urn:catalog:1').reply(500);
+
+            testSoftDelete('/catalog/urn:catalog:1', isOwnerTrue, {
+                status: 500,
+                message: 'The TMForum APIs fails to retrieve the object you are trying to delete'
+            }, done);
+        });
+
+        it('should retire an owned product specification', function(done) {
+            const nockMock = nock(SERVER).get('/api/productSpecification/urn:prod:1').reply(200, {
+                id: 'urn:prod:1',
+                lifecycleStatus: 'Active',
+                relatedParty: [{ id: 'test', role: 'Seller' }]
+            });
+
+            testSoftDelete('/productSpecification/urn:prod:1', isOwnerTrue, null, done, nockMock);
+        });
+
+        it('should retire an owned product offering that carries its own relatedParty', function(done) {
+            const nockMock = nock(SERVER).get('/api/productOffering/urn:off:1').reply(200, {
+                id: 'urn:off:1',
+                lifecycleStatus: 'Active',
+                relatedParty: [{ id: 'test', role: 'Seller' }]
+            });
+
+            testSoftDelete('/productOffering/urn:off:1', isOwnerTrue, null, done, nockMock);
+        });
+
+        it('should fall back to the linked product to check ownership when the offering has no relatedParty', function(done) {
+            nock(SERVER).get('/api/productOffering/urn:off:1').reply(200, {
+                id: 'urn:off:1',
+                lifecycleStatus: 'Active',
+                productSpecification: { id: 'urn:prod:1' }
+            });
+            const productNock = nock(SERVER).get('/api/productSpecification/urn:prod:1').reply(200, {
+                id: 'urn:prod:1',
+                relatedParty: [{ id: 'test', role: 'Seller' }]
+            });
+
+            testSoftDelete('/productOffering/urn:off:1', isOwnerTrue, null, done, productNock);
+        });
     });
 
     it('should allow to update description of a category when admin', function(done) {

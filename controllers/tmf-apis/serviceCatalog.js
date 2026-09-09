@@ -24,7 +24,13 @@ const utils = require('./../../lib/utils')
 const tmfUtils = require('./../../lib/tmfUtils')
 const equal = require('deep-equal')
 
+var RETIRED_STATE = 'retired';
+
 const serviceCatalog = (function() {
+    // Resource types DELETE can soft-delete (retire). Add a name here to support it -
+    // softDelete resolves the backend path as /<resourceType>/<id>, no new branch needed.
+    const softDeletableResources = ['serviceSpecification'];
+    const softDeletePattern = new RegExp(`/(${softDeletableResources.join('|')})/([^/]+)/?$`);
 
     const validateRetrieving = function(req, callback) {
         // Check if the request is a list of service specifications
@@ -247,12 +253,64 @@ const serviceCatalog = (function() {
         }
     }
 
+    // DELETE is implemented as a soft delete of one of softDeletableResources: the resource
+    // must exist and not already be retired, and the caller must own it. On success the
+    // request is rewritten into a PATCH that sets lifecycleStatus to Retired, so the generic
+    // proxy forwards that PATCH and the backend's 200 OK response is what reaches the client.
+    const softDelete = function(req, callback) {
+        const match = req.apiUrl.match(softDeletePattern);
+
+        if (!match) {
+            return utils.methodNotAllowed(req, callback);
+        }
+
+        const assetPath = `/${config.endpoints.service.path}/${match[1]}/${match[2]}`;
+
+        retrieveAsset(assetPath, function(err, result) {
+            if (err) {
+                if (err.status === 404) {
+                    return callback({
+                        status: 404,
+                        message: 'The required resource does not exist'
+                    });
+                }
+                return callback({
+                    status: 500,
+                    message: 'The TMForum APIs fails to retrieve the object you are trying to delete'
+                });
+            }
+
+            const previousBody = result.body;
+
+            if (!tmfUtils.isOwner(req, previousBody)) {
+                return callback({
+                    status: 403,
+                    message: 'The user making the request is not the owner of the accessed resource'
+                });
+            }
+
+            const lifecycleStatus = previousBody.lifecycleStatus ? previousBody.lifecycleStatus.toLowerCase() : '';
+
+            if (lifecycleStatus === RETIRED_STATE) {
+                return callback({
+                    status: 409,
+                    message: 'The resource is already retired'
+                });
+            }
+
+            req.method = 'PATCH';
+            req.headers['content-type'] = 'application/json';
+            utils.updateBody(req, { lifecycleStatus: 'Retired' });
+            callback(null);
+        });
+    };
+
     const validators = {
         GET: [validateRetrieving],
         POST: [utils.validateLoggedIn, parseBody, validateOwnerSellerPost, validateFields],
         PATCH: [utils.validateLoggedIn, parseBody, getPrevVersion, validateUpdate, validateOwnerSeller, validateFields],
         PUT: [utils.methodNotAllowed],
-        DELETE: [utils.methodNotAllowed]
+        DELETE: [utils.validateLoggedIn, softDelete]
     };
 
     const checkPermissions = function(req, callback) {
