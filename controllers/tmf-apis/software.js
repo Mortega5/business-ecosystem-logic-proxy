@@ -20,6 +20,12 @@ const SW_ENDPOINT = config.endpoints.software
 
 const software = (function () {
 
+    // Resource types DELETE can soft-delete (retire). Add a name here to support it -
+    // softDelete resolves the backend path as /<resourceType>/<id>, no new branch needed.
+    const softDeletableResources = ['resourceSpecification'];
+    const softDeletePattern = new RegExp(`/(${softDeletableResources.join('|')})/([^/]+)/?$`);
+    var RETIRED_STATE = 'retired';
+
     const getApiName = function (req) {
         return req.apiUrl.split('/')[2];
     }
@@ -346,13 +352,86 @@ const software = (function () {
         callback(null)
     }
 
+    /**
+     * DELETE is implemented as a soft delete of one of softDeletableResources: the resource
+     * must exist and not already be retired, and the caller must own it. When the resource is
+     * a SoftwareSpecification, its linked SoftwareSupportPackage is retired too, since it has
+     * no meaning once the spec it supports is gone. On success the request is rewritten into
+     * a PATCH that sets lifecycleStatus to Retired, so the generic proxy forwards that PATCH
+     * and the backend's 200 OK response is what reaches the client.
+     */
+    const softDelete = function (req, callback) {
+        const match = req.apiUrl.match(softDeletePattern);
+
+        if (!match) {
+            return utils.methodNotAllowed(req, callback);
+        }
+
+        const assetPath = `/${match[1]}/${match[2]}`;
+
+        retrieveAsset(assetPath, function (err, result) {
+            if (err) {
+                if (err.status === 404) {
+                    return callback({
+                        status: 404,
+                        message: 'The required resource does not exist'
+                    });
+                }
+                return callback({
+                    status: 500,
+                    message: 'The TMForum APIs fails to retrieve the object you are trying to delete'
+                });
+            }
+
+            const previousBody = result.body;
+
+            if (!tmfUtils.isOwner(req, previousBody)) {
+                return callback({
+                    status: 403,
+                    message: 'The user making the request is not the owner of the accessed resource'
+                });
+            }
+
+            const lifecycleStatus = previousBody.lifecycleStatus ? previousBody.lifecycleStatus.toLowerCase() : '';
+
+            if (lifecycleStatus === RETIRED_STATE) {
+                return callback({
+                    status: 409,
+                    message: 'The resource is already retired'
+                });
+            }
+
+            const finishSoftDelete = function () {
+                req.method = 'PATCH';
+                req.headers['content-type'] = 'application/json';
+                utils.updateBody(req, { lifecycleStatus: 'Retired' });
+                callback(null);
+            };
+
+            const packageId = previousBody.softwareSupportPackage && previousBody.softwareSupportPackage.id;
+            if (!packageId) {
+                return finishSoftDelete();
+            }
+
+            patchAsset(`/resource/${packageId}`, { resourceStatus: 'suspended', usageState: 'idle' }, function (err) {
+                if (err) {
+                    logger.error(`Could not retire SoftwareSupportPackage ${packageId}: status ${err.status} - ${JSON.stringify(err.response)}`);
+                    return callback({
+                        status: 500,
+                        message: 'It was impossible to retire the linked software support package'
+                    });
+                }
+                finishSoftDelete();
+            });
+        });
+    };
 
     const validators = {
         GET: [validateRetrieving],
         POST: [utils.validateLoggedIn, utils.parseBody, validateOwnerSellerPost, validateNameAndDescription, attachSupportPackage],
         PATCH: [utils.validateLoggedIn, utils.parseBody, getPrevVersion(SW_ENDPOINT), validateUpdate, validateOwnerSeller, validateNameAndDescription, patchSupportPackage],
         PUT: [utils.methodNotAllowed],
-        DELETE: [utils.methodNotAllowed]
+        DELETE: [utils.validateLoggedIn, softDelete]
     };
 
     const checkPermissions = function (req, callback) {

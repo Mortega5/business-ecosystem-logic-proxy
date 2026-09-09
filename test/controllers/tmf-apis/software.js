@@ -91,6 +91,10 @@ describe('Software API', function() {
             it('should reject not authenticated PATCH requests', function(done) {
                 testNotLoggedIn('PATCH', done);
             });
+
+            it('should reject not authenticated DELETE requests', function(done) {
+                testNotLoggedIn('DELETE', done);
+            });
         });
 
         describe('retrieval', function() {
@@ -490,6 +494,153 @@ describe('Software API', function() {
 
         });
 
+        describe('delete', function() {
+
+            function testDeleteSpec(resId, prevBody, expectedErr, done, extraNock) {
+                const specMock = nock(SERVER).get(apiPath + path + '/' + resId).reply(200, prevBody);
+
+                const utils = {
+                    validateLoggedIn: (req, callback) => callback(null),
+                    methodNotAllowed: methodNotAllowed,
+                    updateBody: function(req, newBody) { req.body = JSON.stringify(newBody); }
+                };
+
+                const softwareAPI = getSoftwareAPI({}, utils);
+                const req = {
+                    user: seller,
+                    method: 'DELETE',
+                    apiUrl: '/' + config.endpoints.software.path + path + '/' + resId,
+                    url: path + '/' + resId,
+                    hostname: config.endpoints.software.host,
+                    headers: {}
+                };
+
+                softwareAPI.checkPermissions(req, function(err) {
+                    if (!expectedErr) {
+                        expect(err).toBe(null);
+                        expect(req.method).toBe('PATCH');
+                        expect(JSON.parse(req.body)).toEqual({ lifecycleStatus: 'Retired' });
+                        expect(req.headers['content-type']).toBe('application/json');
+                    } else {
+                        expect(err).toEqual(expectedErr);
+                    }
+                    specMock.done();
+                    if (extraNock) {
+                        extraNock.done();
+                    }
+                    done();
+                });
+            }
+
+            it('should retire an owned software specification with no linked support package', function(done) {
+                testDeleteSpec('urn:sw:1', {
+                    id: 'urn:sw:1',
+                    lifecycleStatus: 'Active',
+                    relatedParty: ownerRelatedParty
+                }, null, done);
+            });
+
+            it('should also retire the linked SoftwareSupportPackage', function(done) {
+                const patchMock = nock(SERVER)
+                    .patch(apiPath + '/resource/urn:sw:support-package:1', { resourceStatus: 'suspended', usageState: 'idle' })
+                    .reply(200, {});
+
+                testDeleteSpec('urn:sw:1', {
+                    id: 'urn:sw:1',
+                    lifecycleStatus: 'Active',
+                    relatedParty: ownerRelatedParty,
+                    softwareSupportPackage: { id: 'urn:sw:support-package:1' }
+                }, null, done, patchMock);
+            });
+
+            it('should raise a 500 if the linked SoftwareSupportPackage cannot be retired', function(done) {
+                const patchMock = nock(SERVER)
+                    .patch(apiPath + '/resource/urn:sw:support-package:1')
+                    .reply(500);
+
+                testDeleteSpec('urn:sw:1', {
+                    id: 'urn:sw:1',
+                    lifecycleStatus: 'Active',
+                    relatedParty: ownerRelatedParty,
+                    softwareSupportPackage: { id: 'urn:sw:support-package:1' }
+                }, {
+                    status: 500,
+                    message: 'It was impossible to retire the linked software support package'
+                }, done, patchMock);
+            });
+
+            it('should raise a 403 if the user is not the owner', function(done) {
+                testDeleteSpec('urn:sw:1', {
+                    id: 'urn:sw:1',
+                    lifecycleStatus: 'Active',
+                    relatedParty: otherRelatedParty
+                }, {
+                    status: 403,
+                    message: 'The user making the request is not the owner of the accessed resource'
+                }, done);
+            });
+
+            it('should raise a 409 if the software specification is already retired', function(done) {
+                testDeleteSpec('urn:sw:1', {
+                    id: 'urn:sw:1',
+                    lifecycleStatus: 'Retired',
+                    relatedParty: ownerRelatedParty
+                }, {
+                    status: 409,
+                    message: 'The resource is already retired'
+                }, done);
+            });
+
+            it('should raise a 404 if the software specification does not exist', function(done) {
+                const utils = {
+                    validateLoggedIn: (req, callback) => callback(null),
+                    methodNotAllowed: methodNotAllowed
+                };
+
+                const softwareAPI = getSoftwareAPI({}, utils);
+                nock(SERVER).get(apiPath + path + '/urn:sw:missing').reply(404);
+
+                const req = {
+                    user: seller,
+                    method: 'DELETE',
+                    apiUrl: '/' + config.endpoints.software.path + path + '/urn:sw:missing',
+                    url: path + '/urn:sw:missing',
+                    hostname: config.endpoints.software.host,
+                    headers: {}
+                };
+
+                softwareAPI.checkPermissions(req, function(err) {
+                    expect(err).toEqual({ status: 404, message: 'The required resource does not exist' });
+                    done();
+                });
+            });
+
+            it('should raise a 405 when the accessed resource is not a soft-deletable one', function(done) {
+                const utils = {
+                    validateLoggedIn: (req, callback) => callback(null),
+                    methodNotAllowed: methodNotAllowed
+                };
+
+                const softwareAPI = getSoftwareAPI({}, utils);
+                const req = {
+                    user: seller,
+                    method: 'DELETE',
+                    apiUrl: '/' + config.endpoints.software.path + '/softwareCategory/1',
+                    url: '/softwareCategory/1',
+                    hostname: config.endpoints.software.host,
+                    headers: {}
+                };
+
+                softwareAPI.checkPermissions(req, function(err) {
+                    expect(err).toEqual({
+                        status: 405,
+                        message: 'The HTTP method DELETE is not allowed in the accessed API'
+                    });
+                    done();
+                });
+            });
+        });
+
         describe('not allowed methods', function() {
 
             function testNotAllowedMethod(method, done) {
@@ -506,10 +657,6 @@ describe('Software API', function() {
 
             it('should raise 405 for PUT requests', function(done) {
                 testNotAllowedMethod('PUT', done);
-            });
-
-            it('should raise 405 for DELETE requests', function(done) {
-                testNotAllowedMethod('DELETE', done);
             });
         });
     });
