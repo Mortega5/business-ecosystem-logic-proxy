@@ -531,7 +531,8 @@ app.get('/config', async (_, res) => {
         launchValidationEnabled: featureFlags.launchValidationEnabled,
         searchFilters: searchFilters,
         tenderDevButtonsOpenCloseEnabled: featureFlags.tenderDevButtonsOpenCloseEnabled,
-        dspContractDefinitionSchema: config.dspContractDefinitionSchema
+        dspContractDefinitionSchema: config.dspContractDefinitionSchema,
+        blueprintSchema: config.blueprintSchema
     })
 })
 
