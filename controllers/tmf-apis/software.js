@@ -352,6 +352,51 @@ const software = (function () {
         callback(null)
     }
 
+    // Release identity left the artifact descriptor: a chart carries no release name and no namespace,
+    // both are arguments to helm install. Keeping them here also meant every deployment of a product
+    // reused one pair, so a subscription could not host a second deployment without colliding.
+    const REMOVED_HELM_IDENTITY_FIELDS = ['releaseName', 'namespace']
+
+    /**
+     * Rejects a deploymentDefinition that still carries the release identity. The two provider value
+     * channels are left alone here: `values` (defaults, overridable) and `enforcedValues` (locks,
+     * applied last) are opaque YAML strings, and checking that a key does not appear in both needs a
+     * YAML parser this service does not have - that check lives in the UI for now.
+     *
+     * @param {Object} req - Incoming HTTP request, body already parsed by utils.parseBody
+     * @param {Function} callback - callback(err) with {status, message} on failure
+     */
+    const validateDeploymentDefinition = function (req, callback) {
+        const chars = (req.body && req.body.resourceCharacteristic) || []
+        const deployment = chars.find((char) => char.name === 'deploymentDefinition')
+
+        if (!deployment || !deployment.value) {
+            return callback(null)
+        }
+
+        const definition = deployment.value
+        if (!definition.type || !definition.properties) {
+            return callback({
+                status: 422,
+                message: 'deploymentDefinition must contain a type and a properties object'
+            })
+        }
+
+        if (definition.type === 'helm') {
+            const offending = REMOVED_HELM_IDENTITY_FIELDS.filter((field) => field in definition.properties)
+            if (offending.length > 0) {
+                return callback({
+                    status: 422,
+                    message: `deploymentDefinition.properties must not contain ${offending.join(' or ')}: ` +
+                        'the release identity is chosen per deployment and travels in the deployment order, ' +
+                        'not in the package'
+                })
+            }
+        }
+
+        callback(null)
+    }
+
     /**
      * DELETE is implemented as a soft delete of one of softDeletableResources: the resource
      * must exist and not already be retired, and the caller must own it. When the resource is
@@ -428,8 +473,8 @@ const software = (function () {
 
     const validators = {
         GET: [validateRetrieving],
-        POST: [utils.validateLoggedIn, utils.parseBody, validateOwnerSellerPost, validateNameAndDescription, attachSupportPackage],
-        PATCH: [utils.validateLoggedIn, utils.parseBody, getPrevVersion(SW_ENDPOINT), validateUpdate, validateOwnerSeller, validateNameAndDescription, patchSupportPackage],
+        POST: [utils.validateLoggedIn, utils.parseBody, validateOwnerSellerPost, validateNameAndDescription, validateDeploymentDefinition, attachSupportPackage],
+        PATCH: [utils.validateLoggedIn, utils.parseBody, getPrevVersion(SW_ENDPOINT), validateUpdate, validateOwnerSeller, validateNameAndDescription, validateDeploymentDefinition, patchSupportPackage],
         PUT: [utils.methodNotAllowed],
         DELETE: [utils.validateLoggedIn, softDelete]
     };
