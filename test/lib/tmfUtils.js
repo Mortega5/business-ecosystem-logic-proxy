@@ -1182,4 +1182,92 @@ describe('TMF Utils', function() {
             await testAttachSpec('usage', '/usageSpecification')
         });
     })
+
+    describe('Validate Orchestration Plan', function() {
+        const tmfUtils = getTmfUtils();
+
+        const planWith = function(steps) {
+            return { steps: steps };
+        };
+        const stepWiring = function(id, dependsOn, value) {
+            return { id: id, dependsOn: dependsOn, enforcedCharacteristic: [{ name: 'helmValuesOverride', value: value }] };
+        };
+
+        it('should accept a product spec without an orchestration plan', function() {
+            expect(tmfUtils.validateOrchestrationPlan(undefined)).toBe(null);
+        });
+
+        it('should accept a reference to a step listed in dependsOn', function() {
+            const plan = planWith([
+                { id: 'step-cache' },
+                stepWiring('step-web', ['step-cache'], { redis: { host: '<<steps.step-cache.service.host>>' } })
+            ]);
+            expect(tmfUtils.validateOrchestrationPlan(plan)).toBe(null);
+        });
+
+        it('should reject a reference to a step that is not in dependsOn', function() {
+            const plan = planWith([
+                { id: 'step-cache' },
+                stepWiring('step-web', [], { redis: { host: '<<steps.step-cache.service.host>>' } })
+            ]);
+            expect(tmfUtils.validateOrchestrationPlan(plan)).toContain('is not in its dependsOn');
+        });
+
+        it('should require a direct edge, not a transitive one', function() {
+            const plan = planWith([
+                { id: 'a' },
+                { id: 'b', dependsOn: ['a'] },
+                stepWiring('c', ['b'], { x: '<<steps.a.namespace>>' })
+            ]);
+            expect(tmfUtils.validateOrchestrationPlan(plan)).toContain('is not in its dependsOn');
+        });
+
+        it('should reject a reference to a step that does not exist', function() {
+            const plan = planWith([stepWiring('a', ['ghost'], { x: '<<steps.ghost.namespace>>' })]);
+            expect(tmfUtils.validateOrchestrationPlan(plan)).toContain('not in this plan');
+        });
+
+        it('should reject a malformed reference rather than treat it as a literal', function() {
+            const plan = planWith([stepWiring('a', [], { x: '<<steps.a-namespace>>' })]);
+            expect(tmfUtils.validateOrchestrationPlan(plan)).toContain('is reserved');
+        });
+
+        it('should reject an unknown resolution root', function() {
+            const plan = planWith([stepWiring('a', [], { x: '<<steps.a.outputs.token>>' })]);
+            expect(tmfUtils.validateOrchestrationPlan(plan)).toContain('unknown reference');
+        });
+
+        it('should reject duplicated step ids', function() {
+            expect(tmfUtils.validateOrchestrationPlan(planWith([{ id: 'a' }, { id: 'a' }]))).toContain('Duplicated');
+        });
+
+        it('should reject a placeholder used as an object key', function() {
+            const plan = planWith([stepWiring('a', [], { '<<steps.a.namespace>>': 'value' })]);
+            expect(tmfUtils.validateOrchestrationPlan(plan)).toContain('object key');
+        });
+
+        it('should let a step reference its own identity but not its own service', function() {
+            const own = planWith([stepWiring('a', [], { label: '<<steps.a.deploymentName>>' })]);
+            expect(tmfUtils.validateOrchestrationPlan(own)).toBe(null);
+
+            const ownService = planWith([stepWiring('a', [], { x: '<<steps.a.service.host>>' })]);
+            expect(tmfUtils.validateOrchestrationPlan(ownService)).toContain('its own service');
+        });
+
+        // The delimiter was chosen so that nothing else in play collides. These are the sequences that
+        // legitimately appear inside chart values, and none of them may be touched.
+        it('should leave other templating syntaxes untouched', function() {
+            const untouched = [
+                'summary: {{ $labels.instance }} is down',
+                '{{range .Series}}{{end}}',
+                'cat <<EOF\nhello\nEOF',
+                'echo ${HOME}',
+                '{{steps.generate.outputs.result}}'
+            ];
+            untouched.forEach(function(value) {
+                const plan = planWith([stepWiring('a', [], { raw: value })]);
+                expect(tmfUtils.validateOrchestrationPlan(plan)).toBe(null);
+            });
+        });
+    })
 });
