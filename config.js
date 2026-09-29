@@ -850,8 +850,16 @@ if (!!process.env.BAE_LP_TENDER_DEV_BUTTON_ENABLED) {
     config.tenderDevButtonsOpenCloseEnabled = process.env.BAE_LP_TENDER_DEV_BUTTON_ENABLED == 'true';
 }
 
-config.dspContractDefinitionSchema = 'https://gist.githubusercontent.com/vramperez/e50df47dde789a05e0a4bdca39cf7349/raw/54a6b39beffc0c309db08f7e80c6a532a0ce9765/deployment-definition.json'
+// Schemas are pinned to a gist revision on purpose: a catalogue entry must keep validating
+// against the schema it was published against, not against whatever the gist says today.
+config.dspContractDefinitionSchema = 'https://gist.githubusercontent.com/vramperez/e50df47dde789a05e0a4bdca39cf7349/raw/057beb0c9cd8aae6e5d5fbd8841c8035b5304996/deployment-definition.json'
 
 if (!!process.env.BAE_LP_DSP_CONTRACT_DEFINITION_SCHEMA) {
     config.dspContractDefinitionSchema = process.env.BAE_LP_DSP_CONTRACT_DEFINITION_SCHEMA;
+}
+
+config.blueprintSchema = 'https://gist.githubusercontent.com/vramperez/8a16d77f6fc2cdf5fea22dc11b325d52/raw/ad9ef7a1e933cd079732279218609141a731e3b2/blueprint-product-spec.json'
+
+if (!!process.env.BAE_LP_BLUEPRINT_SCHEMA) {
+    config.blueprintSchema = process.env.BAE_LP_BLUEPRINT_SCHEMA;
 }
