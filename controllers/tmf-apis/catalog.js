@@ -1391,6 +1391,19 @@ const catalog = (function() {
                 });
         }
 
+        // A BlueprintProductSpecification carries the deploy-time DAG in orchestrationPlan. Its wiring
+        // references siblings with <<steps....>> placeholders, and a reference that points outside the
+        // step's own dependsOn resolves against something that may not have been deployed yet - so the
+        // BPO would either fail mid-DAG or wire to nothing. Both the plan and the edges are in this
+        // body, so the check belongs here, at publish time, rather than at deploy time.
+        const planError = tmfUtils.validateOrchestrationPlan(productSpec && productSpec.orchestrationPlan);
+        if (planError) {
+            return callback({
+                status: 422,
+                message: planError
+            });
+        }
+
         // Check if the product is a bundle
         if (!productSpec.isBundle) {
             return callback(null);
