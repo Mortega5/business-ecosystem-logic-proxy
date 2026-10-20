@@ -721,6 +721,44 @@ describe('TMF Utils', function() {
         });
     });
 
+    describe('Method: appendPartyRoleQuery', function() {
+
+        const buildReq = function(query) {
+            const queryString = Object.keys(query).map((k) => k + '=' + query[k]).join('&');
+            return {
+                query: Object.assign({}, query),
+                apiUrl: '/productInventory/v4/product' + (queryString ? '?' + queryString : '')
+            };
+        };
+
+        it('should add relatedParty.id and relatedParty.role when the request has no query', function() {
+            const tmfUtils = getTmfUtils();
+            const req = buildReq({});
+
+            tmfUtils.appendPartyRoleQuery(req, 'party1', 'customer');
+
+            expect(req.apiUrl).toEqual('/productInventory/v4/product?relatedParty.id=party1&relatedParty.role=customer');
+        });
+
+        it('should overwrite the client relatedParty values and keep both params adjacent after other filters', function() {
+            const tmfUtils = getTmfUtils();
+            const req = buildReq({
+                limit: 5,
+                'relatedParty.id': 'other',
+                status: 'active,created',
+                'relatedParty.role': 'seller'
+            });
+
+            tmfUtils.appendPartyRoleQuery(req, 'party1', 'customer');
+
+            expect(req.apiUrl).toEqual(
+                '/productInventory/v4/product?limit=5&status=active,created&relatedParty.id=party1&relatedParty.role=customer'
+            );
+            expect(req.query['relatedParty.id']).toEqual('party1');
+            expect(req.query['relatedParty.role']).toEqual('customer');
+        });
+    });
+
     describe('Method: refsToQuery', function(){
         it('should parse an array of refs to query structure string', function(){
             const tmfUtils = getTmfUtils();
