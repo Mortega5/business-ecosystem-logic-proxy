@@ -475,6 +475,32 @@ describe('Catalog API', function() {
         });
     });
 
+    it('should keep query values containing "?" when rewriting GET catalog productOffering requests', function(done) {
+        const catalogApi = getCatalogApi({}, {}, catalogGetUtils);
+
+        nock(SERVER)
+            .get('/api/catalog/catalog-1')
+            .reply(200, {
+                category: [{ id: 'cat' }]
+            });
+
+        const req = {
+            method: 'GET',
+            path: '/catalog/catalog/catalog-1/productOffering',
+            apiUrl: '/catalog/catalog/catalog-1/productOffering?limit=6&relatedParty.role*=^(?!customer$).*$',
+            query: {
+                limit: '6',
+                'relatedParty.role*': '^(?!customer$).*$'
+            }
+        };
+
+        catalogApi.checkPermissions(req, function(err) {
+            expect(err).toBeNull();
+            expect(req.apiUrl).toBe('/catalog/productOffering?limit=6&relatedParty.role*=^(?!customer$).*$&category=cat');
+            done();
+        });
+    });
+
     it('should preserve external search rewrites when adding catalog category filters', function(done) {
         const previousSearchUrl = config.searchUrl;
         config.searchUrl = 'http://search.com';
