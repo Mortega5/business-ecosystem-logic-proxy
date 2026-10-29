@@ -56,6 +56,7 @@
     "uuid": "^8.3.2"
   },
   "devDependencies": {
+    "@swc/core": "^1.16.20",
     "@types/node": "^26.4.0",
     "coveralls": "^3.0.0",
     "freeport": "1.0.5",
@@ -65,10 +66,13 @@
     "oxlint": "^1.90.0",
     "oxlint-tsgolint": "^7.0.2005",
     "proxyquire": "1.7.3",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "unplugin-swc": "^2.0.0",
+    "vitest": "^5.0.5"
   },
   "scripts": {
     "lint": "oxlint --type-aware .",
+    "test:unit": "vitest run --passWithNoTests",
     "prettier": "prettier --config .prettierrc.json --write '**/**/**/*.js' '**/**/*.js' '**/*.js' '*.js'",
     "test": "JASMINE_CONFIG_PATH=test/config/jasmine.json node_modules/.bin/istanbul cover --include-all-sources -x public/**/*.js -x locales/**/*.js -x server.js -x Gruntfile.js -x fill_indexes.js -x config.js node_modules/jasmine/bin/jasmine.js"
   },
