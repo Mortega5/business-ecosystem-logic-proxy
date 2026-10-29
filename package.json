@@ -56,12 +56,14 @@
     "uuid": "^8.3.2"
   },
   "devDependencies": {
+    "@types/node": "^26.4.0",
     "coveralls": "^3.0.0",
     "freeport": "1.0.5",
     "istanbul": "^1.1.0-alpha.1",
     "jasmine": "2.9.0",
     "nock": "^13.3.6",
-    "proxyquire": "1.7.3"
+    "proxyquire": "1.7.3",
+    "typescript": "^7.0.2"
   },
   "scripts": {
     "lint": "eslint ./lib --ext .js",
