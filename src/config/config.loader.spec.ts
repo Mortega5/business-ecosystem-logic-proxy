@@ -110,7 +110,7 @@ describe('loadStaticConfig', () => {
         const applicationPath = writeYaml('app:\n  port: 9000\nlogging:\n  format: json\n');
         const config = loadStaticConfig({ defaultsPath: DEFAULTS_PATH, applicationPath, env: {} });
         expect(config.app.port).toBe(9000);
-        expect(config.app.host).toBe('0.0.0.0');
+        expect(config.app.host).toBeUndefined();
         expect(config.logging.format).toBe('json');
     });
 

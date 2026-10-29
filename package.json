@@ -70,6 +70,7 @@
   "devDependencies": {
     "@nestjs/testing": "^12.3.2",
     "@swc/core": "^1.16.20",
+    "@types/express": "^4.17.25",
     "@types/node": "^26.4.0",
     "coveralls": "^3.0.0",
     "freeport": "1.0.5",
@@ -88,6 +89,8 @@
     "lint": "oxlint --type-aware .",
     "test:unit": "vitest run --passWithNoTests",
     "typecheck": "tsc --noEmit",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/main.js",
     "prettier": "prettier --config .prettierrc.json --write '**/**/**/*.js' '**/**/*.js' '**/*.js' '*.js'",
     "test": "JASMINE_CONFIG_PATH=test/config/jasmine.json node_modules/.bin/istanbul cover --include-all-sources -x public/**/*.js -x locales/**/*.js -x server.js -x Gruntfile.js -x fill_indexes.js -x config.js node_modules/jasmine/bin/jasmine.js"
   },

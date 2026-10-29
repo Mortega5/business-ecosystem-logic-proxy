@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 export const ConfigSchema = z.object({
     app: z.object({
-        host: z.string().min(1),
+        host: z.string().min(1).optional(),
         port: z.coerce.number().int().min(1).max(65535),
         shutdownTimeoutMs: z.coerce.number().int().positive()
     }),
