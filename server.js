@@ -66,8 +66,6 @@ const PORT = config.https.enabled
 	? config.https.port || 443 // HTTPS
 	: config.port || 80; // HTTP
 
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-
 // External login enabled
 const extLogin = config.extLogin == true;
 const showLocal = config.showLocalLogin == true;
