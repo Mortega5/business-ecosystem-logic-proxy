@@ -72,7 +72,7 @@ const showLocal = config.showLocalLogin == true;
 const showVC = config.showVCLogin == true;
 const editParty = config.editParty == true;
 
-(async () => {
+module.exports = (async () => {
 
 // Local auth method
 const auth = await authModule.auth(config.oauth2);
@@ -863,6 +863,8 @@ app.use(function(err, req, res, next) {
 //////////////////////////// START SERVER ///////////////////////////
 /////////////////////////////////////////////////////////////////////
 
+// Only listen when run directly; when required, the caller owns the HTTP server
+if (require.main === module) {
 logger.info('Business Ecosystem Logic Proxy starting on port ' + PORT);
 if (config.https.enabled === true) {
 
@@ -898,6 +900,9 @@ if (config.https.enabled === true) {
 } else {
     app.listen(app.get('port'), onlistening);
 }
+}
+
+return { app, onlistening };
 
 function retryAsync(fn, {
   name,
