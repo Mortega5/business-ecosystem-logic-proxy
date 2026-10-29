@@ -1,7 +1,7 @@
 import { join } from 'node:path';
 import { Global, Module } from '@nestjs/common';
 import { AppConfigService, APP_CONFIG } from './app-config.service';
-import { loadStaticConfig } from './config.loader';
+import { loadStaticConfig, resolveApplicationPath } from './config.loader';
 
 @Global()
 @Module({
@@ -11,7 +11,7 @@ import { loadStaticConfig } from './config.loader';
             useFactory: () =>
                 loadStaticConfig({
                     defaultsPath: join(process.cwd(), 'config', 'default.yaml'),
-                    applicationPath: process.env.CONFIG_FILE,
+                    applicationPath: resolveApplicationPath(process.env),
                     env: process.env
                 })
         },

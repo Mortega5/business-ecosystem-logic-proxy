@@ -2,7 +2,15 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { deepMerge, envToObject, loadStaticConfig, parseConfig, readYamlFile } from './config.loader';
+import {
+    DEFAULT_APPLICATION_PATH,
+    deepMerge,
+    envToObject,
+    loadStaticConfig,
+    parseConfig,
+    readYamlFile,
+    resolveApplicationPath
+} from './config.loader';
 
 const DEFAULTS_PATH = join(__dirname, '../../config/default.yaml');
 
@@ -71,6 +79,23 @@ describe('readYamlFile', () => {
 describe('parseConfig', () => {
     it('lists every invalid field', () => {
         expect(() => parseConfig({ app: { port: 'abc' } })).toThrow(/app\.port[\s\S]*mongo/);
+    });
+});
+
+describe('resolveApplicationPath', () => {
+    it('prefers CONFIG_FILE even when it does not exist', () => {
+        expect(resolveApplicationPath({ CONFIG_FILE: '/custom/app.yaml' }, () => false)).toBe('/custom/app.yaml');
+    });
+
+    it('falls back to the default location when a file is mounted there', () => {
+        expect(resolveApplicationPath({}, (path) => path === DEFAULT_APPLICATION_PATH)).toBe(
+            '/etc/bae/config/application.yaml'
+        );
+    });
+
+    it('uses no application file when nothing is mounted', () => {
+        expect(resolveApplicationPath({}, () => false)).toBeUndefined();
+        expect(resolveApplicationPath({ CONFIG_FILE: '' }, () => false)).toBeUndefined();
     });
 });
 

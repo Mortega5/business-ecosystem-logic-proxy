@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { parse } from 'yaml';
 import { ConfigSchema, type AppConfig } from './config.schema';
 
@@ -9,6 +9,8 @@ export interface LoadOptions {
     applicationPath?: string | undefined;
     env: NodeJS.ProcessEnv;
 }
+
+export const DEFAULT_APPLICATION_PATH = '/etc/bae/config/application.yaml';
 
 const ENV_PREFIX = 'BAE_';
 const FORBIDDEN_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
@@ -98,6 +100,20 @@ export const parseConfig = (raw: unknown): AppConfig => {
         throw new Error(`Invalid configuration:\n${details}`);
     }
     return result.data;
+};
+
+/**
+ * CONFIG_FILE wins and must exist; otherwise the default location is used only
+ * when something is mounted there.
+ */
+export const resolveApplicationPath = (
+    env: NodeJS.ProcessEnv,
+    fileExists: (path: string) => boolean = existsSync
+): string | undefined => {
+    if (env.CONFIG_FILE !== undefined && env.CONFIG_FILE !== '') {
+        return env.CONFIG_FILE;
+    }
+    return fileExists(DEFAULT_APPLICATION_PATH) ? DEFAULT_APPLICATION_PATH : undefined;
 };
 
 /** defaults < application file < environment variables. */
