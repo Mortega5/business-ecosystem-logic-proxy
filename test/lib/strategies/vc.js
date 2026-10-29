@@ -112,13 +112,14 @@ describe('VC Strategy', () => {
         const ANY_STATE = 'state';
         const ANY_AUTH_CODE = 'code';
         const JWKS_PATH = '/jwksPath';
+        const TEST_PRIVATE_KEY = '60487b0bd7a5d81cdca58bbb04fe11a8da2838d907fdaa2695126c07b6adaf91';
         const DUMMY_RESPONSE = {
             end: () => {}
         };
         const VALID_CONFIG = {
             allowedRoles: ['customer', 'seller', 'admin'],
             clientID: 'did:1234',
-            privateKey: '123456',
+            privateKey: TEST_PRIVATE_KEY,
             verifierHost: 'https://verifierhost.com',
             verifierJWKSPath: JWKS_PATH,
             signAlgorithm: 'ES256'
@@ -127,7 +128,7 @@ describe('VC Strategy', () => {
             allowedRoles: ['customer', 'seller', 'admin'],
             isRedirection: true,
             clientID: 'did:1234',
-            privateKey: '123456',
+            privateKey: TEST_PRIVATE_KEY,
             verifierHost: 'https://verifierhost.com',
             verifierJWKSPath: JWKS_PATH,
             signAlgorithm: 'ES256'

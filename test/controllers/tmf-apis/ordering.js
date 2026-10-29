@@ -180,11 +180,16 @@ describe('Ordering API', function() {
         /// ///////////////////////////////////////////////////////////////////////////////////////////
 
         describe('GET', function() {
-            const testRetrieval = function(filterRelatedPartyFields, expectedErr, done) {
+            const testRetrieval = function(query, expectedRole, done) {
                 let ensureRelatedPartyIncludedCalled = false;
+                let appendPartyRoleQueryCalled = false;
 
                 const tmfUtils = {
-                    filterRelatedPartyWithRole: filterRelatedPartyFields,
+                    appendPartyRoleQuery: function(req, partyId, roleName) {
+                        appendPartyRoleQueryCalled = true;
+                        expect(partyId).toBe(req.user.partyId);
+                        expect(roleName).toBe(expectedRole);
+                    },
 
                     ensureRelatedPartyIncluded: function(req, callback) {
                         ensureRelatedPartyIncludedCalled = true;
@@ -199,38 +204,28 @@ describe('Ordering API', function() {
                 };
 
                 const req = {
-                    method: 'GET'
+                    method: 'GET',
+                    query: query,
+                    user: { partyId: 'test-user' }
                 };
 
                 const orderingApi = getOrderingAPI({}, tmfUtils, utils);
 
                 orderingApi.checkPermissions(req, function(err) {
                     expect(ensureRelatedPartyIncludedCalled).toBe(true);
-                    expect(err).toEqual(expectedErr);
+                    expect(appendPartyRoleQueryCalled).toBe(true);
+                    expect(err).toBeNull();
 
                     done();
                 });
             };
 
-            it('should call callback with error when retrieving list of orderings and using invalid filters', function(done) {
-                const error = {
-                    status: 401,
-                    message: 'Invalid filters'
-                };
-
-                const filterRelatedPartyFields = function(req, allowedRoles, callback) {
-                    callback(error);
-                };
-
-                testRetrieval(filterRelatedPartyFields, error, done);
+            it('should restrict the list of orderings to the customer role by default', function(done) {
+                testRetrieval({}, config.roles.customer, done);
             });
 
-            it('should call callback without errors when user is allowed to retrieve the list of orderings', function(done) {
-                const filterRelatedPartyFields = function(req, allowedRoles, callback) {
-                    callback();
-                };
-
-                testRetrieval(filterRelatedPartyFields, null, done);
+            it('should restrict the list of orderings to the seller role when it is requested', function(done) {
+                testRetrieval({ 'relatedParty.role': 'seller' }, config.roles.seller, done);
             });
         });
 
@@ -1885,11 +1880,6 @@ describe('Ordering API', function() {
                 hasRolesReturnValues.push(false); // First seller check
             });
 
-            orders.map((order) => {
-                // Global filter orders check, qs validation
-                hasRolesReturnValues.push(order.isInvolved); // First customer check
-            })
-
             const tmfUtils = jasmine.createSpyObj('tmfUtils', ['hasPartyRole']);
             tmfUtils.hasPartyRole.and.returnValues.apply(tmfUtils.hasPartyRole, hasRolesReturnValues);
 
@@ -1925,8 +1915,7 @@ describe('Ordering API', function() {
                     expect(tmfUtils.hasPartyRole).toHaveBeenCalledWith(req, order.item.relatedParty, config.roles.seller);
                 });
 
-                const calls = (orders.length * 2) + orders.length
-                expect(tmfUtils.hasPartyRole.calls.count()).toBe(calls);
+                expect(tmfUtils.hasPartyRole.calls.count()).toBe(orders.length * 2);
 
                 done();
             });
