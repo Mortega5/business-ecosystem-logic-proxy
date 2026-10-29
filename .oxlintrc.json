@@ -1,0 +1,67 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": [
+    "typescript",
+    "import",
+    "node"
+  ],
+  "categories": {
+    "correctness": "error"
+  },
+  "env": {
+    "node": true,
+    "es2023": true
+  },
+  "ignorePatterns": [
+    "node_modules",
+    "dist",
+    "coverage",
+    "portal",
+    "docker-dev/target",
+    "locales"
+  ],
+  "overrides": [
+    {
+      "files": [
+        "controllers/**",
+        "lib/**",
+        "test/**",
+        "db/**",
+        "docker/**",
+        "migration-scripts/**",
+        "config.js",
+        "server.js",
+        "collect_static.js",
+        "fill_indexes.js"
+      ],
+      "rules": {
+        "no-unused-vars": "warn",
+        "no-extra-boolean-cast": "warn",
+        "no-useless-escape": "warn",
+        "no-unused-expressions": "warn",
+        "no-dupe-keys": "warn",
+        "no-constant-binary-expression": "warn",
+        "no-const-assign": "warn",
+        "typescript/no-floating-promises": "warn",
+        "typescript/await-thenable": "warn",
+        "typescript/unbound-method": "warn",
+        "typescript/restrict-template-expressions": "warn",
+        "typescript/no-for-in-array": "warn",
+        "typescript/no-base-to-string": "warn"
+      }
+    },
+    {
+      "files": [
+        "src/**/*.ts"
+      ],
+      "rules": {
+        "no-console": "error",
+        "import/no-cycle": "error",
+        "typescript/no-floating-promises": "error",
+        "typescript/no-explicit-any": "error",
+        "typescript/no-unsafe-assignment": "error",
+        "typescript/no-deprecated": "error"
+      }
+    }
+  ]
+}
