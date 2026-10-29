@@ -1,0 +1,17 @@
+app:
+  host: 0.0.0.0
+  port: 8004
+  shutdownTimeoutMs: 20000
+
+http:
+  trustedProxies: []
+  bodyLimit: 50mb
+
+logging:
+  level: info
+  format: pretty
+  prettyOptions:
+    singleLine: true
+
+mongo:
+  uri: mongodb://localhost:27017/belp

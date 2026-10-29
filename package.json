@@ -9,6 +9,8 @@
     "node": ">=26"
   },
   "dependencies": {
+    "@nestjs/common": "^12.3.2",
+    "@nestjs/core": "^12.3.2",
     "async": "^1.5.0",
     "async-lock": "^0.3.8",
     "axios": "^1.5.0",
@@ -51,11 +53,16 @@
     "passport-i4trust": "0.1.0",
     "passport-keycloak-oauth2-oidc": "^1.0.5",
     "passport-oauth2": "^1.5.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
     "trycatch": "^1.5.21",
     "url": "^0.11.0",
-    "uuid": "^8.3.2"
+    "uuid": "^8.3.2",
+    "yaml": "^2.9.1",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@nestjs/testing": "^12.3.2",
     "@swc/core": "^1.16.20",
     "@types/node": "^26.4.0",
     "coveralls": "^3.0.0",
@@ -73,6 +80,7 @@
   "scripts": {
     "lint": "oxlint --type-aware .",
     "test:unit": "vitest run --passWithNoTests",
+    "typecheck": "tsc --noEmit",
     "prettier": "prettier --config .prettierrc.json --write '**/**/**/*.js' '**/**/*.js' '**/*.js' '*.js'",
     "test": "JASMINE_CONFIG_PATH=test/config/jasmine.json node_modules/.bin/istanbul cover --include-all-sources -x public/**/*.js -x locales/**/*.js -x server.js -x Gruntfile.js -x fill_indexes.js -x config.js node_modules/jasmine/bin/jasmine.js"
   },
