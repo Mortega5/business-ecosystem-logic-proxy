@@ -4,6 +4,7 @@
   "description": "Logic Layer for the Business API Ecosystem",
   "author": "FICODES",
   "license": "AGPL-3.0",
+  "packageManager": "pnpm@12.16.1",
   "engines": {
     "node": ">=16"
   },
