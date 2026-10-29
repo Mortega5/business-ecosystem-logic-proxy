@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { parse } from 'yaml';
 import { ConfigSchema, type AppConfig } from './config.schema';
 
@@ -122,3 +123,11 @@ export const loadStaticConfig = (options: LoadOptions): AppConfig => {
     const application = options.applicationPath === undefined ? {} : readYamlFile(options.applicationPath);
     return parseConfig(deepMerge(deepMerge(defaults, application), envToObject(options.env)));
 };
+
+/** The configuration the application runs with: shipped defaults, optional application file and environment. */
+export const loadAppConfig = (env: NodeJS.ProcessEnv): AppConfig =>
+    loadStaticConfig({
+        defaultsPath: join(process.cwd(), 'config', 'default.yaml'),
+        applicationPath: resolveApplicationPath(env),
+        env
+    });

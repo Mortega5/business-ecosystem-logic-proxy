@@ -1,19 +1,12 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import { mkdtempSync, rmSync } from 'node:fs';
-import { createServer, connect } from 'node:net';
+import { connect } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { MongoBinary } from 'mongodb-memory-server';
+import { freePort } from './free-port';
 
 export const MONGOD_VERSION = '7.0.14';
-
-const freePort = (): Promise<number> =>
-    new Promise((resolve) => {
-        const probe = createServer().listen(0, '127.0.0.1', () => {
-            const { port } = probe.address() as { port: number };
-            probe.close(() => resolve(port));
-        });
-    });
 
 const accepts = (port: number): Promise<boolean> =>
     new Promise((resolve) => {

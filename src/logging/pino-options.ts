@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import type { LoggerOptions } from 'pino';
 import type { Options } from 'pino-http';
 import type { AppConfig } from '../config/config.schema';
 
@@ -102,9 +103,13 @@ const levelForStatus = (_req: IncomingMessage, res: ServerResponse, error?: Erro
     return res.statusCode >= 400 ? 'warn' : 'info';
 };
 
-export const buildPinoOptions = (logging: AppConfig['logging']): Options => ({
+export const buildLoggerOptions = (logging: AppConfig['logging']): LoggerOptions => ({
     level: logging.level,
-    ...(logging.format === 'pretty' ? { transport: { target: 'pino-pretty', options: logging.prettyOptions } } : {}),
+    ...(logging.format === 'pretty' ? { transport: { target: 'pino-pretty', options: logging.prettyOptions } } : {})
+});
+
+export const buildPinoOptions = (logging: AppConfig['logging']): Options => ({
+    ...buildLoggerOptions(logging),
     redact: { paths: REDACT_PATHS, censor: '[Redacted]' },
     genReqId: generateRequestId,
     customLogLevel: levelForStatus,
