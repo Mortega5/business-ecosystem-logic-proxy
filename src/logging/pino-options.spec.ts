@@ -1,8 +1,12 @@
+import { mkdtempSync, readFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { Writable } from 'node:stream';
 import { Controller, Get, Module, type INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { LoggerModule } from 'nestjs-pino';
 import pino from 'pino';
+import pinoHttp from 'pino-http';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { AppConfig } from '../config/config.schema';
 import { buildPinoOptions, sanitizeUrl } from './pino-options';
@@ -37,6 +41,22 @@ describe('buildPinoOptions', () => {
         expect(buildPinoOptions(LOGGING).transport).toBeUndefined();
         const pretty = buildPinoOptions({ ...LOGGING, format: 'pretty', prettyOptions: { singleLine: true } });
         expect(pretty.transport).toEqual({ target: 'pino-pretty', options: { singleLine: true } });
+    });
+
+    it('writes readable lines through the pino-pretty transport', async () => {
+        const destination = join(mkdtempSync(join(tmpdir(), 'bae-log-')), 'out.log');
+        const options = buildPinoOptions({
+            ...LOGGING,
+            format: 'pretty',
+            prettyOptions: { singleLine: true, colorize: false, destination, sync: true }
+        });
+        // pino-http is the package that creates the logger, so it is the one resolving the target
+        const { logger } = pinoHttp(options);
+
+        logger.info('pretty transport works');
+        await new Promise((resolve) => setTimeout(resolve, 500));
+
+        expect(readFileSync(destination, 'utf8')).toContain('pretty transport works');
     });
 
     it('takes the level from the configuration', () => {
