@@ -18,7 +18,7 @@ let port: number;
 let seen: Seen | undefined;
 let handler: (req: IncomingMessage, res: ServerResponse) => void;
 
-const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
+const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn(), setContext: vi.fn() };
 
 const clientFor = (baseUrl: string, timeoutMs = 1000): FetchUpstreamClient =>
     new FetchUpstreamClient(

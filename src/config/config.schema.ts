@@ -18,7 +18,10 @@ export const ConfigSchema = z.object({
     mongo: z.object({
         uri: z.string().min(1),
         maxPoolSize: z.coerce.number().int().positive(),
-        serverSelectionTimeoutMs: z.coerce.number().int().positive()
+        serverSelectionTimeoutMs: z.coerce.number().int().positive(),
+        heartbeatFrequencyMs: z.coerce.number().int().min(500),
+        retryInitialDelayMs: z.coerce.number().int().positive(),
+        retryMaxDelayMs: z.coerce.number().int().positive()
     }),
     upstreams: z.record(
         z.string(),

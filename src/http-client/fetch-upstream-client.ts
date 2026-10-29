@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
+import { PinoLogger } from 'nestjs-pino';
 import { AppConfigService } from '../config/app-config.service';
 import { sanitizeUrl } from '../logging/pino-options';
 import { UpstreamClient, UpstreamError, type UpstreamRequest, type UpstreamResponse } from './upstream-client';
@@ -18,9 +18,10 @@ const buildUrl = (baseUrl: string, request: UpstreamRequest): URL => {
 export class FetchUpstreamClient extends UpstreamClient {
     constructor(
         private readonly config: AppConfigService,
-        @InjectPinoLogger(FetchUpstreamClient.name) private readonly logger: PinoLogger
+        private readonly logger: PinoLogger
     ) {
         super();
+        this.logger.setContext(FetchUpstreamClient.name);
     }
 
     async send(request: UpstreamRequest): Promise<UpstreamResponse> {

@@ -4,8 +4,11 @@ import { Test, type TestingModule } from '@nestjs/testing';
 import { MongoClient, type Collection, type Document } from 'mongodb';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import type { Connection } from 'mongoose';
+import { LoggerModule } from 'nestjs-pino';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { AppConfigService } from '../../config/app-config.service';
+import { waitFor } from '../../testing/wait-for';
+import { MongoConnectionService } from '../mongo-connection.service';
 import { MongoPersistenceModule } from '../mongo-persistence.module';
 import { ConfigDocumentRepository } from './config-document.repository';
 import { ConfigStoreModule } from './config-store.module';
@@ -25,7 +28,16 @@ beforeAll(async () => {
         providers: [
             {
                 provide: AppConfigService,
-                useValue: { mongo: { uri, maxPoolSize: 5, serverSelectionTimeoutMs: 2000 } }
+                useValue: {
+                    mongo: {
+                        uri,
+                        maxPoolSize: 5,
+                        serverSelectionTimeoutMs: 2000,
+                        heartbeatFrequencyMs: 500,
+                        retryInitialDelayMs: 100,
+                        retryMaxDelayMs: 300
+                    }
+                }
             }
         ],
         exports: [AppConfigService]
@@ -33,8 +45,10 @@ beforeAll(async () => {
     class ConfigStub {}
 
     moduleRef = await Test.createTestingModule({
-        imports: [ConfigStub, MongoPersistenceModule, ConfigStoreModule]
+        imports: [ConfigStub, LoggerModule.forRoot({ pinoHttp: { level: 'silent' } }), MongoPersistenceModule, ConfigStoreModule]
     }).compile();
+    await moduleRef.init();
+    await waitFor(() => moduleRef.get(MongoConnectionService).isUp(), 15_000);
     repository = moduleRef.get(ConfigDocumentRepository);
 
     client = new MongoClient(uri);
