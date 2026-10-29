@@ -1,3 +1,4 @@
 allowBuilds:
   '@swc/core': false
   core-js: false
+  mongodb-memory-server: false

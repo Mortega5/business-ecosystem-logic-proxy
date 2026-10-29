@@ -7,7 +7,7 @@ const VALUE: AppConfig = {
     app: { host: '0.0.0.0', port: 8004, shutdownTimeoutMs: 1000 },
     http: { trustedProxies: [], bodyLimit: '50mb' },
     logging: { level: 'info', format: 'json', prettyOptions: {} },
-    mongo: { uri: 'mongodb://localhost/test' },
+    mongo: { uri: 'mongodb://localhost/test', maxPoolSize: 10, serverSelectionTimeoutMs: 5000 },
     upstreams: { catalog: { baseUrl: 'http://catalog:8080/tmf-api', timeoutMs: 5000 } }
 };
 

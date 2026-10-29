@@ -16,7 +16,9 @@ export const ConfigSchema = z.object({
         prettyOptions: z.record(z.string(), z.unknown())
     }),
     mongo: z.object({
-        uri: z.string().min(1)
+        uri: z.string().min(1),
+        maxPoolSize: z.coerce.number().int().positive(),
+        serverSelectionTimeoutMs: z.coerce.number().int().positive()
     }),
     upstreams: z.record(
         z.string(),

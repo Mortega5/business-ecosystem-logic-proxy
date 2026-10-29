@@ -15,5 +15,7 @@ logging:
 
 mongo:
   uri: mongodb://localhost:27017/belp
+  maxPoolSize: 10
+  serverSelectionTimeoutMs: 5000
 
 upstreams: {}
