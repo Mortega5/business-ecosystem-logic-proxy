@@ -1,6 +1,8 @@
-FROM node:18 as build
+FROM node:26 as build
 
 ARG THEME
+
+RUN npm install -g pnpm@12.16.1
 
 WORKDIR /opt/business-ecosystem-logic-proxy
 
@@ -8,13 +10,13 @@ COPY ./ .
 
 RUN mkdir -p themes && \
     export USER=root && \
-    npm install --unsafe && \
+    pnpm install --frozen-lockfile && \
     mkdir etc && \
     cp config.js etc/config.js && \
     echo "module.exports = require('./etc/config');" > config.js && \
     if [ ! -z "$THEME" ] ; then cd themes && git clone ${THEME} ; fi
 
-FROM node:18 as main
+FROM node:26 as main
 
 LABEL MAINTAINER="Future Internet Consulting and Development Solutions S.L."
 

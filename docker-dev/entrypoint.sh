@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 cd /business-ecosystem-logic-proxy
-npm install
+pnpm install --frozen-lockfile
 
 echo "Proxy-dev deployed"
 
