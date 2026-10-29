@@ -15,3 +15,5 @@ logging:
 
 mongo:
   uri: mongodb://localhost:27017/belp
+
+upstreams: {}

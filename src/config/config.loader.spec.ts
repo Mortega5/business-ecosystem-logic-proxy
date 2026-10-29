@@ -125,6 +125,26 @@ describe('loadStaticConfig', () => {
         expect(config.http.trustedProxies).toEqual(['loopback']);
     });
 
+    it('reads an upstream from environment variables', () => {
+        const config = loadStaticConfig({
+            defaultsPath: DEFAULTS_PATH,
+            env: {
+                BAE_UPSTREAMS__CATALOG__BASE_URL: 'http://catalog:8080/tmf-api',
+                BAE_UPSTREAMS__CATALOG__TIMEOUT_MS: '2500'
+            }
+        });
+        expect(config.upstreams.catalog).toEqual({ baseUrl: 'http://catalog:8080/tmf-api', timeoutMs: 2500 });
+    });
+
+    it('rejects an upstream without a valid base url', () => {
+        expect(() =>
+            loadStaticConfig({
+                defaultsPath: DEFAULTS_PATH,
+                env: { BAE_UPSTREAMS__CATALOG__BASE_URL: 'not a url', BAE_UPSTREAMS__CATALOG__TIMEOUT_MS: '1' }
+            })
+        ).toThrow('upstreams.catalog.baseUrl');
+    });
+
     it('fails to start with an unreadable application file', () => {
         expect(() =>
             loadStaticConfig({ defaultsPath: DEFAULTS_PATH, applicationPath: '/missing.yaml', env: {} })

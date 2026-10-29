@@ -17,7 +17,14 @@ export const ConfigSchema = z.object({
     }),
     mongo: z.object({
         uri: z.string().min(1)
-    })
+    }),
+    upstreams: z.record(
+        z.string(),
+        z.object({
+            baseUrl: z.url(),
+            timeoutMs: z.coerce.number().int().positive()
+        })
+    )
 });
 
 export type AppConfig = z.infer<typeof ConfigSchema>;

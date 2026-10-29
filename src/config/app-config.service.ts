@@ -22,4 +22,8 @@ export class AppConfigService {
     get mongo(): AppConfig['mongo'] {
         return this.value.mongo;
     }
+
+    get upstreams(): AppConfig['upstreams'] {
+        return this.value.upstreams;
+    }
 }
