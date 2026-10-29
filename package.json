@@ -68,6 +68,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@nestjs/cli": "^12.0.11",
     "@nestjs/testing": "^12.3.2",
     "@swc/core": "^1.16.20",
     "@types/express": "^4.17.25",
@@ -81,7 +82,7 @@
     "oxlint": "^1.90.0",
     "oxlint-tsgolint": "^7.0.2005",
     "proxyquire": "1.7.3",
-    "typescript": "^7.0.2",
+    "typescript": "^6.0.3",
     "unplugin-swc": "^2.0.0",
     "vitest": "^5.0.5"
   },
@@ -89,8 +90,10 @@
     "lint": "oxlint --type-aware .",
     "test:unit": "vitest run --passWithNoTests",
     "typecheck": "tsc --noEmit",
-    "build": "tsc -p tsconfig.build.json",
-    "start": "node dist/main.js",
+    "build": "nest build",
+    "start": "nest start",
+    "start:dev": "nest start --watch",
+    "start:prod": "node dist/main",
     "prettier": "prettier --config .prettierrc.json --write '**/**/**/*.js' '**/**/*.js' '**/*.js' '*.js'",
     "test": "JASMINE_CONFIG_PATH=test/config/jasmine.json node_modules/.bin/istanbul cover --include-all-sources -x public/**/*.js -x locales/**/*.js -x server.js -x Gruntfile.js -x fill_indexes.js -x config.js node_modules/jasmine/bin/jasmine.js"
   },
