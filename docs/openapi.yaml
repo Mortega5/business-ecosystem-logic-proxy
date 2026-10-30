@@ -1,0 +1,136 @@
+openapi: 3.0.3
+info:
+  title: Business Ecosystem Logic Proxy
+  version: 12.0.0
+  description: |
+    Endpoints implemented by the Nest application. Requests that match none of them are handled by the
+    legacy Express application, whose routes are not described in this document.
+
+    Every response carries an `X-Request-Id` header. The value of the request header of the same name is
+    reused when it is present; otherwise a UUID is generated.
+tags:
+  - name: health
+    description: Probes for the container orchestrator.
+paths:
+  /health/live:
+    get:
+      tags: [health]
+      operationId: getLiveness
+      summary: Liveness
+      description: Answers 200 while the process is running. It does not check any dependency.
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      responses:
+        '200':
+          description: The process is running.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LivenessResult'
+              example:
+                status: ok
+  /health/ready:
+    get:
+      tags: [health]
+      operationId: getReadiness
+      summary: Readiness
+      description: |
+        Pings MongoDB and waits at most `health.mongoPingTimeoutMs` for the reply. The state is evaluated on
+        every call: it is 503 while MongoDB does not reply and 200 again as soon as it does.
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      responses:
+        '200':
+          description: MongoDB replied to the ping.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadinessResult'
+              example:
+                status: ok
+                info:
+                  mongodb:
+                    status: up
+                error: {}
+                details:
+                  mongodb:
+                    status: up
+        '503':
+          description: MongoDB did not reply to the ping in time, or the connection is closed.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadinessResult'
+              example:
+                status: error
+                info: {}
+                error:
+                  mongodb:
+                    status: down
+                    message: MongoDB is not reachable
+                details:
+                  mongodb:
+                    status: down
+                    message: MongoDB is not reachable
+components:
+  parameters:
+    RequestId:
+      name: X-Request-Id
+      in: header
+      required: false
+      description: Identifier of the request, used in the logs. Generated when absent.
+      schema:
+        type: string
+  headers:
+    RequestId:
+      description: Identifier of the request, as it appears in the logs.
+      schema:
+        type: string
+  schemas:
+    LivenessResult:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+    ReadinessResult:
+      type: object
+      required: [status, info, error, details]
+      properties:
+        status:
+          type: string
+          enum: [ok, error]
+        info:
+          description: Indicators that are up.
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/IndicatorResult'
+        error:
+          description: Indicators that are down.
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/IndicatorResult'
+        details:
+          description: Every indicator.
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/IndicatorResult'
+    IndicatorResult:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [up, down]
+        message:
+          type: string
