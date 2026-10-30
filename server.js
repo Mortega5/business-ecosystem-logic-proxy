@@ -902,7 +902,11 @@ if (config.https.enabled === true) {
 }
 }
 
-return { app, onlistening };
+// Retry timers of the start-up loaders, kept so a shutdown can cancel them
+const retryTimers = new Set();
+let loadersStopped = false;
+
+return { app, onlistening, stopBackgroundLoaders, close };
 
 function retryAsync(fn, {
   name,
@@ -911,6 +915,9 @@ function retryAsync(fn, {
   let attempt = 0;
 
   const run = () => {
+    if (loadersStopped) {
+      return;
+    }
     attempt += 1;
 
     return Promise.resolve()
@@ -920,13 +927,34 @@ function retryAsync(fn, {
         return res;
       })
       .catch((err) => {
+        if (loadersStopped) {
+          return;
+        }
         // log useful info
         logger.error(`${name} failed (attempt ${attempt}). Retrying...`, err);
-        setTimeout(run, delayMs);
+        const timer = setTimeout(() => {
+          retryTimers.delete(timer);
+          run();
+        }, delayMs);
+        retryTimers.add(timer);
       });
   };
 
   run();
+}
+
+// Stops the retries of the start-up loaders and the scheduled refreshes (stats, operator)
+function stopBackgroundLoaders() {
+  loadersStopped = true;
+  retryTimers.forEach(clearTimeout);
+  retryTimers.clear();
+  require('node-cron').getTasks().forEach((task) => task.stop());
+}
+
+// Closes the connections to MongoDB; to be called once the in-flight requests are over
+async function close() {
+  await mongoose.disconnect();
+  await indexes.close();
 }
 
 async function loadChargingInfo() {
