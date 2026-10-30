@@ -11,6 +11,7 @@ COPY ./ .
 RUN mkdir -p themes && \
     export USER=root && \
     pnpm install --frozen-lockfile && \
+    pnpm build && \
     mkdir etc && \
     cp config.js etc/config.js && \
     echo "module.exports = require('./etc/config');" > config.js && \
@@ -31,6 +32,6 @@ COPY ./docker/getConfig.js /opt/business-ecosystem-logic-proxy
 
 EXPOSE 8004
 
-HEALTHCHECK CMD curl --fail http://localhost:8004/version || exit 1
+HEALTHCHECK --start-period=120s CMD curl --fail http://localhost:8004/health/live || exit 1
 
 ENTRYPOINT ["/entrypoint.sh"]

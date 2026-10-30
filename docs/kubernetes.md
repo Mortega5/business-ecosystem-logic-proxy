@@ -17,8 +17,9 @@ The application serves two sets of routes on the same port. Requests are matched
 by Nest first; those that match none are handled by the legacy Express application (`server.js`), which is
 configured separately, through its `BAE_LP_*` environment variables and `config.js`.
 
-The image built from `docker/Dockerfile` starts `server.js` on its own, so the endpoints in this document
-exist only when the container runs `dist/main`.
+The image built from `docker/Dockerfile` runs `pnpm build` and its entrypoint ends with `exec node dist/main`, so
+the process receiving `SIGTERM` is the Node.js one. Its `HEALTHCHECK` requests `/health/live` over HTTP, with a
+start period of 120 seconds; with `app.https.enabled` set it needs to be overridden.
 
 ## HTTPS
 

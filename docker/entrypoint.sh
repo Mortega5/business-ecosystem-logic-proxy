@@ -58,4 +58,4 @@ if [ ${MIGRATE_DATA} = "True" ]; then
     cd ..
 fi
 
-node server.js --max-http-header-size=16384
+exec node --max-http-header-size=16384 dist/main
