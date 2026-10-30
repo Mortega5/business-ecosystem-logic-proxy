@@ -125,6 +125,35 @@ describe('loadStaticConfig', () => {
         expect(config.http.trustedProxies).toEqual(['loopback']);
     });
 
+    describe('legacy variables', () => {
+        it('apply over the defaults and report each variable they used', () => {
+            const used: string[] = [];
+            const config = loadStaticConfig({
+                defaultsPath: DEFAULTS_PATH,
+                env: { BAE_LP_PORT: '9000', BAE_LP_MONGO_SERVER: 'db.internal', BAE_LP_MONGO_DB: 'bae' },
+                onLegacyVariable: ({ variable }) => used.push(variable)
+            });
+
+            expect(config.app.port).toBe(9000);
+            expect(config.mongo.uri).toBe('mongodb://db.internal:27017/bae');
+            expect(used).toEqual(['BAE_LP_PORT', 'BAE_LP_MONGO_SERVER', 'BAE_LP_MONGO_DB']);
+        });
+
+        it('lose against the application file, which loses against the new variables', () => {
+            const applicationPath = writeYaml('app:\n  port: 9100\n');
+
+            const fromFile = loadStaticConfig({ defaultsPath: DEFAULTS_PATH, applicationPath, env: { BAE_LP_PORT: '9000' } });
+            const fromEnv = loadStaticConfig({
+                defaultsPath: DEFAULTS_PATH,
+                applicationPath,
+                env: { BAE_LP_PORT: '9000', BAE_APP__PORT: '9200' }
+            });
+
+            expect(fromFile.app.port).toBe(9100);
+            expect(fromEnv.app.port).toBe(9200);
+        });
+    });
+
     it('defaults to no shutdown delay and a timeout that leaves room for one', () => {
         const config = loadStaticConfig({ defaultsPath: DEFAULTS_PATH, env: {} });
         expect(config.app).toMatchObject({ shutdownDelayMs: 0, shutdownTimeoutMs: 20000 });

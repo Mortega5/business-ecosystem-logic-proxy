@@ -2,23 +2,21 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parse } from 'yaml';
 import { ConfigSchema, type AppConfig } from './config.schema';
+import { legacyEnvToObject, type LegacyVariable } from './legacy-env';
+import { FORBIDDEN_KEYS, isPlainObject, setPath, type PlainObject } from './plain-object';
 
-export type PlainObject = Record<string, unknown>;
+export type { PlainObject };
 
 export interface LoadOptions {
     defaultsPath: string;
     applicationPath?: string | undefined;
     env: NodeJS.ProcessEnv;
+    onLegacyVariable?: (variable: LegacyVariable) => void;
 }
 
 export const DEFAULT_APPLICATION_PATH = '/etc/bae/config/application.yaml';
 
 const ENV_PREFIX = 'BAE_';
-const FORBIDDEN_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
-
-const isPlainObject = (value: unknown): value is PlainObject =>
-    typeof value === 'object' && value !== null && !Array.isArray(value);
-
 export const deepMerge = (base: PlainObject, override: PlainObject): PlainObject => {
     const merged: PlainObject = { ...base };
     for (const [key, value] of Object.entries(override)) {
@@ -61,18 +59,7 @@ export const envToObject = (env: NodeJS.ProcessEnv): PlainObject => {
         if (path.some((segment) => segment === '' || FORBIDDEN_KEYS.has(segment))) {
             continue;
         }
-        let cursor = result;
-        for (const segment of path.slice(0, -1)) {
-            const next = cursor[segment];
-            if (isPlainObject(next)) {
-                cursor = next;
-            } else {
-                const created: PlainObject = {};
-                cursor[segment] = created;
-                cursor = created;
-            }
-        }
-        cursor[path[path.length - 1] as string] = parseEnvValue(raw);
+        setPath(result, path, parseEnvValue(raw));
     }
     return result;
 };
@@ -117,17 +104,20 @@ export const resolveApplicationPath = (
     return fileExists(DEFAULT_APPLICATION_PATH) ? DEFAULT_APPLICATION_PATH : undefined;
 };
 
-/** defaults < application file < environment variables. */
+/** defaults < legacy variables < application file < environment variables. */
 export const loadStaticConfig = (options: LoadOptions): AppConfig => {
     const defaults = readYamlFile(options.defaultsPath);
     const application = options.applicationPath === undefined ? {} : readYamlFile(options.applicationPath);
-    return parseConfig(deepMerge(deepMerge(defaults, application), envToObject(options.env)));
+    const legacy = legacyEnvToObject(options.env);
+    legacy.used.forEach((variable) => options.onLegacyVariable?.(variable));
+    return parseConfig(deepMerge(deepMerge(deepMerge(defaults, legacy.values), application), envToObject(options.env)));
 };
 
 /** The configuration the application runs with: shipped defaults, optional application file and environment. */
-export const loadAppConfig = (env: NodeJS.ProcessEnv): AppConfig =>
+export const loadAppConfig = (env: NodeJS.ProcessEnv, onLegacyVariable?: (variable: LegacyVariable) => void): AppConfig =>
     loadStaticConfig({
         defaultsPath: join(process.cwd(), 'config', 'default.yaml'),
         applicationPath: resolveApplicationPath(env),
-        env
+        env,
+        ...(onLegacyVariable === undefined ? {} : { onLegacyVariable })
     });

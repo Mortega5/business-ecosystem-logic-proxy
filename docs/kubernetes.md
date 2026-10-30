@@ -127,9 +127,10 @@ Logged with `context: "MongoConnectionService"`:
 Values are resolved in this order, each layer overriding the previous one:
 
 1. `config/default.yaml`, shipped with the application.
-2. The YAML file named by `CONFIG_FILE`, or `/etc/bae/config/application.yaml` when `CONFIG_FILE` is not set.
+2. The [legacy variables](#legacy-environment-variables) listed below.
+3. The YAML file named by `CONFIG_FILE`, or `/etc/bae/config/application.yaml` when `CONFIG_FILE` is not set.
    The default file is optional; a file named by `CONFIG_FILE` must exist.
-3. Environment variables named `BAE_<SECTION>__<KEY>`.
+4. Environment variables named `BAE_<SECTION>__<KEY>`.
 
 Environment variable names: `__` separates levels and a single `_` inside a level is a camelCase boundary, so
 `BAE_MONGO__RETRY_MAX_DELAY_MS` is `mongo.retryMaxDelayMs`. Arrays and objects are given as JSON. Variables
@@ -153,6 +154,25 @@ volumes:
   - name: config
     configMap: { name: proxy-config }   # key: application.yaml
 ```
+
+### Legacy environment variables
+
+Variables of the legacy application that also configure the Nest application:
+
+| Variable | Configures | Notes |
+|---|---|---|
+| `BAE_LP_PORT` | `app.port` | |
+| `BAE_LP_MONGO_SERVER`, `BAE_LP_MONGO_PORT`, `BAE_LP_MONGO_DB`, `BAE_LP_MONGO_USER`, `BAE_LP_MONGO_PASS` | `mongo.uri` | `mongodb://[user:password@]server:port/db`. Parts that are not set take the values of the legacy application: server `mongo`, port `27017`, database `belp`. Credentials are used only when both a user and a password are set, and are percent-encoded |
+
+When none of the `BAE_LP_MONGO_*` variables is set, `mongo.uri` keeps its default.
+
+Each variable in use is logged at start-up, with `context: "Bootstrap"`:
+
+| Level | Message | Fields |
+|---|---|---|
+| warn | `Deprecated environment variable, still applied` | `variable`, `key` (the configuration key it sets) and `replacement` (the `BAE_<SECTION>__<KEY>` name) |
+
+### Keys
 
 Keys read by the application:
 

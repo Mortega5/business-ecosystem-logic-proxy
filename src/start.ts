@@ -2,6 +2,7 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import pino from 'pino';
 import { createApp } from './bootstrap';
 import { loadAppConfig } from './config/config.loader';
+import { envNameFor, type LegacyVariable } from './config/legacy-env';
 import type { AppConfig } from './config/config.schema';
 import type { LegacyHandler } from './legacy/legacy-fallback.filter';
 import { buildLoggerOptions } from './logging/pino-options';
@@ -34,8 +35,9 @@ export interface StartOptions {
  */
 export const start = async (options: StartOptions): Promise<RunningServer> => {
     let config: AppConfig;
+    const legacyVariables: LegacyVariable[] = [];
     try {
-        config = loadAppConfig(options.env);
+        config = loadAppConfig(options.env, (variable) => legacyVariables.push(variable));
     } catch (error) {
         // There is no logger without a valid configuration
         process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
@@ -44,6 +46,9 @@ export const start = async (options: StartOptions): Promise<RunningServer> => {
     const logger = pino(buildLoggerOptions(config.logging), options.logStream).child({ context: 'Bootstrap' });
 
     try {
+        for (const { variable, key } of legacyVariables) {
+            logger.warn({ variable, key, replacement: envNameFor(key) }, 'Deprecated environment variable, still applied');
+        }
         logger.info({ port: config.app.port, host: config.app.host }, 'Starting the server');
 
         const started = Date.now();

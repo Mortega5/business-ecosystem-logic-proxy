@@ -87,6 +87,28 @@ describe('start', () => {
         await app.close();
     });
 
+    it('warns about legacy variables it still applies, naming their replacement', async () => {
+        const { lines, logStream } = capture();
+        const port = await freePort();
+
+        const { app } = await start({
+            env: { BAE_LOGGING__FORMAT: 'json', BAE_APP__HOST: '127.0.0.1', BAE_LP_PORT: String(port) },
+            loadLegacy: loadedAfter(0),
+            rootModule: TestRootModule,
+            logStream
+        });
+
+        expect(lines.find((l) => l.msg === 'Deprecated environment variable, still applied')).toMatchObject({
+            level: 40,
+            context: 'Bootstrap',
+            variable: 'BAE_LP_PORT',
+            key: 'app.port',
+            replacement: 'BAE_APP__PORT'
+        });
+        expect(await app.getUrl()).toContain(`:${port}`);
+        await app.close();
+    });
+
     it('logs a fatal error and rethrows when the legacy application fails to load', async () => {
         const { lines, logStream } = capture();
         const failure = new Error('connect ENOTFOUND mongo');
