@@ -14,7 +14,7 @@ import { MongoConnectionService } from '../persistence/mongo-connection.service'
 
 interface ResponseObject {
     headers?: Record<string, unknown>;
-    content?: Record<string, { schema: object }>;
+    content?: Record<string, { schema: object; example?: unknown; examples?: Record<string, { value: unknown }> }>;
 }
 
 interface Operation {
@@ -31,7 +31,7 @@ const mongo = { ping: vi.fn<(timeoutMs: number) => Promise<boolean>>() };
 @Global()
 @Module({
     providers: [
-        { provide: AppConfigService, useValue: { health: { mongoPingTimeoutMs: 500 } } },
+        { provide: AppConfigService, useValue: { app: { shutdownDelayMs: 0 }, health: { mongoPingTimeoutMs: 500 } } },
         { provide: MongoConnectionService, useValue: mongo }
     ],
     exports: [AppConfigService, MongoConnectionService]
@@ -71,6 +71,28 @@ beforeAll(async () => {
 describe('docs/openapi.yaml', () => {
     it('is a valid OpenAPI document', () => {
         expect(Object.keys(document.paths).length).toBeGreaterThan(0);
+    });
+
+    it('has examples that match their schemas', () => {
+        const ajv = new Ajv({ strict: false, allErrors: true });
+        let checked = 0;
+        for (const operations of Object.values(document.paths)) {
+            for (const operation of Object.values(operations)) {
+                for (const response of Object.values(operation.responses)) {
+                    for (const media of Object.values(response.content ?? {})) {
+                        const examples = [media.example, ...Object.values(media.examples ?? {}).map((e) => e.value)].filter(
+                            (e) => e !== undefined
+                        );
+                        const validate = ajv.compile(media.schema);
+                        for (const example of examples) {
+                            expect(validate(example), JSON.stringify(validate.errors)).toBe(true);
+                            checked++;
+                        }
+                    }
+                }
+            }
+        }
+        expect(checked).toBeGreaterThanOrEqual(4);
     });
 
     it('describes every route the Nest application implements, and only those', async () => {

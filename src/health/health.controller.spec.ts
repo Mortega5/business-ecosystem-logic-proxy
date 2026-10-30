@@ -11,7 +11,7 @@ const mongo = { ping: vi.fn<(timeoutMs: number) => Promise<boolean>>() };
 @Global()
 @Module({
     providers: [
-        { provide: AppConfigService, useValue: { health: { mongoPingTimeoutMs: 750 } } },
+        { provide: AppConfigService, useValue: { app: { shutdownDelayMs: 0 }, health: { mongoPingTimeoutMs: 750 } } },
         { provide: MongoConnectionService, useValue: mongo }
     ],
     exports: [AppConfigService, MongoConnectionService]

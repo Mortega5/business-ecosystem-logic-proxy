@@ -23,6 +23,7 @@ beforeAll(async () => {
             {
                 provide: AppConfigService,
                 useValue: {
+                    app: { shutdownDelayMs: 0 },
                     health: { mongoPingTimeoutMs: 500 },
                     mongo: {
                         uri: `${mongod.uri}/bae_health`,

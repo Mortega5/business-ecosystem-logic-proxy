@@ -82,6 +82,29 @@ containers:
       failureThreshold: 3
 ```
 
+## Shutdown
+
+`SIGTERM` and `SIGINT` start an orderly shutdown, in this order:
+
+1. The retries of the start-up loaders of the legacy application (charging information, statistics, operator)
+   and its scheduled refreshes are cancelled.
+2. `/health/ready` answers `503` with status `shutting_down`. On `SIGTERM` the server keeps accepting requests
+   for `app.shutdownDelayMs` (no wait when it is `0`, and none for `SIGINT`); `/health/live` keeps answering `200`.
+3. The HTTP server stops accepting connections and waits for the requests in flight to finish.
+4. The Nest MongoDB connection is closed, then the connections of the legacy application.
+5. The process exits with code 0.
+
+If the shutdown has not finished `app.shutdownTimeoutMs` after the signal, the process exits with code 1.
+`app.shutdownTimeoutMs` must be greater than `app.shutdownDelayMs`. Kubernetes sends `SIGKILL` when
+`terminationGracePeriodSeconds` elapses, so that value should exceed `app.shutdownTimeoutMs`.
+
+| Level | Message | |
+|---|---|---|
+| info | `Shutting down` | With `signal` and `timeoutMs` |
+| info | `Shutdown complete` | |
+| fatal | `Shutdown did not finish in time, exiting` | Exit code 1 |
+| fatal | `Shutdown failed` | With the error; exit code 1 |
+
 ## MongoDB connection
 
 The Nest application opens its connection after it starts, without blocking it, and keeps trying until it
@@ -137,6 +160,8 @@ Keys read by the application:
 |---|---|---|---|
 | `app.host` | string | not set | Listening address |
 | `app.port` | integer 1–65535 | `8004` | Listening port |
+| `app.shutdownDelayMs` | integer ≥ 0 | `0` | Time the server keeps accepting requests, with readiness at 503, after `SIGTERM` |
+| `app.shutdownTimeoutMs` | integer, greater than `app.shutdownDelayMs` | `20000` | Maximum duration of the shutdown |
 | `logging.level` | `fatal` `error` `warn` `info` `debug` `trace` `silent` | `info` | |
 | `logging.format` | `json` `pretty` | `pretty` | `pretty` uses pino-pretty |
 | `logging.prettyOptions` | object | `{ singleLine: true }` | Options for pino-pretty |

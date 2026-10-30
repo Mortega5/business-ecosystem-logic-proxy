@@ -125,6 +125,20 @@ describe('loadStaticConfig', () => {
         expect(config.http.trustedProxies).toEqual(['loopback']);
     });
 
+    it('defaults to no shutdown delay and a timeout that leaves room for one', () => {
+        const config = loadStaticConfig({ defaultsPath: DEFAULTS_PATH, env: {} });
+        expect(config.app).toMatchObject({ shutdownDelayMs: 0, shutdownTimeoutMs: 20000 });
+    });
+
+    it('rejects a shutdown delay that is not shorter than the shutdown timeout', () => {
+        expect(() =>
+            loadStaticConfig({
+                defaultsPath: DEFAULTS_PATH,
+                env: { BAE_APP__SHUTDOWN_DELAY_MS: '20000', BAE_APP__SHUTDOWN_TIMEOUT_MS: '20000' }
+            })
+        ).toThrow('app.shutdownTimeoutMs: must be greater than app.shutdownDelayMs');
+    });
+
     it('reads an upstream from environment variables', () => {
         const config = loadStaticConfig({
             defaultsPath: DEFAULTS_PATH,

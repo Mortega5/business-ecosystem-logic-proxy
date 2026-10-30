@@ -9,6 +9,15 @@ import { buildLoggerOptions } from './logging/pino-options';
 export interface LegacyServer {
     app: LegacyHandler;
     onlistening: () => void;
+    stopBackgroundLoaders: () => void;
+    close: () => Promise<void>;
+}
+
+export interface RunningServer {
+    app: NestExpressApplication;
+    legacy: LegacyServer;
+    logger: pino.Logger;
+    config: AppConfig;
 }
 
 export interface StartOptions {
@@ -23,7 +32,7 @@ export interface StartOptions {
  * Starts the server. Everything before the Nest application exists is logged here, so a start-up
  * that is waiting for a dependency, or fails, is never silent.
  */
-export const start = async (options: StartOptions): Promise<NestExpressApplication> => {
+export const start = async (options: StartOptions): Promise<RunningServer> => {
     let config: AppConfig;
     try {
         config = loadAppConfig(options.env);
@@ -52,7 +61,7 @@ export const start = async (options: StartOptions): Promise<NestExpressApplicati
         logger.info({ port: config.app.port }, 'Server listening');
 
         legacy.onlistening();
-        return app;
+        return { app, legacy, logger, config };
     } catch (error) {
         logger.fatal({ err: error }, 'The server could not start');
         throw error;

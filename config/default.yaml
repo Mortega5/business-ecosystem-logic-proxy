@@ -1,6 +1,7 @@
 app:
   port: 8004
   shutdownTimeoutMs: 20000
+  shutdownDelayMs: 0
 
 http:
   trustedProxies: []

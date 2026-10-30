@@ -35,7 +35,13 @@ legacyApp.get('/legacy', (_req, res) => {
 });
 
 const loadedAfter = (ms: number, onlistening = vi.fn()): (() => Promise<LegacyServer>) => {
-    return () => new Promise((resolve) => setTimeout(() => resolve({ app: legacyApp, onlistening }), ms));
+    return () =>
+        new Promise((resolve) =>
+            setTimeout(
+                () => resolve({ app: legacyApp, onlistening, stopBackgroundLoaders: vi.fn(), close: vi.fn() }),
+                ms
+            )
+        );
 };
 
 const envFor = async (extra: Record<string, string> = {}): Promise<NodeJS.ProcessEnv> => ({
@@ -55,7 +61,7 @@ describe('start', () => {
         const onlistening = vi.fn();
         const env = await envFor();
 
-        const app = await start({
+        const { app } = await start({
             env,
             loadLegacy: loadedAfter(120, onlistening),
             rootModule: TestRootModule,

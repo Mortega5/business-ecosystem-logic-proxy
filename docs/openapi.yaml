@@ -39,7 +39,9 @@ paths:
       summary: Readiness
       description: |
         Pings MongoDB and waits at most `health.mongoPingTimeoutMs` for the reply. The state is evaluated on
-        every call: it is 503 while MongoDB does not reply and 200 again as soon as it does.
+        every call: it is 503 while MongoDB does not reply and 200 again as soon as it does. From the moment
+        a termination signal is received it answers 503 with status `shutting_down`, while the server keeps
+        accepting requests for `app.shutdownDelayMs`.
       parameters:
         - $ref: '#/components/parameters/RequestId'
       responses:
@@ -62,7 +64,7 @@ paths:
                   mongodb:
                     status: up
         '503':
-          description: MongoDB did not reply to the ping in time, or the connection is closed.
+          description: MongoDB did not reply to the ping in time, or the connection is closed, or the process is shutting down.
           headers:
             X-Request-Id:
               $ref: '#/components/headers/RequestId'
@@ -70,17 +72,31 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReadinessResult'
-              example:
-                status: error
-                info: {}
-                error:
-                  mongodb:
-                    status: down
-                    message: MongoDB is not reachable
-                details:
-                  mongodb:
-                    status: down
-                    message: MongoDB is not reachable
+              examples:
+                mongodbDown:
+                  summary: MongoDB does not reply
+                  value:
+                    status: error
+                    info: {}
+                    error:
+                      mongodb:
+                        status: down
+                        message: MongoDB is not reachable
+                    details:
+                      mongodb:
+                        status: down
+                        message: MongoDB is not reachable
+                shuttingDown:
+                  summary: A termination signal was received
+                  value:
+                    status: shutting_down
+                    info:
+                      mongodb:
+                        status: up
+                    error: {}
+                    details:
+                      mongodb:
+                        status: up
 components:
   parameters:
     RequestId:
@@ -109,7 +125,7 @@ components:
       properties:
         status:
           type: string
-          enum: [ok, error]
+          enum: [ok, error, shutting_down]
         info:
           description: Indicators that are up.
           type: object

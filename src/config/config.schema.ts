@@ -4,7 +4,11 @@ export const ConfigSchema = z.object({
     app: z.object({
         host: z.string().min(1).optional(),
         port: z.coerce.number().int().min(1).max(65535),
-        shutdownTimeoutMs: z.coerce.number().int().positive()
+        shutdownTimeoutMs: z.coerce.number().int().positive(),
+        shutdownDelayMs: z.coerce.number().int().min(0)
+    }).refine((app) => app.shutdownTimeoutMs > app.shutdownDelayMs, {
+        path: ['shutdownTimeoutMs'],
+        message: 'must be greater than app.shutdownDelayMs'
     }),
     http: z.object({
         trustedProxies: z.array(z.string().min(1)),
