@@ -20,6 +20,24 @@ configured separately, through its `BAE_LP_*` environment variables and `config.
 The image built from `docker/Dockerfile` starts `server.js` on its own, so the endpoints in this document
 exist only when the container runs `dist/main`.
 
+## HTTPS
+
+Disabled by default. With `app.https.enabled` set to `true` the server listens on `app.port` over TLS and no longer
+answers plain HTTP on that port; the Nest routes and the legacy ones are served the same way. The key and
+certificate files are read when the server starts; `app.https.keyFile` and `app.https.certFile` are required once
+HTTPS is enabled and `app.https.caFile` is optional.
+
+TLS 1.0 and 1.1 are excluded, and TLS 1.2 connections use the legacy application's cipher list
+(`ECDHE-RSA-AES256-SHA384:DHE-RSA-AES256-SHA384:ECDHE-RSA-AES256-SHA256:DHE-RSA-AES256-SHA256:ECDHE-RSA-AES128-SHA256:DHE-RSA-AES128-SHA256:HIGH`
+without `aNULL`, `eNULL`, `EXPORT`, `DES`, `RC4`, `MD5`, `PSK`, `SRP` and `CAMELLIA`) in the server's order of preference.
+
+With HTTPS enabled, the probes need `scheme: HTTPS`:
+
+```yaml
+livenessProbe:
+  httpGet: { path: /health/live, port: 8004, scheme: HTTPS }
+```
+
 ## Start-up
 
 `server.js` is loaded before the Nest application is created, and it waits for its own dependencies
@@ -161,7 +179,10 @@ Variables of the legacy application that also configure the Nest application:
 
 | Variable | Configures | Notes |
 |---|---|---|
-| `BAE_LP_PORT` | `app.port` | |
+| `BAE_LP_PORT` | `app.port` | Used while HTTPS is not enabled |
+| `BAE_LP_HTTPS_ENABLED` | `app.https.enabled` | Only the value `true` enables HTTPS |
+| `BAE_LP_HTTPS_CERT`, `BAE_LP_HTTPS_KEY`, `BAE_LP_HTTPS_CA` | `app.https.certFile`, `app.https.keyFile`, `app.https.caFile` | |
+| `BAE_LP_HTTPS_PORT` | `app.port` | Used while HTTPS is enabled, as in the legacy application; `443` when it is not set |
 | `BAE_LP_MONGO_SERVER`, `BAE_LP_MONGO_PORT`, `BAE_LP_MONGO_DB`, `BAE_LP_MONGO_USER`, `BAE_LP_MONGO_PASS` | `mongo.uri` | `mongodb://[user:password@]server:port/db`. Parts that are not set take the values of the legacy application: server `mongo`, port `27017`, database `belp`. Credentials are used only when both a user and a password are set, and are percent-encoded |
 
 When none of the `BAE_LP_MONGO_*` variables is set, `mongo.uri` keeps its default.
@@ -180,6 +201,9 @@ Keys read by the application:
 |---|---|---|---|
 | `app.host` | string | not set | Listening address |
 | `app.port` | integer 1–65535 | `8004` | Listening port |
+| `app.https.enabled` | boolean | `false` | Serves HTTPS instead of HTTP |
+| `app.https.keyFile`, `app.https.certFile` | string | not set | PEM files; required when `app.https.enabled` is `true` |
+| `app.https.caFile` | string | not set | PEM file with the certificate authority chain |
 | `app.shutdownDelayMs` | integer ≥ 0 | `0` | Time the server keeps accepting requests, with readiness at 503, after `SIGTERM` |
 | `app.shutdownTimeoutMs` | integer, greater than `app.shutdownDelayMs` | `20000` | Maximum duration of the shutdown |
 | `logging.level` | `fatal` `error` `warn` `info` `debug` `trace` `silent` | `info` | |

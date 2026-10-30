@@ -154,6 +154,24 @@ describe('loadStaticConfig', () => {
         });
     });
 
+    it('has HTTPS disabled by default and requires a key and a certificate once enabled', () => {
+        expect(loadStaticConfig({ defaultsPath: DEFAULTS_PATH, env: {} }).app.https).toEqual({ enabled: false });
+        expect(() => loadStaticConfig({ defaultsPath: DEFAULTS_PATH, env: { BAE_APP__HTTPS__ENABLED: 'true' } })).toThrow(
+            /app\.https\.keyFile: is required[\s\S]*app\.https\.certFile: is required/
+        );
+        expect(
+            loadStaticConfig({
+                defaultsPath: DEFAULTS_PATH,
+                env: { BAE_APP__HTTPS__ENABLED: 'true', BAE_APP__HTTPS__KEY_FILE: '/k', BAE_APP__HTTPS__CERT_FILE: '/c' }
+            }).app.https
+        ).toEqual({ enabled: true, keyFile: '/k', certFile: '/c' });
+    });
+
+    it('reads the string "false" for app.https.enabled as false', () => {
+        const config = loadStaticConfig({ defaultsPath: DEFAULTS_PATH, env: { BAE_APP__HTTPS__ENABLED: 'false' } });
+        expect(config.app.https.enabled).toBe(false);
+    });
+
     it('defaults to no shutdown delay and a timeout that leaves room for one', () => {
         const config = loadStaticConfig({ defaultsPath: DEFAULTS_PATH, env: {} });
         expect(config.app).toMatchObject({ shutdownDelayMs: 0, shutdownTimeoutMs: 20000 });

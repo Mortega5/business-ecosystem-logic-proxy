@@ -9,6 +9,27 @@ describe('legacyEnvToObject', () => {
         });
     });
 
+    it('maps the HTTPS variables, listening on the HTTPS port (443 by default) while it is enabled', () => {
+        const env = {
+            BAE_LP_PORT: '8004',
+            BAE_LP_HTTPS_ENABLED: 'true',
+            BAE_LP_HTTPS_CERT: '/tls/cert.pem',
+            BAE_LP_HTTPS_KEY: '/tls/key.pem',
+            BAE_LP_HTTPS_CA: '/tls/ca.pem'
+        };
+
+        expect(legacyEnvToObject(env).values).toEqual({
+            app: { port: '443', https: { enabled: 'true', certFile: '/tls/cert.pem', keyFile: '/tls/key.pem', caFile: '/tls/ca.pem' } }
+        });
+        expect(legacyEnvToObject({ ...env, BAE_LP_HTTPS_PORT: '8443' }).values).toMatchObject({ app: { port: '8443' } });
+    });
+
+    it('keeps the plain port while HTTPS is not enabled, whatever else is set', () => {
+        expect(legacyEnvToObject({ BAE_LP_PORT: '8004', BAE_LP_HTTPS_PORT: '8443', BAE_LP_HTTPS_ENABLED: 'false' }).values).toEqual({
+            app: { port: '8004' }
+        });
+    });
+
     it('builds the MongoDB uri from its parts', () => {
         const { values, used } = legacyEnvToObject({
             BAE_LP_MONGO_SERVER: 'db.internal',

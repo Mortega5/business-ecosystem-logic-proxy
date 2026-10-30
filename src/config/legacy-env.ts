@@ -25,8 +25,20 @@ const buildMongoUri = (env: NodeJS.ProcessEnv): string | undefined => {
     return `mongodb://${credentials}${present(server) ? server : 'mongo'}:${present(port) ? port : '27017'}/${present(db) ? db : 'belp'}`;
 };
 
+// With HTTPS the legacy application listens on its own port, which is 443 unless BAE_LP_HTTPS_PORT says otherwise
+const buildPort = (env: NodeJS.ProcessEnv): string | undefined =>
+    env.BAE_LP_HTTPS_ENABLED === 'true' ? (present(env.BAE_LP_HTTPS_PORT) ? env.BAE_LP_HTTPS_PORT : '443') : env.BAE_LP_PORT;
+
 const RULES: LegacyRule[] = [
-    { key: 'app.port', variables: ['BAE_LP_PORT'], build: (env) => env.BAE_LP_PORT },
+    { key: 'app.port', variables: ['BAE_LP_PORT', 'BAE_LP_HTTPS_PORT'], build: buildPort },
+    {
+        key: 'app.https.enabled',
+        variables: ['BAE_LP_HTTPS_ENABLED'],
+        build: (env) => (env.BAE_LP_HTTPS_ENABLED === 'true' ? 'true' : undefined)
+    },
+    { key: 'app.https.certFile', variables: ['BAE_LP_HTTPS_CERT'], build: (env) => env.BAE_LP_HTTPS_CERT },
+    { key: 'app.https.keyFile', variables: ['BAE_LP_HTTPS_KEY'], build: (env) => env.BAE_LP_HTTPS_KEY },
+    { key: 'app.https.caFile', variables: ['BAE_LP_HTTPS_CA'], build: (env) => env.BAE_LP_HTTPS_CA },
     {
         key: 'mongo.uri',
         variables: ['BAE_LP_MONGO_SERVER', 'BAE_LP_MONGO_PORT', 'BAE_LP_MONGO_DB', 'BAE_LP_MONGO_USER', 'BAE_LP_MONGO_PASS'],

@@ -4,7 +4,7 @@ import { APP_CONFIG, AppConfigService } from './app-config.service';
 import type { AppConfig } from './config.schema';
 
 const VALUE: AppConfig = {
-    app: { host: '0.0.0.0', port: 8004, shutdownTimeoutMs: 1000, shutdownDelayMs: 0 },
+    app: { host: '0.0.0.0', port: 8004, shutdownTimeoutMs: 1000, shutdownDelayMs: 0, https: { enabled: false } },
     http: { trustedProxies: [], bodyLimit: '50mb' },
     logging: { level: 'info', format: 'json', prettyOptions: {} },
     mongo: {

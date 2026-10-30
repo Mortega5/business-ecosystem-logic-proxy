@@ -6,6 +6,10 @@ import { AppConfigModule } from './config/app-config.module';
 import { LoggingModule } from './logging/logging.module';
 import { start, type LegacyServer } from './start';
 import { freePort } from './testing/free-port';
+import { createSelfSignedCertificate } from './testing/self-signed-certificate';
+import { request as httpsRequest } from 'node:https';
+import { request as httpRequest } from 'node:http';
+import type { TLSSocket } from 'node:tls';
 
 @Controller('new')
 class NewController {
@@ -106,6 +110,47 @@ describe('start', () => {
             replacement: 'BAE_APP__PORT'
         });
         expect(await app.getUrl()).toContain(`:${port}`);
+        await app.close();
+    });
+
+    it('serves both the Nest routes and the legacy ones over HTTPS when it is enabled', async () => {
+        const { keyFile, certFile, cert } = createSelfSignedCertificate();
+        const { lines, logStream } = capture();
+        const port = await freePort();
+        const env = await envFor({
+            BAE_APP__PORT: String(port),
+            BAE_APP__HTTPS__ENABLED: 'true',
+            BAE_APP__HTTPS__KEY_FILE: keyFile,
+            BAE_APP__HTTPS__CERT_FILE: certFile
+        });
+
+        const { app } = await start({ env, loadLegacy: loadedAfter(0), rootModule: TestRootModule, logStream });
+
+        const get = (path: string): Promise<{ body: string; protocol: string | null }> =>
+            new Promise((resolve, reject) => {
+                const req = httpsRequest({ host: '127.0.0.1', port, path, ca: cert, servername: 'localhost' }, (res) => {
+                    const protocol = (res.socket as TLSSocket).getProtocol();
+                    let body = '';
+                    res.on('data', (chunk: Buffer) => (body += chunk.toString()));
+                    res.on('end', () => resolve({ body, protocol }));
+                });
+                req.on('error', reject);
+                req.end();
+            });
+        const nest = await get('/new');
+        const legacyRoute = await get('/legacy');
+
+        expect(JSON.parse(nest.body)).toEqual({ from: 'nest' });
+        expect(JSON.parse(legacyRoute.body)).toEqual({ from: 'legacy' });
+        expect(['TLSv1.2', 'TLSv1.3']).toContain(nest.protocol);
+        expect(lines[0]).toMatchObject({ msg: 'Starting the server', https: true });
+
+        const plain = await new Promise<string>((resolve) => {
+            const req = httpRequest({ host: '127.0.0.1', port, path: '/new' }, () => resolve('answered'));
+            req.on('error', () => resolve('refused'));
+            req.end();
+        });
+        expect(plain).toBe('refused');
         await app.close();
     });
 

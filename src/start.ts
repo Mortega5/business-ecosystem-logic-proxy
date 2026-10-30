@@ -5,6 +5,7 @@ import { loadAppConfig } from './config/config.loader';
 import { envNameFor, type LegacyVariable } from './config/legacy-env';
 import type { AppConfig } from './config/config.schema';
 import type { LegacyHandler } from './legacy/legacy-fallback.filter';
+import { buildHttpsOptions } from './https/https-options';
 import { buildLoggerOptions } from './logging/pino-options';
 
 export interface LegacyServer {
@@ -49,7 +50,7 @@ export const start = async (options: StartOptions): Promise<RunningServer> => {
         for (const { variable, key } of legacyVariables) {
             logger.warn({ variable, key, replacement: envNameFor(key) }, 'Deprecated environment variable, still applied');
         }
-        logger.info({ port: config.app.port, host: config.app.host }, 'Starting the server');
+        logger.info({ port: config.app.port, host: config.app.host, https: config.app.https.enabled }, 'Starting the server');
 
         const started = Date.now();
         const waiting = setInterval(() => {
@@ -61,7 +62,7 @@ export const start = async (options: StartOptions): Promise<RunningServer> => {
         const legacy = await options.loadLegacy().finally(() => clearInterval(waiting));
         logger.info('Legacy application loaded');
 
-        const app = await createApp(legacy.app, options.rootModule);
+        const app = await createApp(legacy.app, options.rootModule, buildHttpsOptions(config.app.https));
         await (config.app.host === undefined ? app.listen(config.app.port) : app.listen(config.app.port, config.app.host));
         logger.info({ port: config.app.port }, 'Server listening');
 

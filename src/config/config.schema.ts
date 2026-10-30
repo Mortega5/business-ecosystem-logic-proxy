@@ -1,15 +1,38 @@
 import { z } from 'zod';
 
+// Environment variables always arrive as strings, and z.coerce.boolean() reads "false" as true
+const booleanLike = z
+    .union([z.boolean(), z.enum(['true', 'false'])])
+    .transform((value) => value === true || value === 'true');
+
 export const ConfigSchema = z.object({
-    app: z.object({
-        host: z.string().min(1).optional(),
-        port: z.coerce.number().int().min(1).max(65535),
-        shutdownTimeoutMs: z.coerce.number().int().positive(),
-        shutdownDelayMs: z.coerce.number().int().min(0)
-    }).refine((app) => app.shutdownTimeoutMs > app.shutdownDelayMs, {
-        path: ['shutdownTimeoutMs'],
-        message: 'must be greater than app.shutdownDelayMs'
-    }),
+    app: z
+        .object({
+            host: z.string().min(1).optional(),
+            port: z.coerce.number().int().min(1).max(65535),
+            shutdownTimeoutMs: z.coerce.number().int().positive(),
+            shutdownDelayMs: z.coerce.number().int().min(0),
+            https: z.object({
+                enabled: booleanLike,
+                keyFile: z.string().min(1).optional(),
+                certFile: z.string().min(1).optional(),
+                caFile: z.string().min(1).optional()
+            })
+        })
+        .refine((app) => app.shutdownTimeoutMs > app.shutdownDelayMs, {
+            path: ['shutdownTimeoutMs'],
+            message: 'must be greater than app.shutdownDelayMs'
+        })
+        .superRefine((app, ctx) => {
+            if (!app.https.enabled) {
+                return;
+            }
+            for (const file of ['keyFile', 'certFile'] as const) {
+                if (app.https[file] === undefined) {
+                    ctx.addIssue({ code: 'custom', path: ['https', file], message: 'is required when app.https.enabled is true' });
+                }
+            }
+        }),
     http: z.object({
         trustedProxies: z.array(z.string().min(1)),
         bodyLimit: z.string().min(1)
