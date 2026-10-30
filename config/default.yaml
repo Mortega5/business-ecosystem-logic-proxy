@@ -20,4 +20,7 @@ mongo:
   retryInitialDelayMs: 1000
   retryMaxDelayMs: 30000
 
+health:
+  mongoPingTimeoutMs: 1000
+
 upstreams: {}

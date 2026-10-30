@@ -15,6 +15,9 @@ const REDACT_PATHS = [
     'req.body.client_secret'
 ];
 
+// Probes call these every few seconds; failures are logged by the health module itself
+const HEALTH_PATHS = new Set(['/health/live', '/health/ready']);
+
 const SENSITIVE_QUERY_PARAMS = new Set([
     'access_token',
     'refresh_token',
@@ -111,6 +114,7 @@ export const buildLoggerOptions = (logging: AppConfig['logging']): LoggerOptions
 export const buildPinoOptions = (logging: AppConfig['logging']): Options => ({
     ...buildLoggerOptions(logging),
     redact: { paths: REDACT_PATHS, censor: '[Redacted]' },
+    autoLogging: { ignore: (req) => HEALTH_PATHS.has((req.url ?? '').split('?')[0] ?? '') },
     genReqId: generateRequestId,
     customLogLevel: levelForStatus,
     serializers: { req: serializeRequest, res: serializeResponse },

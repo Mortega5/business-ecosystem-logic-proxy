@@ -15,6 +15,7 @@ const VALUE: AppConfig = {
         retryInitialDelayMs: 1000,
         retryMaxDelayMs: 30000
     },
+    health: { mongoPingTimeoutMs: 1000 },
     upstreams: { catalog: { baseUrl: 'http://catalog:8080/tmf-api', timeoutMs: 5000 } }
 };
 
@@ -30,5 +31,6 @@ describe('AppConfigService', () => {
         expect(service.logging.format).toBe('json');
         expect(service.mongo.uri).toBe('mongodb://localhost/test');
         expect(service.upstreams.catalog?.timeoutMs).toBe(5000);
+        expect(service.health.mongoPingTimeoutMs).toBe(1000);
     });
 });

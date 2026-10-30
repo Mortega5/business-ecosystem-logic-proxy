@@ -59,6 +59,14 @@ describe('buildPinoOptions', () => {
         expect(readFileSync(destination, 'utf8')).toContain('pretty transport works');
     });
 
+    it('does not write access lines for the health probes', () => {
+        const ignore = (buildPinoOptions(LOGGING).autoLogging as { ignore: (req: { url?: string }) => boolean }).ignore;
+
+        expect(ignore({ url: '/health/live' })).toBe(true);
+        expect(ignore({ url: '/health/ready?verbose=1' })).toBe(true);
+        expect(ignore({ url: '/catalog/productOffering' })).toBe(false);
+    });
+
     it('takes the level from the configuration', () => {
         expect(buildPinoOptions({ ...LOGGING, level: 'debug' }).level).toBe('debug');
     });

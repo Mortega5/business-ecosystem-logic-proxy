@@ -23,6 +23,9 @@ export const ConfigSchema = z.object({
         retryInitialDelayMs: z.coerce.number().int().positive(),
         retryMaxDelayMs: z.coerce.number().int().positive()
     }),
+    health: z.object({
+        mongoPingTimeoutMs: z.coerce.number().int().positive()
+    }),
     upstreams: z.record(
         z.string(),
         z.object({
