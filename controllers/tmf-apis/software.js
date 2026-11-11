@@ -4,6 +4,8 @@ const utils = require('./../../lib/utils')
 const tmfUtils = require('./../../lib/tmfUtils')
 const { validateRetrieving, validateOwnerSellerPost, validateNameAndDescription, getPrevVersion, validateOwnerSeller, getBlockingResources } = require('./../../lib/resourceUtils')
 const axios = require('axios')
+const Ajv = require('ajv')
+const addFormats = require('ajv-formats')
 
 const logger = require('./../../lib/logger').logger.getLogger('TMF')
 
@@ -443,28 +445,147 @@ const software = (function () {
     // reused one pair, so a subscription could not host a second deployment without colliding.
     const REMOVED_HELM_IDENTITY_FIELDS = ['releaseName', 'namespace']
 
+    // Kinds of artifact a deploymentDefinition can describe (the deployment-definition schema `type` enum)
+    const DEPLOYMENT_DEFINITION_TYPES = ['helm', 'docker', 'opennebula']
+
+    // Packages published before the schemas moved to GitLab Pages point their @schemaLocation at these
+    // gists. They are still accepted so those packages can be edited, but are not fetched or validated.
+    const LEGACY_SCHEMA_PREFIXES = ['https://gist.githubusercontent.com/vramperez/']
+
+    const MAX_REPORTED_SCHEMA_ERRORS = 5
+    const SCHEMA_FETCH_TIMEOUT_MS = 10000
+
+    // Compiled validators per schema URL. Allow-listed schema versions are immutable, so an entry never
+    // goes stale; it holds the pending promise so concurrent requests share a single fetch.
+    const schemaValidators = new Map()
+
+    const normalizeUrl = function (location) {
+        try {
+            return new URL(location).href
+        } catch (e) {
+            return null
+        }
+    }
+
+    const isAllowedSchemaLocation = function (location) {
+        const normalized = normalizeUrl(location)
+        if (!normalized) {
+            return false
+        }
+        if (config.deploymentDefinitionSchema && normalized === normalizeUrl(config.deploymentDefinitionSchema)) {
+            return true
+        }
+        return (config.schemaBaseAllowList || []).some((prefix) => normalized.startsWith(prefix))
+    }
+
+    const isLegacySchemaLocation = function (location) {
+        return LEGACY_SCHEMA_PREFIXES.some((prefix) => location.startsWith(prefix))
+    }
+
     /**
-     * Rejects a deploymentDefinition that still carries the release identity. The two provider value
-     * channels are left alone here: `values` (defaults, overridable) and `enforcedValues` (locks,
-     * applied last) are opaque YAML strings, and checking that a key does not appear in both needs a
-     * YAML parser this service does not have - that check lives in the UI for now.
+     * Fetches and compiles the JSON Schema at the given URL, caching the result. Rejects with an error
+     * carrying the HTTP status to return: 503 when the schema cannot be fetched (validation is never
+     * skipped), 500 when what was fetched is not a usable schema.
+     */
+    const getSchemaValidator = function (location) {
+        if (schemaValidators.has(location)) {
+            return schemaValidators.get(location)
+        }
+
+        const pending = axios.get(location, { timeout: SCHEMA_FETCH_TIMEOUT_MS, responseType: 'text' })
+            .catch((err) => {
+                throw {
+                    status: 503,
+                    message: `The deploymentDefinition schema ${location} could not be retrieved, try again later`,
+                    cause: err.message
+                }
+            })
+            .then((response) => {
+                try {
+                    const schema = typeof response.data === 'string' ? JSON.parse(response.data) : response.data
+                    // One Ajv instance per schema: two URLs may serve documents with the same $id
+                    const ajv = new Ajv({ strict: false, allErrors: true })
+                    addFormats(ajv)
+                    return ajv.compile(schema)
+                } catch (e) {
+                    throw {
+                        status: 500,
+                        message: `The deploymentDefinition schema ${location} is not a valid JSON Schema`,
+                        cause: e.message
+                    }
+                }
+            })
+
+        schemaValidators.set(location, pending)
+        // A failed fetch or compilation must not be cached: the next request tries again
+        pending.catch(() => schemaValidators.delete(location))
+        return pending
+    }
+
+    /**
+     * Picks the errors worth showing. The deployment-definition schema is a oneOf keyed on `type`, so
+     * ajv also reports every branch the value was never meant to match. Branches that fail a `const`
+     * (the discriminator) are dropped together with the oneOf/if summary errors; if nothing is left the
+     * raw list is used.
+     */
+    const describeSchemaErrors = function (errors) {
+        const branchOf = (error) => {
+            const match = error.schemaPath.match(/^#\/oneOf\/(\d+)\//)
+            return match ? match[1] : null
+        }
+        const mismatchedBranches = new Set(errors
+            .filter((error) => error.keyword === 'const' && branchOf(error) !== null)
+            .map(branchOf))
+
+        let relevant = errors.filter((error) =>
+            !['oneOf', 'anyOf', 'if'].includes(error.keyword) && !mismatchedBranches.has(branchOf(error)))
+        if (relevant.length === 0) {
+            relevant = errors
+        }
+
+        return relevant.slice(0, MAX_REPORTED_SCHEMA_ERRORS).map((error) => {
+            const extra = error.params && error.params.additionalProperty ? ` (${error.params.additionalProperty})` : ''
+            return `${error.instancePath || '/'} ${error.message}${extra}`
+        }).join('; ')
+    }
+
+    /**
+     * Validates the deploymentDefinition characteristic of a software package, when present:
+     *  - structural checks: a known `type` and a `properties` object;
+     *  - helm definitions must not carry the release identity (releaseName/namespace);
+     *  - when the characteristic declares an `@schemaLocation`, the value is validated against that
+     *    JSON Schema. The location must be allow-listed (config.schemaBaseAllowList or exactly
+     *    config.deploymentDefinitionSchema), since the proxy fetches it. Legacy gist locations are
+     *    accepted without schema validation.
      *
-     * @param {Object} req - Incoming HTTP request, body already parsed by utils.parseBody
+     * The two provider value channels of helm (`values` and `enforcedValues`) are opaque YAML strings;
+     * checking that a key does not appear in both needs a YAML parser this service does not have, so
+     * that check lives in the UI for now.
+     *
+     * @param {Object} req - Incoming HTTP request, body already parsed into req.parsedBody by utils.parseBody
      * @param {Function} callback - callback(err) with {status, message} on failure
      */
     const validateDeploymentDefinition = function (req, callback) {
-        const chars = (req.body && req.body.resourceCharacteristic) || []
-        const deployment = chars.find((char) => char.name === 'deploymentDefinition')
+        const body = req.parsedBody
+        const chars = (body && Array.isArray(body.resourceCharacteristic)) ? body.resourceCharacteristic : []
+        const deployment = chars.find((char) => char && char.name === 'deploymentDefinition')
 
         if (!deployment || !deployment.value) {
             return callback(null)
         }
 
         const definition = deployment.value
-        if (!definition.type || !definition.properties) {
+        if (!definition.type || !definition.properties || typeof definition.properties !== 'object') {
             return callback({
                 status: 422,
                 message: 'deploymentDefinition must contain a type and a properties object'
+            })
+        }
+
+        if (!DEPLOYMENT_DEFINITION_TYPES.includes(definition.type)) {
+            return callback({
+                status: 422,
+                message: `deploymentDefinition.type must be one of ${DEPLOYMENT_DEFINITION_TYPES.join(', ')}`
             })
         }
 
@@ -480,7 +601,36 @@ const software = (function () {
             }
         }
 
-        callback(null)
+        const location = deployment['@schemaLocation']
+        if (!location) {
+            return callback(null)
+        }
+
+        if (typeof location === 'string' && isLegacySchemaLocation(location)) {
+            logger.debug(`Accepting deploymentDefinition with legacy @schemaLocation ${location} without schema validation`)
+            return callback(null)
+        }
+
+        if (typeof location !== 'string' || !isAllowedSchemaLocation(location)) {
+            return callback({
+                status: 422,
+                message: `deploymentDefinition @schemaLocation ${location} is not an allowed schema location; ` +
+                    `use ${config.deploymentDefinitionSchema}`
+            })
+        }
+
+        getSchemaValidator(location).then((validate) => {
+            if (validate(definition)) {
+                return callback(null)
+            }
+            callback({
+                status: 422,
+                message: `deploymentDefinition does not match the schema ${location}: ${describeSchemaErrors(validate.errors)}`
+            })
+        }, (err) => {
+            logger.error(`${err.message}: ${err.cause}`)
+            callback({ status: err.status, message: err.message })
+        })
     }
 
     /**

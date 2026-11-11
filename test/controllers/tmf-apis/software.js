@@ -14,6 +14,8 @@ describe('Software API', function() {
         port: '8638',
         appSsl: false
     };
+    config.deploymentDefinitionSchema = 'https://tm-forum-model-66feba.pages.o-cei.eu/schemas/v1/deployment-definition.json';
+    config.schemaBaseAllowList = ['https://tm-forum-model-66feba.pages.o-cei.eu/schemas/'];
 
     const SERVER = 'http://' + config.endpoints.software.host + ':' + config.endpoints.software.port;
     const apiPath = config.endpoints.software.apiPath;
@@ -825,6 +827,248 @@ describe('Software API', function() {
 
             it('should raise 405 for PUT requests', function(done) {
                 testNotAllowedMethod('PUT', done);
+            });
+        });
+    });
+
+    describe('deploymentDefinition validation', function() {
+
+        // Local copy of the published v1 schema, served by nock in place of GitLab Pages
+        const DEPLOYMENT_SCHEMA = require('./fixtures/deployment-definition.v1.json');
+        const SCHEMA_HOST = 'https://tm-forum-model-66feba.pages.o-cei.eu';
+        const SCHEMA_PATH = '/schemas/v1/deployment-definition.json';
+        const SCHEMA_URL = SCHEMA_HOST + SCHEMA_PATH;
+        const LEGACY_GIST_URL = 'https://gist.githubusercontent.com/vramperez/e50df47dde789a05e0a4bdca39cf7349/raw/057beb0c9cd8aae6e5d5fbd8841c8035b5304996/deployment-definition.json';
+
+        // Values taken from the TM Forum model examples (hello-world and opennebula/lxc support packages)
+        const helmDefinition = function() {
+            return {
+                type: 'helm',
+                version: '1.0',
+                properties: {
+                    repository: 'https://helm.github.io/examples',
+                    chart: 'examples/hello-world',
+                    version: '0.1.0',
+                    values: 'replicaCount: 1',
+                    enforcedValues: 'image:\n  tag: 1.16.0'
+                }
+            };
+        };
+
+        const lxcDefinition = function() {
+            return {
+                type: 'opennebula',
+                version: '1.0',
+                properties: {
+                    backend: 'lxc',
+                    templateId: 237,
+                    servicePort: 80,
+                    healthCheck: { protocol: 'http', port: 80, path: '/', expectedStatus: 200 },
+                    timeoutSeconds: 600,
+                    enforcedValues: { templateId: 237 }
+                }
+            };
+        };
+
+        const deploymentChar = function(value, schemaLocation) {
+            const char = { name: 'deploymentDefinition', valueType: 'DeploymentDefinition', value: value };
+            if (schemaLocation !== undefined) {
+                char['@schemaLocation'] = schemaLocation;
+            }
+            return char;
+        };
+
+        const buildApi = function() {
+            return getSoftwareAPI({}, {
+                validateLoggedIn: (req, callback) => callback(null),
+                methodNotAllowed: methodNotAllowed,
+                parseBody: parseBody
+            });
+        };
+
+        const postWith = function(softwareAPI, char, callback) {
+            const req = {
+                user: seller,
+                method: 'POST',
+                body: JSON.stringify({
+                    name: 'valid name',
+                    relatedParty: ownerRelatedParty,
+                    resourceCharacteristic: [{ name: 'artifactType', value: 'HelmChart' }, char]
+                }),
+                apiUrl: '/' + config.endpoints.software.path + '/resource',
+                url: '/resource',
+                hostname: config.endpoints.software.host,
+                headers: {}
+            };
+            softwareAPI.checkPermissions(req, callback);
+        };
+
+        const expectPost = function(char, check, done) {
+            postWith(buildApi(), char, function(err) {
+                check(err);
+                done();
+            });
+        };
+
+        afterEach(function() {
+            nock.cleanAll();
+        });
+
+        it('should read the characteristics from the parsed body', function(done) {
+            // req.body is the raw string: reading it directly made the validator a silent no-op
+            const definition = helmDefinition();
+            definition.properties.releaseName = 'hello';
+
+            expectPost(deploymentChar(definition), function(err) {
+                expect(err.status).toBe(422);
+                expect(err.message).toContain('must not contain releaseName');
+            }, done);
+        });
+
+        it('should accept a definition without @schemaLocation after the structural checks', function(done) {
+            expectPost(deploymentChar(lxcDefinition()), function(err) {
+                expect(err).toBe(null);
+            }, done);
+        });
+
+        it('should reject a definition without properties', function(done) {
+            expectPost(deploymentChar({ type: 'helm' }), function(err) {
+                expect(err).toEqual({
+                    status: 422,
+                    message: 'deploymentDefinition must contain a type and a properties object'
+                });
+            }, done);
+        });
+
+        it('should reject an unknown deploymentDefinition type', function(done) {
+            expectPost(deploymentChar({ type: 'terraform', properties: {} }), function(err) {
+                expect(err).toEqual({
+                    status: 422,
+                    message: 'deploymentDefinition.type must be one of helm, docker, opennebula'
+                });
+            }, done);
+        });
+
+        it('should validate a helm definition against its schema', function(done) {
+            const schemaMock = nock(SCHEMA_HOST).get(SCHEMA_PATH).reply(200, DEPLOYMENT_SCHEMA);
+
+            expectPost(deploymentChar(helmDefinition(), SCHEMA_URL), function(err) {
+                expect(err).toBe(null);
+                schemaMock.done();
+            }, done);
+        });
+
+        it('should validate an opennebula lxc definition against its schema', function(done) {
+            const schemaMock = nock(SCHEMA_HOST).get(SCHEMA_PATH).reply(200, DEPLOYMENT_SCHEMA);
+
+            expectPost(deploymentChar(lxcDefinition(), SCHEMA_URL), function(err) {
+                expect(err).toBe(null);
+                schemaMock.done();
+            }, done);
+        });
+
+        it('should raise 422 with the relevant schema errors for an lxc definition without templateId', function(done) {
+            nock(SCHEMA_HOST).get(SCHEMA_PATH).reply(200, DEPLOYMENT_SCHEMA);
+            const definition = lxcDefinition();
+            delete definition.properties.templateId;
+            delete definition.properties.enforcedValues;
+
+            expectPost(deploymentChar(definition, SCHEMA_URL), function(err) {
+                expect(err.status).toBe(422);
+                expect(err.message).toContain(`deploymentDefinition does not match the schema ${SCHEMA_URL}`);
+                expect(err.message).toContain("/properties must have required property 'templateId'");
+                // The helm and docker branches of the oneOf are not what the provider meant
+                expect(err.message).not.toContain('repository');
+                expect(err.message).not.toContain('image');
+            }, done);
+        });
+
+        it('should raise 422 when @schemaLocation points to a host that is not allow-listed', function(done) {
+            expectPost(deploymentChar(helmDefinition(), 'https://evil.example.com/schemas/v1/deployment-definition.json'), function(err) {
+                expect(err.status).toBe(422);
+                expect(err.message).toContain('is not an allowed schema location');
+                expect(err.message).toContain(SCHEMA_URL);
+            }, done);
+        });
+
+        it('should raise 422 when @schemaLocation escapes the allow-listed path', function(done) {
+            expectPost(deploymentChar(helmDefinition(), SCHEMA_HOST + '/schemas/../uploads/schema.json'), function(err) {
+                expect(err.status).toBe(422);
+                expect(err.message).toContain('is not an allowed schema location');
+            }, done);
+        });
+
+        it('should raise 503 when the schema cannot be fetched, and retry on the next request', function(done) {
+            nock(SCHEMA_HOST).get(SCHEMA_PATH).reply(502, 'Bad Gateway');
+            const softwareAPI = buildApi();
+
+            postWith(softwareAPI, deploymentChar(helmDefinition(), SCHEMA_URL), function(err) {
+                expect(err.status).toBe(503);
+                expect(err.message).toContain('could not be retrieved');
+
+                const retryMock = nock(SCHEMA_HOST).get(SCHEMA_PATH).reply(200, DEPLOYMENT_SCHEMA);
+                postWith(softwareAPI, deploymentChar(helmDefinition(), SCHEMA_URL), function(err) {
+                    expect(err).toBe(null);
+                    retryMock.done();
+                    done();
+                });
+            });
+        });
+
+        it('should accept a legacy gist @schemaLocation without fetching it', function(done) {
+            const gistMock = nock('https://gist.githubusercontent.com').get(/.*/).reply(200, DEPLOYMENT_SCHEMA);
+
+            expectPost(deploymentChar(helmDefinition(), LEGACY_GIST_URL), function(err) {
+                expect(err).toBe(null);
+                expect(gistMock.isDone()).toBe(false);
+            }, done);
+        });
+
+        it('should fetch and compile each schema only once', function(done) {
+            const schemaMock = nock(SCHEMA_HOST).get(SCHEMA_PATH).once().reply(200, DEPLOYMENT_SCHEMA);
+            const softwareAPI = buildApi();
+
+            postWith(softwareAPI, deploymentChar(helmDefinition(), SCHEMA_URL), function(err) {
+                expect(err).toBe(null);
+                schemaMock.done();
+
+                // No interceptor left: a second fetch would fail the request with a 503
+                postWith(softwareAPI, deploymentChar(lxcDefinition(), SCHEMA_URL), function(err) {
+                    expect(err).toBe(null);
+                    done();
+                });
+            });
+        });
+
+        it('should validate the deploymentDefinition on PATCH as well', function(done) {
+            nock(SERVER).get(apiPath + path + '/urn:sw:1').reply(200, {
+                id: 'urn:sw:1',
+                lifecycleStatus: 'Active',
+                relatedParty: ownerRelatedParty
+            });
+            nock(SCHEMA_HOST).get(SCHEMA_PATH).reply(200, DEPLOYMENT_SCHEMA);
+            const definition = helmDefinition();
+            definition.properties.unexpected = true;
+
+            const softwareAPI = getSoftwareAPI({ isValidStatusTransition: () => true }, {
+                validateLoggedIn: (req, callback) => callback(null),
+                methodNotAllowed: methodNotAllowed,
+                parseBody: parseBody
+            });
+            const req = {
+                user: seller,
+                method: 'PATCH',
+                body: JSON.stringify({ resourceCharacteristic: [deploymentChar(definition, SCHEMA_URL)] }),
+                apiUrl: '/' + config.endpoints.software.path + path + '/urn:sw:1',
+                url: path + '/urn:sw:1',
+                hostname: config.endpoints.software.host,
+                headers: {}
+            };
+
+            softwareAPI.checkPermissions(req, function(err) {
+                expect(err.status).toBe(422);
+                expect(err.message).toContain('/properties must NOT have additional properties (unexpected)');
+                done();
             });
         });
     });

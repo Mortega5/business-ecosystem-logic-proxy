@@ -8,6 +8,8 @@
     "node": ">=16"
   },
   "dependencies": {
+    "ajv": "^8.20.0",
+    "ajv-formats": "^2.1.1",
     "async": "^1.5.0",
     "async-lock": "^0.3.8",
     "axios": "^1.5.0",
