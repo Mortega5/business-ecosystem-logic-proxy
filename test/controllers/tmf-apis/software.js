@@ -273,6 +273,174 @@ describe('Software API', function() {
             });
         });
 
+        describe('support package spec reconciliation', function() {
+
+            const SPEC_ID = 'urn:sw:support-spec:1';
+
+            const completeChars = function() {
+                return [
+                    { name: 'deploymentDefinition', valueType: 'DeploymentDefinition' },
+                    {
+                        name: 'artifactType',
+                        valueType: 'string',
+                        resourceSpecCharacteristicValue: [
+                            { isDefault: true, value: 'HelmChart' },
+                            { value: 'DockerCompose' },
+                            { value: 'DockerImage' },
+                            { value: 'OpenNebulaResource' }
+                        ]
+                    },
+                    {
+                        name: 'requiredEnvironmentType',
+                        valueType: 'string',
+                        resourceSpecCharacteristicValue: [
+                            { isDefault: true, value: 'kubernetes-cluster' },
+                            { value: 'docker-host' },
+                            { value: 'opennebula-cluster' }
+                        ]
+                    },
+                    { name: 'minimumRuntimeVersion', valueType: 'string' }
+                ];
+            };
+
+            const createSoftwareSpec = function(done, checks) {
+                const packageMock = nock(SERVER)
+                    .post(apiPath + '/resource')
+                    .reply(201, { id: 'urn:sw:support-package:1' });
+
+                const utils = {
+                    validateLoggedIn: function(req, callback) { callback(null); },
+                    methodNotAllowed: methodNotAllowed,
+                    parseBody: parseBody,
+                    updateBody: function(req, newBody) { req.body = JSON.stringify(newBody); }
+                };
+
+                const softwareAPI = getSoftwareAPI({}, utils);
+                const req = {
+                    user: seller,
+                    method: 'POST',
+                    body: JSON.stringify({
+                        '@type': 'SoftwareSpecification',
+                        name: 'valid name',
+                        relatedParty: ownerRelatedParty
+                    }),
+                    apiUrl: '/' + config.endpoints.software.path + path,
+                    url: path,
+                    hostname: config.endpoints.software.host,
+                    headers: {}
+                };
+
+                softwareAPI.checkPermissions(req, function(err) {
+                    expect(err).toBe(null);
+                    expect(JSON.parse(req.body).softwareSupportPackage).toEqual({ id: 'urn:sw:support-package:1' });
+                    packageMock.done();
+                    checks();
+                    done();
+                });
+            };
+
+            it('should create the spec with every characteristic, including requiredEnvironmentType', function(done) {
+                let created;
+                nock(SERVER)
+                    .get(apiPath + '/resourceSpecification')
+                    .query({ '@type': 'SoftwareSupportPackageSpecification' })
+                    .reply(200, []);
+                const createMock = nock(SERVER)
+                    .post(apiPath + '/resourceSpecification', (body) => { created = body; return true; })
+                    .reply(201, { id: SPEC_ID });
+
+                createSoftwareSpec(done, function() {
+                    createMock.done();
+                    const names = created.resourceSpecCharacteristic.map((char) => char.name);
+                    expect(names).toEqual(['deploymentDefinition', 'artifactType', 'requiredEnvironmentType', 'minimumRuntimeVersion']);
+
+                    const envType = created.resourceSpecCharacteristic[2];
+                    expect(envType.valueType).toBe('string');
+                    expect(envType.configurable).toBe(false);
+                    expect(envType.minCardinality).toBe(1);
+                    expect(envType.maxCardinality).toBe(1);
+                    expect(envType.resourceSpecCharacteristicValue).toEqual([
+                        { isDefault: true, value: 'kubernetes-cluster' },
+                        { value: 'docker-host' },
+                        { value: 'opennebula-cluster' }
+                    ]);
+                    expect(created.resourceSpecCharacteristic[1].resourceSpecCharacteristicValue)
+                        .toContain({ value: 'OpenNebulaResource' });
+                });
+            });
+
+            it('should not patch an existing spec that already declares every characteristic and value', function(done) {
+                nock(SERVER)
+                    .get(apiPath + '/resourceSpecification')
+                    .query({ '@type': 'SoftwareSupportPackageSpecification' })
+                    .reply(200, [{ id: SPEC_ID, resourceSpecCharacteristic: completeChars() }]);
+                const patchMock = nock(SERVER)
+                    .patch(apiPath + '/resourceSpecification/' + SPEC_ID)
+                    .reply(200, {});
+
+                createSoftwareSpec(done, function() {
+                    expect(patchMock.isDone()).toBe(false);
+                    nock.cleanAll();
+                });
+            });
+
+            it('should patch an outdated spec with the missing characteristics and values, keeping extra ones', function(done) {
+                const outdated = [
+                    { name: 'deploymentDefinition', valueType: 'DeploymentDefinition' },
+                    {
+                        name: 'artifactType',
+                        valueType: 'string',
+                        resourceSpecCharacteristicValue: [
+                            { isDefault: true, value: 'HelmChart' },
+                            { value: 'DockerCompose' },
+                            { value: 'DockerImage' }
+                        ]
+                    },
+                    { name: 'minimumRuntimeVersion', valueType: 'string' },
+                    { name: 'customProviderCharacteristic', valueType: 'string' }
+                ];
+                let patched;
+
+                nock(SERVER)
+                    .get(apiPath + '/resourceSpecification')
+                    .query({ '@type': 'SoftwareSupportPackageSpecification' })
+                    .reply(200, [{ id: SPEC_ID, resourceSpecCharacteristic: outdated }]);
+                const patchMock = nock(SERVER)
+                    .patch(apiPath + '/resourceSpecification/' + SPEC_ID, (body) => { patched = body; return true; })
+                    .reply(200, { id: SPEC_ID });
+
+                createSoftwareSpec(done, function() {
+                    patchMock.done();
+                    const chars = patched.resourceSpecCharacteristic;
+                    expect(chars.map((char) => char.name)).toEqual([
+                        'deploymentDefinition', 'artifactType', 'minimumRuntimeVersion',
+                        'customProviderCharacteristic', 'requiredEnvironmentType'
+                    ]);
+                    expect(chars[1].resourceSpecCharacteristicValue).toEqual([
+                        { isDefault: true, value: 'HelmChart' },
+                        { value: 'DockerCompose' },
+                        { value: 'DockerImage' },
+                        { value: 'OpenNebulaResource' }
+                    ]);
+                    expect(chars[4].resourceSpecCharacteristicValue[0]).toEqual({ isDefault: true, value: 'kubernetes-cluster' });
+                });
+            });
+
+            it('should still create the support package when the spec cannot be reconciled', function(done) {
+                nock(SERVER)
+                    .get(apiPath + '/resourceSpecification')
+                    .query({ '@type': 'SoftwareSupportPackageSpecification' })
+                    .reply(200, [{ id: SPEC_ID, resourceSpecCharacteristic: [] }]);
+                const patchMock = nock(SERVER)
+                    .patch(apiPath + '/resourceSpecification/' + SPEC_ID)
+                    .reply(500, {});
+
+                createSoftwareSpec(done, function() {
+                    patchMock.done();
+                });
+            });
+        });
+
         describe('update', function() {
 
             function testUpdateSpec(resId, prevBody, body, expectedErr, done, extraNock, isValidTransition) {

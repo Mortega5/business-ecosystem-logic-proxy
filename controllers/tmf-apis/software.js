@@ -175,6 +175,122 @@ const software = (function () {
         })
     }
 
+    // Characteristics the global SoftwareSupportPackageSpec must declare. The spec is created once per
+    // deployment and then reused, so additions here are reconciled into an existing spec on read.
+    const SUPPORT_PACKAGE_SPEC_CHARACTERISTICS = [
+        {
+            name: "deploymentDefinition",
+            description: "Deployment descriptor. 'type' is the kind of artifact being described (helm, docker or " +
+                "opennebula) and selects the sub-schema that 'properties' must follow. It does not choose the " +
+                "executor: where and how the artifact is deployed is decided by the target environment at " +
+                "deployment time.",
+            valueType: "DeploymentDefinition",
+            configurable: false,
+            minCardinality: 1,
+            maxCardinality: 1
+        },
+        {
+            name: "artifactType",
+            description: "Nature of the deployment artifact. Determines which BPO executor is used.",
+            valueType: "string",
+            configurable: false,
+            minCardinality: 1,
+            maxCardinality: 1,
+            resourceSpecCharacteristicValue: [
+                { isDefault: true, value: "HelmChart" },
+                { value: "DockerCompose" },
+                { value: "DockerImage" },
+                { value: "OpenNebulaResource" }
+            ]
+        },
+        {
+            name: "requiredEnvironmentType",
+            description: "Kind of target environment the artifact must be deployed on.",
+            valueType: "string",
+            configurable: false,
+            minCardinality: 1,
+            maxCardinality: 1,
+            resourceSpecCharacteristicValue: [
+                { isDefault: true, value: "kubernetes-cluster" },
+                { value: "docker-host" },
+                { value: "opennebula-cluster" }
+            ]
+        },
+        {
+            name: "minimumRuntimeVersion",
+            description: "Minimum version of the runtime tool required (e.g. Helm >= 3.10, Docker >= 24.0).",
+            valueType: "string",
+            configurable: false,
+            minCardinality: 0,
+            maxCardinality: 1
+        }
+    ]
+
+    /**
+     * Merges the desired characteristics into the ones an existing spec declares. Existing
+     * characteristics and values are kept untouched (including extra ones not in the desired list);
+     * missing characteristics are appended, and missing values are appended to their characteristic.
+     * A desired default is only carried over when the characteristic has no default yet, so a
+     * characteristic never ends up with two defaults.
+     *
+     * @returns {Array|null} the merged list, or null when the existing one is already complete
+     */
+    const reconcileSpecCharacteristics = function (existingChars) {
+        const merged = (existingChars || []).map((char) => Object.assign({}, char))
+        let changed = false
+
+        SUPPORT_PACKAGE_SPEC_CHARACTERISTICS.forEach((desired) => {
+            const current = merged.find((char) => char.name === desired.name)
+
+            if (!current) {
+                merged.push(JSON.parse(JSON.stringify(desired)))
+                changed = true
+                return
+            }
+
+            const desiredValues = desired.resourceSpecCharacteristicValue || []
+            if (desiredValues.length === 0) {
+                return
+            }
+
+            const values = (current.resourceSpecCharacteristicValue || []).slice()
+            const hasDefault = values.some((value) => value.isDefault)
+            desiredValues.forEach((desiredValue) => {
+                if (values.some((value) => value.value === desiredValue.value)) {
+                    return
+                }
+                const added = { value: desiredValue.value }
+                if (desiredValue.isDefault && !hasDefault) {
+                    added.isDefault = true
+                }
+                values.push(added)
+                changed = true
+            })
+            current.resourceSpecCharacteristicValue = values
+        })
+
+        return changed ? merged : null
+    }
+
+    // Brings an existing spec up to date with SUPPORT_PACKAGE_SPEC_CHARACTERISTICS. A failed PATCH is
+    // logged but not fatal: support packages only reference the spec by id, so they can still be created.
+    const reconcileSupportPackageSpec = function (spec, callback) {
+        const merged = reconcileSpecCharacteristics(spec.resourceSpecCharacteristic)
+
+        if (!merged) {
+            return callback(null, spec)
+        }
+
+        patchAsset(`/resourceSpecification/${spec.id}`, { resourceSpecCharacteristic: merged }, function (err, result) {
+            if (err) {
+                logger.error(`Could not reconcile SoftwareSupportPackageSpec ${spec.id}: status ${err.status} - ${JSON.stringify(err.response)}`);
+                return callback(null, spec)
+            }
+            logger.debug(`Reconciled the characteristics of SoftwareSupportPackageSpec ${spec.id}`);
+            callback(null, result.body && result.body.id ? result.body : Object.assign({}, spec, { resourceSpecCharacteristic: merged }))
+        })
+    }
+
     // Gets the single, global SoftwareSupportPackageSpec, creating it on first use
     const getOrCreateSupportPackageSpec = function (callback) {
         const query = `?@type=SoftwareSupportPackageSpecification`
@@ -190,7 +306,7 @@ const software = (function () {
             const existing = result.body;
             if (Array.isArray(existing) && existing.length > 0) {
                 logger.debug(`Retrieved existing SoftwareSupportPackageSpec ${existing[0].id}`);
-                return callback(null, existing[0]);
+                return reconcileSupportPackageSpec(existing[0], callback);
             }
 
             createAsset('/resourceSpecification', {
@@ -198,37 +314,7 @@ const software = (function () {
                 '@type': 'SoftwareSupportPackageSpecification',
                 '@baseType': 'ResourceSpecification',
                 lifecycleStatus: 'Launched',
-                resourceSpecCharacteristic: [
-                    {
-                        name: "deploymentDefinition",
-                        description: "Deployment descriptor. The 'type' field drives BPO backend selection: 'helm' triggers helm install/upgrade/uninstall, 'docker' triggers docker run/update/stop.",
-                        valueType: "DeploymentDefinition",
-                        configurable: false,
-                        minCardinality: 1,
-                        maxCardinality: 1
-                    },
-                    {
-                        name: "artifactType",
-                        description: "Nature of the deployment artifact. Determines which BPO executor is used.",
-                        valueType: "string",
-                        configurable: false,
-                        minCardinality: 1,
-                        maxCardinality: 1,
-                        resourceSpecCharacteristicValue: [
-                            { isDefault: true, value: "HelmChart" },
-                            { value: "DockerCompose" },
-                            { value: "DockerImage" }
-                        ]
-                    },
-                    {
-                        name: "minimumRuntimeVersion",
-                        description: "Minimum version of the runtime tool required (e.g. Helm >= 3.10, Docker >= 24.0).",
-                        valueType: "string",
-                        configurable: false,
-                        minCardinality: 0,
-                        maxCardinality: 1
-                    }
-                ]
+                resourceSpecCharacteristic: JSON.parse(JSON.stringify(SUPPORT_PACKAGE_SPEC_CHARACTERISTICS))
             }, function (err, result) {
                 if (err) {
                     return callback({
