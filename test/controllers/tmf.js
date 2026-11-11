@@ -742,6 +742,72 @@ describe('TMF Controller', function() {
             tmf.checkPermissions(req, res);
         });
 
+        describe('Cache-Control', function() {
+
+            const proxyGet = function(responseHeaders, responseBody, check) {
+                utils.getAPIProtocol = function() {
+                    return 'http';
+                };
+                utils.getAPIPath = function() {
+                    return '/api';
+                };
+
+                const controller = jasmine.createSpyObj('controller', ['checkPermissions']);
+                controller.checkPermissions.and.callFake((req, callback) => {
+                    callback(null);
+                });
+
+                const request = getDefaultHttpClient({
+                    status: 200,
+                    headers: responseHeaders,
+                    data: responseBody
+                });
+                const tmf = getTmfInstance(request, null, controller, null);
+                const req = {
+                    apiUrl: '/' + config.endpoints.ordering.path + '/productOrder/1',
+                    body: reqBody,
+                    method: 'GET',
+                    headers: {},
+                    connection: connection,
+                    get: () => {
+                        return null
+                    }
+                };
+                const res = jasmine.createSpyObj('res', ['status', 'setHeader', 'json', 'write', 'end']);
+                res.json.and.callFake(() => check(res));
+                res.end.and.callFake(() => check(res));
+
+                tmf.checkPermissions(req, res);
+            };
+
+            const cacheControlCalls = function(res) {
+                return res.setHeader.calls.allArgs().filter((args) => args[0].toLowerCase() === 'cache-control');
+            };
+
+            it('should mark proxied JSON responses as not storable when the backend sets no policy', function(done) {
+                proxyGet({ 'content-type': 'application/json' }, { id: '1' }, function(res) {
+                    expect(res.setHeader).toHaveBeenCalledWith('Cache-Control', 'no-store');
+                    expect(res.json).toHaveBeenCalledWith({ id: '1' });
+                    done();
+                });
+            });
+
+            it('should keep the Cache-Control sent by the backend', function(done) {
+                proxyGet({ 'content-type': 'application/ld+json', 'Cache-Control': 'max-age=60' }, { id: '1' }, function(res) {
+                    expect(cacheControlCalls(res)).toEqual([['Cache-Control', 'max-age=60']]);
+                    done();
+                });
+            });
+
+            it('should not change the caching of non JSON responses such as media', function(done) {
+                proxyGet({ 'content-type': 'image/png' }, 'PNG', function(res) {
+                    expect(cacheControlCalls(res)).toEqual([]);
+                    expect(res.write).toHaveBeenCalledWith('PNG');
+                    done();
+                });
+            });
+        });
+
         it('should aggregate filtered GET pages and run post validation once on the final body', function(done) {
             utils.getAPIProtocol = function() {
                 return 'http';

@@ -247,6 +247,10 @@ function tmf() {
 		return result
 	}
 
+	const hasHeader = function(headers, name) {
+		return Object.keys(headers || {}).some((header) => header.toLowerCase() === name);
+	};
+
 	const completeRequest = function(res, resp) {
 		res.status(resp.status);
 		
@@ -255,6 +259,13 @@ function tmf() {
 		}
 
 		if (resp.headers['content-type'].toLowerCase().indexOf('application/json') >= 0 || resp.headers['content-type'].toLowerCase().indexOf('application/ld+json') >= 0) {
+			// TMF API resources change under the user (lifecycle, PATCHes from other tabs). Without a
+			// Cache-Control header, and with the ETag Express adds, browsers (notably Safari) may serve a
+			// GET from their HTTP cache and show stale data. A backend that states a policy is respected.
+			// Binary responses (media, invoices) keep their current caching behaviour.
+			if (!hasHeader(resp.headers, 'cache-control')) {
+				res.setHeader('Cache-Control', 'no-store');
+			}
 			res.json(resp.body)
 		} else {
 			res.write(resp.body);
