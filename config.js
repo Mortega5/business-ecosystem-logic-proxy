@@ -850,16 +850,38 @@ if (!!process.env.BAE_LP_TENDER_DEV_BUTTON_ENABLED) {
     config.tenderDevButtonsOpenCloseEnabled = process.env.BAE_LP_TENDER_DEV_BUTTON_ENABLED == 'true';
 }
 
-// Schemas are pinned to a gist revision on purpose: a catalogue entry must keep validating
-// against the schema it was published against, not against whatever the gist says today.
-config.dspContractDefinitionSchema = 'https://gist.githubusercontent.com/vramperez/e50df47dde789a05e0a4bdca39cf7349/raw/057beb0c9cd8aae6e5d5fbd8841c8035b5304996/deployment-definition.json'
+// JSON Schema for the contract definition attached to DSP (Dataspace Protocol) contract offers.
+config.dspContractDefinitionSchema = 'https://raw.githubusercontent.com/wistefan/edc-dsc/refs/heads/init/schemas/contract-definition.json'
 
 if (!!process.env.BAE_LP_DSP_CONTRACT_DEFINITION_SCHEMA) {
     config.dspContractDefinitionSchema = process.env.BAE_LP_DSP_CONTRACT_DEFINITION_SCHEMA;
 }
 
-config.blueprintSchema = 'https://gist.githubusercontent.com/vramperez/8a16d77f6fc2cdf5fea22dc11b325d52/raw/ad9ef7a1e933cd079732279218609141a731e3b2/blueprint-product-spec.json'
+// TM Forum model schemas are published on GitLab Pages under a versioned path (schemas/v<N>/).
+// A published version is immutable: a breaking change ships as a new version directory instead
+// of rewriting the existing files, so a catalogue entry keeps validating against the schema it
+// was published against. That is also what makes it safe to cache a compiled schema per URL.
+const TMF_MODEL_SCHEMA_BASE = 'https://tm-forum-model-66feba.pages.o-cei.eu/schemas/'
+
+config.deploymentDefinitionSchema = `${TMF_MODEL_SCHEMA_BASE}v1/deployment-definition.json`
+
+if (!!process.env.BAE_LP_DEPLOYMENT_DEFINITION_SCHEMA) {
+    config.deploymentDefinitionSchema = process.env.BAE_LP_DEPLOYMENT_DEFINITION_SCHEMA;
+}
+
+config.blueprintSchema = `${TMF_MODEL_SCHEMA_BASE}v1/blueprint-product-spec.json`
 
 if (!!process.env.BAE_LP_BLUEPRINT_SCHEMA) {
     config.blueprintSchema = process.env.BAE_LP_BLUEPRINT_SCHEMA;
+}
+
+// URL prefixes a deploymentDefinition `@schemaLocation` may point to. The logic proxy fetches
+// and runs the referenced schema, so it must never follow an arbitrary, user supplied URL.
+config.schemaBaseAllowList = [TMF_MODEL_SCHEMA_BASE]
+
+if (!!process.env.BAE_LP_SCHEMA_ALLOWED_PREFIXES) {
+    config.schemaBaseAllowList = process.env.BAE_LP_SCHEMA_ALLOWED_PREFIXES
+        .split(',')
+        .map((prefix) => prefix.trim())
+        .filter((prefix) => prefix.length > 0);
 }

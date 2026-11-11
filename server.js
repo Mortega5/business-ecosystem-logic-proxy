@@ -570,6 +570,7 @@ app.get('/config', async (_, res) => {
         searchFilters: searchFilters,
         tenderDevButtonsOpenCloseEnabled: featureFlags.tenderDevButtonsOpenCloseEnabled,
         dspContractDefinitionSchema: config.dspContractDefinitionSchema,
+        deploymentDefinitionSchema: config.deploymentDefinitionSchema,
         blueprintSchema: config.blueprintSchema
     })
 })
