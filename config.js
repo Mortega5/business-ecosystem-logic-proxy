@@ -863,7 +863,7 @@ if (!!process.env.BAE_LP_DSP_CONTRACT_DEFINITION_SCHEMA) {
 // was published against. That is also what makes it safe to cache a compiled schema per URL.
 const TMF_MODEL_SCHEMA_BASE = 'https://tm-forum-model-66feba.pages.o-cei.eu/schemas/'
 
-config.deploymentDefinitionSchema = `${TMF_MODEL_SCHEMA_BASE}v1/deployment-definition.json`
+config.deploymentDefinitionSchema = `${TMF_MODEL_SCHEMA_BASE}v2/deployment-definition.json`
 
 if (!!process.env.BAE_LP_DEPLOYMENT_DEFINITION_SCHEMA) {
     config.deploymentDefinitionSchema = process.env.BAE_LP_DEPLOYMENT_DEFINITION_SCHEMA;

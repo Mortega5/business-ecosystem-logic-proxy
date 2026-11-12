@@ -40,7 +40,7 @@ describe('Config - JSON Schema locations', function() {
     it('should default to the versioned GitLab Pages schemas', function() {
         const config = loadConfig();
 
-        expect(config.deploymentDefinitionSchema).toBe(PAGES_BASE + 'v1/deployment-definition.json');
+        expect(config.deploymentDefinitionSchema).toBe(PAGES_BASE + 'v2/deployment-definition.json');
         expect(config.blueprintSchema).toBe(PAGES_BASE + 'v1/blueprint-product-spec.json');
         expect(config.schemaBaseAllowList).toEqual([PAGES_BASE]);
     });
