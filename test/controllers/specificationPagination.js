@@ -39,6 +39,10 @@ describe('Specification lifecycle pagination through the TMF proxy', function() 
             './../../lib/logger': testUtils.emptyLogger,
             './../../lib/utils': { validateLoggedIn: pass, '@noCallThru': true },
             './../../lib/tmfUtils': { filterRelatedPartyFields: pass, ensureRelatedPartyIncluded: pass, '@noCallThru': true },
+            './../../lib/resourceUtils': {
+                validateRetrieving: pass, validateOwnerSellerPost: pass, validateNameAndDescription: pass,
+                validateOwnerSeller: pass, getPrevVersion: () => pass, '@noCallThru': true
+            },
             './../../lib/store': { storeClient: {}, '@noCallThru': true },
             './../../db/schemas/accountingService': { '@noCallThru': true }
         })[definition.exported];
@@ -69,7 +73,7 @@ describe('Specification lifecycle pagination through the TMF proxy', function() 
             './../lib/utils': {
                 getAPIProtocol: () => 'http', getAPIHost: () => 'example.com',
                 getAPIPort: () => 1234, getAPIPath: () => '/api',
-                log: () => {}, attachUserHeaders: () => {}, proxiedRequestHeaders: () => ({}),
+                log: () => {}, logOutgoing: () => {}, attachUserHeaders: () => {}, proxiedRequestHeaders: () => ({}),
                 '@noCallThru': true
             },
             axios: axios
