@@ -129,3 +129,50 @@ describe('feature variables', () => {
         expect(legacyEnvToObject({ BAE_LP_PAYMENT_PROVIDER: '  ' }).values).toEqual({ purchase: { paymentProvider: 'none' } });
     });
 });
+
+describe('legacy endpoint variables', () => {
+    const endpoint = (name: string, vars: Record<string, string>): NodeJS.ProcessEnv =>
+        Object.fromEntries(Object.entries(vars).map(([suffix, value]) => [`BAE_LP_ENDPOINT_${name}_${suffix}`, value]));
+    const apis = (values: unknown) =>
+        (values as { upstreams: { tmforum: { apis: Record<string, Record<string, unknown>> } } }).upstreams.tmforum.apis;
+
+    it('translates the host, port and path of an API', () => {
+        const { values, used } = legacyEnvToObject(
+            endpoint('CATALOG', { HOST: 'tm-forum-api-svc', PORT: '8080', PATH: '/tmf-api/productCatalogManagement/v4' })
+        );
+        expect(apis(values)).toEqual({
+            catalog: { host: 'tm-forum-api-svc', port: '8080', path: '/tmf-api/productCatalogManagement/v4' }
+        });
+        expect(used.map((entry) => entry.variable)).toEqual([
+            'BAE_LP_ENDPOINT_CATALOG_HOST',
+            'BAE_LP_ENDPOINT_CATALOG_PORT',
+            'BAE_LP_ENDPOINT_CATALOG_PATH'
+        ]);
+    });
+
+    it('turns SECURED into the scheme and gives an empty path when there is no PATH, as the legacy app did', () => {
+        expect(apis(legacyEnvToObject(endpoint('QUOTE', { HOST: 'quote', PORT: '8443', SECURED: 'true' })).values)).toEqual({
+            quote: { host: 'quote', port: '8443', scheme: 'https', path: '' }
+        });
+        expect(apis(legacyEnvToObject(endpoint('QUOTE', { SECURED: 'no' })).values).quote).toEqual({ scheme: 'http', path: '' });
+    });
+
+    it('translates a lone HOST or PORT, which then inherit the rest from the group', () => {
+        expect(apis(legacyEnvToObject(endpoint('PARTY', { HOST: 'party' })).values).party).toEqual({ host: 'party', path: '' });
+        expect(apis(legacyEnvToObject(endpoint('PARTY', { PORT: '9090' })).values).party).toEqual({ port: '9090', path: '' });
+    });
+
+    it('keeps the legacy crossed names: BILLING is the account API and CUSTOMER_BILL the customer bill one', () => {
+        const { values } = legacyEnvToObject({
+            ...endpoint('BILLING', { PATH: '/tmf-api/accountManagement/v4' }),
+            ...endpoint('CUSTOMER_BILL', { PATH: '/tmf-api/customerBillManagement/v4' })
+        });
+        expect(Object.keys(apis(values)).sort()).toEqual(['account', 'customerBill']);
+        expect(apis(values).account?.path).toBe('/tmf-api/accountManagement/v4');
+    });
+
+    it('configures the standalone upstreams', () => {
+        const { values } = legacyEnvToObject(endpoint('CHARGING', { HOST: 'charging.svc.cluster.local', PORT: '8006' }));
+        expect(values).toEqual({ upstreams: { charging: { host: 'charging.svc.cluster.local', port: '8006', path: '' } } });
+    });
+});

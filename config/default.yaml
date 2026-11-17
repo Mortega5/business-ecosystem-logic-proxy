@@ -55,4 +55,27 @@ mongo:
 health:
   mongoPingTimeoutMs: 1000
 
-upstreams: {}
+upstreams:
+  timeoutMs: 30000
+  tmforum:
+    apis:
+      catalog: { path: /tmf-api/productCatalogManagement/v4 }
+      resource: { path: /tmf-api/resourceCatalog/v4 }
+      service: { path: /tmf-api/serviceCatalogManagement/v4 }
+      ordering: { path: /tmf-api/productOrderingManagement/v4 }
+      inventory: { path: /tmf-api/productInventory/v4 }
+      serviceInventory: { path: /tmf-api/serviceInventory/v4 }
+      resourceInventory: { path: /tmf-api/resourceInventoryManagement/v4 }
+      party: { path: /tmf-api/party/v4 }
+      account: { path: /tmf-api/accountManagement/v4 }
+      customer: { path: /tmf-api/customerManagement/v4 }
+      customerBill: { path: /tmf-api/customerBillManagement/v4 }
+      usage: { path: /tmf-api/usageManagement/v4 }
+      document: { path: /tmf-api/documentManagement/v4 }
+      invoicing: { path: /tmf-api/invoicing/v4 }
+      software: { path: /tmf-api/softwareCompute/v4 }
+      quote: { path: "" }
+  charging: {}
+  rss: {}
+  revenue: { path: /revenue }
+  search: {}

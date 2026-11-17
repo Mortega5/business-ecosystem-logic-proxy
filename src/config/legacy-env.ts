@@ -5,10 +5,13 @@ export interface LegacyVariable {
     key: string;
 }
 
+type Built = string | Record<string, string> | undefined;
+
+// A rule sets one key, or several keys under its own when it returns an object
 interface LegacyRule {
     key: string;
     variables: string[];
-    build: (env: NodeJS.ProcessEnv) => string | undefined;
+    build: (env: NodeJS.ProcessEnv) => Built;
 }
 
 const present = (value: string | undefined): value is string => value !== undefined && value !== '';
@@ -69,6 +72,67 @@ const paymentProviderRule: LegacyRule = {
     build: (env) => (present(env.BAE_LP_PAYMENT_PROVIDER) ? env.BAE_LP_PAYMENT_PROVIDER.trim().toLowerCase() || 'none' : undefined)
 };
 
+const TMFORUM_ENDPOINTS: [string, string][] = [
+    ['catalog', 'CATALOG'],
+    ['resource', 'RESOURCE'],
+    ['service', 'SERVICE'],
+    ['ordering', 'ORDERING'],
+    ['inventory', 'INVENTORY'],
+    ['serviceInventory', 'SERVICE_INVENTORY'],
+    ['resourceInventory', 'RESOURCE_INVENTORY'],
+    ['party', 'PARTY'],
+    // The legacy names are crossed: BILLING configured the account endpoint and CUSTOMER_BILL the billing one
+    ['account', 'BILLING'],
+    ['customer', 'CUSTOMER'],
+    ['customerBill', 'CUSTOMER_BILL'],
+    ['usage', 'USAGE'],
+    ['document', 'DOCUMENT'],
+    ['invoicing', 'INVOICING'],
+    ['software', 'SOFTWARE'],
+    ['quote', 'QUOTE']
+];
+
+const STANDALONE_ENDPOINTS: [string, string][] = [
+    ['charging', 'CHARGING'],
+    ['rss', 'RSS'],
+    ['revenue', 'REVENUE'],
+    ['search', 'SEARCH']
+];
+
+// What the legacy application did not get from its variables it took from placeholder defaults; here it comes from
+// the group. The path is the exception: it is empty unless PATH says otherwise.
+const buildEndpoint =
+    (legacyName: string) =>
+    (env: NodeJS.ProcessEnv): Built => {
+        const variable = (suffix: string): string | undefined => {
+            const value = env[`BAE_LP_ENDPOINT_${legacyName}_${suffix}`];
+            return present(value) ? value : undefined;
+        };
+        const [host, port, secured, path] = [variable('HOST'), variable('PORT'), variable('SECURED'), variable('PATH')];
+        if (host === undefined && port === undefined && secured === undefined && path === undefined) {
+            return undefined;
+        }
+        return {
+            path: path ?? '',
+            ...(host === undefined ? {} : { host }),
+            ...(port === undefined ? {} : { port }),
+            ...(secured === undefined ? {} : { scheme: secured === 'true' ? 'https' : 'http' })
+        };
+    };
+
+const endpointRules: LegacyRule[] = [
+    ...TMFORUM_ENDPOINTS.map(([api, legacyName]) => ({
+        key: `upstreams.tmforum.apis.${api}`,
+        variables: ['HOST', 'PORT', 'PATH', 'SECURED'].map((suffix) => `BAE_LP_ENDPOINT_${legacyName}_${suffix}`),
+        build: buildEndpoint(legacyName)
+    })),
+    ...STANDALONE_ENDPOINTS.map(([name, legacyName]) => ({
+        key: `upstreams.${name}`,
+        variables: ['HOST', 'PORT', 'PATH', 'SECURED'].map((suffix) => `BAE_LP_ENDPOINT_${legacyName}_${suffix}`),
+        build: buildEndpoint(legacyName)
+    }))
+];
+
 const RULES: LegacyRule[] = [
     { key: 'app.port', variables: ['BAE_LP_PORT', 'BAE_LP_HTTPS_PORT'], build: buildPort },
     {
@@ -86,7 +150,8 @@ const RULES: LegacyRule[] = [
     },
     paymentProviderRule,
     ...switchRules,
-    ...valueRules
+    ...valueRules,
+    ...endpointRules
 ];
 
 /** BAE_APP__SHUTDOWN_TIMEOUT_MS for app.shutdownTimeoutMs */
@@ -101,11 +166,17 @@ export const legacyEnvToObject = (env: NodeJS.ProcessEnv): { values: PlainObject
     const values: PlainObject = {};
     const used: LegacyVariable[] = [];
     for (const rule of RULES) {
-        const value = rule.build(env);
-        if (!present(value)) {
+        const built = rule.build(env);
+        if (built === undefined || built === '') {
             continue;
         }
-        setPath(values, rule.key.split('.'), value);
+        if (typeof built === 'string') {
+            setPath(values, rule.key.split('.'), built);
+        } else {
+            for (const [name, value] of Object.entries(built)) {
+                setPath(values, [...rule.key.split('.'), name], value);
+            }
+        }
         for (const variable of rule.variables) {
             if (present(env[variable])) {
                 used.push({ variable, key: rule.key });

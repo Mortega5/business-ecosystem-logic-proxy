@@ -5,6 +5,56 @@ const booleanLike = z
     .union([z.boolean(), z.enum(['true', 'false'])])
     .transform((value) => value === true || value === 'true');
 
+const timeoutMs = z.coerce.number().int().positive();
+
+const address = {
+    host: z
+        .string()
+        .regex(/^(\[[0-9a-fA-F:.]+\]|[^\s/:@?#]+)$/, 'must be a host name or address, without scheme or port')
+        .optional(),
+    port: z.coerce.number().int().min(1).max(65535).optional(),
+    scheme: z.enum(['http', 'https']).optional()
+};
+
+// An upstream, or one API of a group: whatever it leaves out it takes from its group
+const upstreamEntry = z.strictObject({
+    ...address,
+    path: z.string().regex(/^(\/.*)?$/, 'must be empty or start with /').optional(),
+    timeoutMs: timeoutMs.optional()
+});
+
+const tmforumApis = z.strictObject({
+    catalog: upstreamEntry,
+    resource: upstreamEntry,
+    service: upstreamEntry,
+    ordering: upstreamEntry,
+    inventory: upstreamEntry,
+    serviceInventory: upstreamEntry,
+    resourceInventory: upstreamEntry,
+    party: upstreamEntry,
+    account: upstreamEntry,
+    customer: upstreamEntry,
+    customerBill: upstreamEntry,
+    usage: upstreamEntry,
+    document: upstreamEntry,
+    invoicing: upstreamEntry,
+    software: upstreamEntry,
+    quote: upstreamEntry
+});
+
+const upstreamsSchema = z.strictObject({
+    timeoutMs,
+    tmforum: z.strictObject({
+        ...address,
+        timeoutMs: timeoutMs.optional(),
+        apis: tmforumApis
+    }),
+    charging: upstreamEntry,
+    rss: upstreamEntry,
+    revenue: upstreamEntry,
+    search: upstreamEntry
+});
+
 export const ConfigSchema = z.object({
     app: z
         .object({
@@ -79,13 +129,7 @@ export const ConfigSchema = z.object({
     health: z.object({
         mongoPingTimeoutMs: z.coerce.number().int().positive()
     }),
-    upstreams: z.record(
-        z.string(),
-        z.object({
-            baseUrl: z.url(),
-            timeoutMs: z.coerce.number().int().positive()
-        })
-    )
+    upstreams: upstreamsSchema
 });
 
 export type AppConfig = z.infer<typeof ConfigSchema>;

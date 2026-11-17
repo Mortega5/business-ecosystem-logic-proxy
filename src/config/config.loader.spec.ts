@@ -190,20 +190,29 @@ describe('loadStaticConfig', () => {
         const config = loadStaticConfig({
             defaultsPath: DEFAULTS_PATH,
             env: {
-                BAE_UPSTREAMS__CATALOG__BASE_URL: 'http://catalog:8080/tmf-api',
-                BAE_UPSTREAMS__CATALOG__TIMEOUT_MS: '2500'
+                BAE_UPSTREAMS__CHARGING__HOST: 'charging',
+                BAE_UPSTREAMS__CHARGING__PORT: '8006',
+                BAE_UPSTREAMS__CHARGING__TIMEOUT_MS: '2500'
             }
         });
-        expect(config.upstreams.catalog).toEqual({ baseUrl: 'http://catalog:8080/tmf-api', timeoutMs: 2500 });
+        expect(config.upstreams.charging).toEqual({ host: 'charging', port: 8006, timeoutMs: 2500 });
     });
 
-    it('rejects an upstream without a valid base url', () => {
+    it('rejects an upstream with a scheme or a port inside the host, or a port out of range', () => {
+        const load = (env: NodeJS.ProcessEnv) => () => loadStaticConfig({ defaultsPath: DEFAULTS_PATH, env });
+        expect(load({ BAE_UPSTREAMS__CHARGING__HOST: 'http://charging' })).toThrow('upstreams.charging.host');
+        expect(load({ BAE_UPSTREAMS__CHARGING__HOST: 'charging:8006' })).toThrow('upstreams.charging.host');
+        expect(load({ BAE_UPSTREAMS__CHARGING__PORT: '70000' })).toThrow('upstreams.charging.port');
+        expect(load({ BAE_UPSTREAMS__CHARGING__SCHEME: 'ftp' })).toThrow('upstreams.charging.scheme');
+    });
+
+    it('rejects an API that does not exist in a group', () => {
         expect(() =>
             loadStaticConfig({
                 defaultsPath: DEFAULTS_PATH,
-                env: { BAE_UPSTREAMS__CATALOG__BASE_URL: 'not a url', BAE_UPSTREAMS__CATALOG__TIMEOUT_MS: '1' }
+                env: { BAE_UPSTREAMS__TMFORUM__APIS__CATALOGUE__HOST: 'tmforum' }
             })
-        ).toThrow('upstreams.catalog.baseUrl');
+        ).toThrow('upstreams.tmforum.apis');
     });
 
     it('fails to start with an unreadable application file', () => {

@@ -1,5 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { AppConfig } from './config.schema';
+import type { UpstreamName } from './upstream-names';
+import { resolveUpstream, type ResolvedUpstream } from './upstream-resolution';
 
 export const APP_CONFIG = Symbol('APP_CONFIG');
 
@@ -59,7 +61,8 @@ export class AppConfigService {
         return this.value.health;
     }
 
-    get upstreams(): AppConfig['upstreams'] {
-        return this.value.upstreams;
+    /** The URL and timeout of an upstream; throws when its host is not configured. */
+    upstream(name: UpstreamName): ResolvedUpstream {
+        return resolveUpstream(this.value.upstreams, name);
     }
 }

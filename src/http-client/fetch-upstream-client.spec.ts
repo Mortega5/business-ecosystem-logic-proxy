@@ -2,7 +2,8 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { gzipSync } from 'node:zlib';
 import type { PinoLogger } from 'nestjs-pino';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { AppConfigService } from '../config/app-config.service';
+import { AppConfigService } from '../config/app-config.service';
+import type { AppConfig } from '../config/config.schema';
 import { FetchUpstreamClient } from './fetch-upstream-client';
 import { forwardableHeaders, UpstreamError } from './upstream-client';
 
@@ -20,11 +21,16 @@ let handler: (req: IncomingMessage, res: ServerResponse) => void;
 
 const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn(), setContext: vi.fn() };
 
-const clientFor = (baseUrl: string, timeoutMs = 1000): FetchUpstreamClient =>
-    new FetchUpstreamClient(
-        { upstreams: { svc: { baseUrl, timeoutMs } } } as unknown as AppConfigService,
+const clientFor = (baseUrl: string, timeoutMs = 1000): FetchUpstreamClient => {
+    const url = new URL(baseUrl);
+    const path = url.pathname === '/' ? '' : url.pathname;
+    return new FetchUpstreamClient(
+        new AppConfigService({
+            upstreams: { timeoutMs, charging: { host: url.hostname, port: Number(url.port), path }, search: {} }
+        } as unknown as AppConfig),
         logger as unknown as PinoLogger
     );
+};
 
 const reply = (res: ServerResponse, status: number, body: string, headers: Record<string, string> = {}): void => {
     res.writeHead(status, headers);
@@ -60,7 +66,7 @@ describe('FetchUpstreamClient.send', () => {
         const client = clientFor(`http://127.0.0.1:${port}/api/v4/`);
 
         const response = await client.send({
-            upstream: 'svc',
+            upstream: 'charging',
             path: '/productOffering',
             query: { limit: '2', fields: ['name', 'id'] },
             headers: { 'x-nick-name': 'seller' }
@@ -76,7 +82,7 @@ describe('FetchUpstreamClient.send', () => {
         const client = clientFor(`http://127.0.0.1:${port}`);
 
         await client.send({
-            upstream: 'svc',
+            upstream: 'charging',
             method: 'POST',
             path: '/orders',
             headers: { 'content-type': 'application/json' },
@@ -89,7 +95,7 @@ describe('FetchUpstreamClient.send', () => {
     it('resolves with non-2xx responses instead of throwing', async () => {
         handler = (_req, res) => reply(res, 404, '{"error":"missing"}');
 
-        const response = await clientFor(`http://127.0.0.1:${port}`).send({ upstream: 'svc', path: '/x' });
+        const response = await clientFor(`http://127.0.0.1:${port}`).send({ upstream: 'charging', path: '/x' });
 
         expect(response).toMatchObject({ status: 404, body: '{"error":"missing"}' });
     });
@@ -97,7 +103,7 @@ describe('FetchUpstreamClient.send', () => {
     it('does not follow redirects', async () => {
         handler = (_req, res) => reply(res, 302, '', { location: '/elsewhere' });
 
-        const response = await clientFor(`http://127.0.0.1:${port}`).send({ upstream: 'svc', path: '/x' });
+        const response = await clientFor(`http://127.0.0.1:${port}`).send({ upstream: 'charging', path: '/x' });
 
         expect(response.status).toBe(302);
         expect(response.headers.get('location')).toBe('/elsewhere');
@@ -109,47 +115,47 @@ describe('FetchUpstreamClient.send', () => {
         };
 
         const error = await clientFor(`http://127.0.0.1:${port}`, 50)
-            .send({ upstream: 'svc', path: '/slow' })
+            .send({ upstream: 'charging', path: '/slow' })
             .catch((e: unknown) => e);
 
         expect(error).toBeInstanceOf(UpstreamError);
-        expect(error).toMatchObject({ kind: 'timeout', upstream: 'svc' });
+        expect(error).toMatchObject({ kind: 'timeout', upstream: 'charging' });
     });
 
     it('rejects with a network error when nothing is listening', async () => {
         const error = await clientFor('http://127.0.0.1:1')
-            .send({ upstream: 'svc', path: '/x' })
+            .send({ upstream: 'charging', path: '/x' })
             .catch((e: unknown) => e);
 
-        expect(error).toMatchObject({ kind: 'network', upstream: 'svc' });
+        expect(error).toMatchObject({ kind: 'network', upstream: 'charging' });
     });
 
     it('fails clearly for an upstream that is not configured', async () => {
-        await expect(clientFor(`http://127.0.0.1:${port}`).send({ upstream: 'nope', path: '/x' })).rejects.toThrow(
-            'Unknown upstream "nope"'
+        await expect(clientFor(`http://127.0.0.1:${port}`).send({ upstream: 'search', path: '/x' })).rejects.toThrow(
+            'Upstream "search" has no host'
         );
     });
 });
 
 describe('FetchUpstreamClient logging', () => {
     it('logs completed calls with upstream, status and duration and masks sensitive parameters', async () => {
-        await clientFor(`http://127.0.0.1:${port}`).send({ upstream: 'svc', path: '/x', query: { code: 'secret' } });
+        await clientFor(`http://127.0.0.1:${port}`).send({ upstream: 'charging', path: '/x', query: { code: 'secret' } });
 
         expect(logger.info).toHaveBeenCalledTimes(1);
         const [fields, message] = logger.info.mock.calls[0] as [Record<string, unknown>, string];
         expect(message).toBe('upstream request completed');
-        expect(fields).toMatchObject({ upstream: 'svc', method: 'GET', statusCode: 200 });
+        expect(fields).toMatchObject({ upstream: 'charging', method: 'GET', statusCode: 200 });
         expect(typeof fields.durationMs).toBe('number');
         expect(JSON.stringify(fields)).not.toContain('secret');
     });
 
     it('logs upstream server errors as warnings and failures as errors', async () => {
         handler = (_req, res) => reply(res, 502, 'bad gateway');
-        await clientFor(`http://127.0.0.1:${port}`).send({ upstream: 'svc', path: '/x' });
+        await clientFor(`http://127.0.0.1:${port}`).send({ upstream: 'charging', path: '/x' });
         expect(logger.warn).toHaveBeenCalledTimes(1);
 
         await clientFor('http://127.0.0.1:1')
-            .send({ upstream: 'svc', path: '/x' })
+            .send({ upstream: 'charging', path: '/x' })
             .catch(() => undefined);
         expect(logger.error).toHaveBeenCalledTimes(1);
     });
@@ -157,7 +163,7 @@ describe('FetchUpstreamClient logging', () => {
 
 describe('UpstreamClient.json', () => {
     it('parses the body of a successful response', async () => {
-        await expect(clientFor(`http://127.0.0.1:${port}`).json({ upstream: 'svc', path: '/x' })).resolves.toEqual({
+        await expect(clientFor(`http://127.0.0.1:${port}`).json({ upstream: 'charging', path: '/x' })).resolves.toEqual({
             ok: true
         });
     });
@@ -166,7 +172,7 @@ describe('UpstreamClient.json', () => {
         handler = (_req, res) => reply(res, 409, '{"error":"conflict"}');
 
         const error = await clientFor(`http://127.0.0.1:${port}`)
-            .json({ upstream: 'svc', path: '/x' })
+            .json({ upstream: 'charging', path: '/x' })
             .catch((e: unknown) => e);
 
         expect(error).toMatchObject({ kind: 'http', status: 409, body: '{"error":"conflict"}' });
@@ -175,7 +181,7 @@ describe('UpstreamClient.json', () => {
     it('returns undefined for an empty body', async () => {
         handler = (_req, res) => reply(res, 204, '');
 
-        await expect(clientFor(`http://127.0.0.1:${port}`).json({ upstream: 'svc', path: '/x' })).resolves.toBeUndefined();
+        await expect(clientFor(`http://127.0.0.1:${port}`).json({ upstream: 'charging', path: '/x' })).resolves.toBeUndefined();
     });
 });
 
@@ -188,7 +194,7 @@ describe('forwardableHeaders', () => {
                 'x-total-count': '7'
             });
 
-        const response = await clientFor(`http://127.0.0.1:${port}`).send({ upstream: 'svc', path: '/x' });
+        const response = await clientFor(`http://127.0.0.1:${port}`).send({ upstream: 'charging', path: '/x' });
 
         expect(response.body).toBe('{"zipped":true}');
         const forwarded = forwardableHeaders(response.headers);

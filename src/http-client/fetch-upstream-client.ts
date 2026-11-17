@@ -25,10 +25,7 @@ export class FetchUpstreamClient extends UpstreamClient {
     }
 
     async send(request: UpstreamRequest): Promise<UpstreamResponse> {
-        const upstream = this.config.upstreams[request.upstream];
-        if (upstream === undefined) {
-            throw new Error(`Unknown upstream "${request.upstream}"`);
-        }
+        const upstream = this.config.upstream(request.upstream);
         const url = buildUrl(upstream.baseUrl, request);
         const method = request.method ?? 'GET';
         const logged = { upstream: request.upstream, method, url: sanitizeUrl(url.toString()) };

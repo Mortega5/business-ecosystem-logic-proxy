@@ -1,5 +1,7 @@
+import type { UpstreamName } from '../config/upstream-names';
+
 export interface UpstreamRequest {
-    upstream: string;
+    upstream: UpstreamName;
     path: string;
     method?: string;
     query?: Record<string, string | string[]>;

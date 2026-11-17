@@ -191,6 +191,7 @@ Variables of the legacy application that also configure the Nest application:
 | `BAE_LP_QUOTE_API` | `quotes.api` | |
 | `BAE_LP_DSP_CONTRACT_DEFINITION_SCHEMA` | `dsp.contractDefinitionSchema` | |
 | `BAE_LP_OFFERING_SCHEMA`, `BAE_LP_PRICE_COMP_SCHEMA`, `BAE_LP_BLUEPRINT_SCHEMA` | `catalog.offeringSchema`, `catalog.priceCompSchema`, `catalog.blueprintSchema` | |
+| `BAE_LP_ENDPOINT_<NAME>_HOST`, `_PORT`, `_PATH`, `_SECURED` | `upstreams.tmforum.apis.<api>` or `upstreams.<name>` | See [Upstreams](#upstreams) for the names. `SECURED=true` sets `scheme: https`. What is not set (host or port) comes from the group; a missing `PATH` means an empty path, as before |
 
 When none of the `BAE_LP_MONGO_*` variables is set, `mongo.uri` keeps its default.
 
@@ -234,6 +235,10 @@ Keys read by the application:
 | `launchValidation.enabled`, `dataSpace.enabled` | boolean | `false` | |
 | `catalogManagement.enabled` | boolean | `true` | |
 | `catalog.offeringSchema`, `catalog.priceCompSchema`, `catalog.blueprintSchema` | URL | the legacy values | `@schemaLocation` of offerings, price components and blueprint product specifications |
+| `upstreams.timeoutMs` | integer | `30000` | Timeout of every upstream that does not set its own |
+| `upstreams.tmforum.host`, `.port`, `.scheme` | string, integer, `http` `https` | not set (`http` when no scheme is given) | Default server of every TMForum API |
+| `upstreams.tmforum.apis.<api>.host`, `.port`, `.scheme`, `.path`, `.timeoutMs` | | the standard TMForum paths | What one API sets itself; see [Upstreams](#upstreams) |
+| `upstreams.charging`, `.rss`, `.revenue`, `.search` | `host`, `port`, `scheme`, `path`, `timeoutMs` | not set (`revenue.path` is `/revenue`) | The services that are not TMForum APIs |
 | `health.mongoPingTimeoutMs` | integer | `1000` | |
 
 ## Logging
@@ -270,3 +275,32 @@ can override the switches only, with the names the admin API and the frontend us
 `dspEnabled`, `tenderDevButtonsOpenCloseEnabled`...), and it is read every 5 seconds. A feature that the database
 turns on while its settings are incomplete (for instance `dsp` without `dsp.contractDefinitionSchema`) stays off and
 a warning is logged.
+
+### Upstreams
+
+The services the proxy calls are grouped in blocks. The `tmforum` block holds the TMForum APIs (`catalog`, `resource`,
+`service`, `ordering`, `inventory`, `serviceInventory`, `resourceInventory`, `party`, `account`, `customer`,
+`customerBill`, `usage`, `document`, `invoicing`, `software` and `quote`); `charging`, `rss`, `revenue` and `search`
+are standalone. Each API takes its own value for `host`, `port`, `scheme`, `path` and `timeoutMs` and, when it has none,
+its group's; the timeout falls back to `upstreams.timeoutMs`. The URL is `<scheme>://<host>[:<port>]<path>`.
+
+When every TMForum API runs on one server it is enough to set the group's host and port, since the paths of the
+standard deployment are the defaults:
+
+```yaml
+upstreams:
+  tmforum:
+    host: tm-forum-api-svc
+    port: 8080
+    apis:
+      quote:
+        host: quote            # the one that runs elsewhere; the port is still 8080 unless it says otherwise
+        port: 8085
+        path: ""
+```
+
+There is no default host: an upstream the application needs and that resolves to no `host` is an error that names the
+keys to set. The legacy `BAE_LP_ENDPOINT_*` variables keep working one API at a time, and the host or the port they
+leave out comes from the group. An API that has any of them gets an empty path unless `PATH` says otherwise, as in
+the legacy application, so a lone `PORT` also drops the default path. Their names are crossed for two APIs:
+`BAE_LP_ENDPOINT_BILLING_*` configures `account` and `BAE_LP_ENDPOINT_CUSTOMER_BILL_*` configures `customerBill`.
