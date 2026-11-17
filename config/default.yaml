@@ -15,6 +15,15 @@ logging:
   prettyOptions:
     singleLine: true
 
+auth:
+  propagateToken: true
+  allowLocalEori: false
+  roles:
+    admin: admin
+    customer: Buyer
+    seller: Seller
+    orgAdmin: orgAdmin
+
 purchase:
   enabled: true
   paymentProvider: none

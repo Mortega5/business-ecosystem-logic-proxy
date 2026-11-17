@@ -100,6 +100,16 @@ export const ConfigSchema = z.object({
         retryInitialDelayMs: z.coerce.number().int().positive(),
         retryMaxDelayMs: z.coerce.number().int().positive()
     }),
+    auth: z.object({
+        propagateToken: booleanLike,
+        allowLocalEori: booleanLike,
+        roles: z.object({
+            admin: z.string().min(1),
+            customer: z.string().min(1),
+            seller: z.string().min(1),
+            orgAdmin: z.string().min(1)
+        })
+    }),
     purchase: z
         .object({
             enabled: booleanLike,

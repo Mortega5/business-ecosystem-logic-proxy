@@ -263,3 +263,26 @@ describe('feature configuration', () => {
         expect(config.quotes.api).toBe('/quotes');
     });
 });
+
+describe('authentication configuration', () => {
+    const load = (env: NodeJS.ProcessEnv) => loadStaticConfig({ defaultsPath: DEFAULTS_PATH, env });
+
+    it('keeps the legacy roles and options by default', () => {
+        expect(load({}).auth).toEqual({
+            propagateToken: true,
+            allowLocalEori: false,
+            roles: { admin: 'admin', customer: 'Buyer', seller: 'Seller', orgAdmin: 'orgAdmin' }
+        });
+    });
+
+    it('accepts the legacy variables', () => {
+        const { auth } = load({
+            BAE_LP_PROPAGATE_TOKEN: 'false',
+            BAE_LP_ALLOW_LOCAL_EORI: 'true',
+            BAE_LP_OAUTH2_SELLER_ROLE: 'provider',
+            BAE_LP_OAUTH2_ORG_ADMIN_ROLE: 'organisation-admin'
+        });
+        expect(auth).toMatchObject({ propagateToken: false, allowLocalEori: true });
+        expect(auth.roles).toMatchObject({ seller: 'provider', orgAdmin: 'organisation-admin', admin: 'admin' });
+    });
+});

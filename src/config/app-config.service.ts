@@ -25,6 +25,10 @@ export class AppConfigService {
         return this.value.mongo;
     }
 
+    get auth(): AppConfig['auth'] {
+        return this.value.auth;
+    }
+
     get purchase(): AppConfig['purchase'] {
         return this.value.purchase;
     }

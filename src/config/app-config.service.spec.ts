@@ -18,6 +18,7 @@ const VALUE: AppConfig = {
         retryInitialDelayMs: 1000,
         retryMaxDelayMs: 30000
     },
+    auth: { propagateToken: true, allowLocalEori: false, roles: { admin: 'admin', customer: 'Buyer', seller: 'Seller', orgAdmin: 'orgAdmin' } },
     purchase: { enabled: true, paymentProvider: 'none' },
     quotes: { enabled: true, api: '/quote/quoteManagement' },
     tendering: { enabled: true, devButtonsOpenClose: false },

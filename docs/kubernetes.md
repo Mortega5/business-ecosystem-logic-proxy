@@ -189,12 +189,17 @@ Variables of the legacy application that also configure the Nest application:
 | `BAE_LP_HTTPS_CERT`, `BAE_LP_HTTPS_KEY`, `BAE_LP_HTTPS_CA` | `app.https.certFile`, `app.https.keyFile`, `app.https.caFile` | |
 | `BAE_LP_HTTPS_PORT` | `app.port` | Used while HTTPS is enabled, as in the legacy application; `443` when it is not set |
 | `BAE_LP_MONGO_SERVER`, `BAE_LP_MONGO_PORT`, `BAE_LP_MONGO_DB`, `BAE_LP_MONGO_USER`, `BAE_LP_MONGO_PASS` | `mongo.uri` | `mongodb://[user:password@]server:port/db`. Parts that are not set take the values of the legacy application: server `mongo`, port `27017`, database `belp`. Credentials are used only when both a user and a password are set, and are percent-encoded |
-| `BAE_LP_PURCHASE_ENABLED`, `BAE_LP_DATASPACE_ENABLED`, `BAE_LP_CATALOG_MANAGEMENT_ENABLED`, `BAE_LP_DSP_ENABLED`, `BAE_LP_QUOTE_ENABLED`, `BAE_LP_TENDERING_ENABLED`, `BAE_LP_LAUNCH_VALIDATION_ENABLED` | `purchase.enabled`, `dataSpace.enabled`, `catalogManagement.enabled`, `dsp.enabled`, `quotes.enabled`, `tendering.enabled`, `launchValidation.enabled` | Anything other than `true` turns the feature off |
+| `BAE_LP_PURCHASE_ENABLED`, `BAE_LP_DATASPACE_ENABLED`, `BAE_LP_CATALOG_MANAGEMENT_ENABLED`, `BAE_LP_DSP_ENABLED`, `BAE_LP_QUOTE_ENABLED`, `BAE_LP_TENDERING_ENABLED`, `BAE_LP_LAUNCH_VALIDATION_ENABLED` | `auth.propagateToken` | boolean | `true` | Sends the user's access token to the upstreams as `Authorization: Bearer` |
+| `auth.allowLocalEori` | boolean | `false` | A local IdP user acts under their display name as IdP id |
+| `auth.roles.admin`, `.customer`, `.seller`, `.orgAdmin` | string | `admin`, `Buyer`, `Seller`, `orgAdmin` | Names of the roles in the identity provider |
+| `purchase.enabled`, `dataSpace.enabled`, `catalogManagement.enabled`, `dsp.enabled`, `quotes.enabled`, `tendering.enabled`, `launchValidation.enabled` | Anything other than `true` turns the feature off |
 | `BAE_LP_TENDER_DEV_BUTTON_ENABLED` | `tendering.devButtonsOpenClose` | Same rule |
 | `BAE_LP_PAYMENT_GATEWAY`, `BAE_LP_PAYMENT_PROVIDER` | `purchase.paymentGateway`, `purchase.paymentProvider` | The provider is trimmed and lowercased; blank means `none` |
 | `BAE_LP_QUOTE_API` | `quotes.api` | |
 | `BAE_LP_DSP_CONTRACT_DEFINITION_SCHEMA` | `dsp.contractDefinitionSchema` | |
 | `BAE_LP_OFFERING_SCHEMA`, `BAE_LP_PRICE_COMP_SCHEMA`, `BAE_LP_BLUEPRINT_SCHEMA` | `catalog.offeringSchema`, `catalog.priceCompSchema`, `catalog.blueprintSchema` | |
+| `BAE_LP_PROPAGATE_TOKEN`, `BAE_LP_ALLOW_LOCAL_EORI` | `auth.propagateToken`, `auth.allowLocalEori` | Anything other than `true` turns the option off |
+| `BAE_LP_OAUTH2_ADMIN_ROLE`, `_SELLER_ROLE`, `_CUSTOMER_ROLE`, `_ORG_ADMIN_ROLE` | `auth.roles.admin`, `.seller`, `.customer`, `.orgAdmin` | |
 | `BAE_LP_ENDPOINT_<NAME>_HOST`, `_PORT`, `_PATH`, `_SECURED` | `upstreams.tmforum.apis.<api>` or `upstreams.<name>` | See [Upstreams](#upstreams) for the names. `SECURED=true` sets `scheme: https`. What is not set (host or port) comes from the group; a missing `PATH` means an empty path, as before |
 
 When none of the `BAE_LP_MONGO_*` variables is set, `mongo.uri` keeps its default.

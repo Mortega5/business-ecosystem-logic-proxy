@@ -33,6 +33,8 @@ const buildPort = (env: NodeJS.ProcessEnv): string | undefined =>
     env.BAE_LP_HTTPS_ENABLED === 'true' ? (present(env.BAE_LP_HTTPS_PORT) ? env.BAE_LP_HTTPS_PORT : '443') : env.BAE_LP_PORT;
 
 const SWITCHES: [string, string][] = [
+    ['auth.propagateToken', 'BAE_LP_PROPAGATE_TOKEN'],
+    ['auth.allowLocalEori', 'BAE_LP_ALLOW_LOCAL_EORI'],
     ['purchase.enabled', 'BAE_LP_PURCHASE_ENABLED'],
     ['dataSpace.enabled', 'BAE_LP_DATASPACE_ENABLED'],
     ['catalogManagement.enabled', 'BAE_LP_CATALOG_MANAGEMENT_ENABLED'],
@@ -44,6 +46,10 @@ const SWITCHES: [string, string][] = [
 ];
 
 const VALUES: [string, string][] = [
+    ['auth.roles.admin', 'BAE_LP_OAUTH2_ADMIN_ROLE'],
+    ['auth.roles.seller', 'BAE_LP_OAUTH2_SELLER_ROLE'],
+    ['auth.roles.customer', 'BAE_LP_OAUTH2_CUSTOMER_ROLE'],
+    ['auth.roles.orgAdmin', 'BAE_LP_OAUTH2_ORG_ADMIN_ROLE'],
     ['purchase.paymentGateway', 'BAE_LP_PAYMENT_GATEWAY'],
     ['quotes.api', 'BAE_LP_QUOTE_API'],
     ['dsp.contractDefinitionSchema', 'BAE_LP_DSP_CONTRACT_DEFINITION_SCHEMA'],
