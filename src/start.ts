@@ -4,12 +4,14 @@ import { createApp } from './bootstrap';
 import { loadAppConfig } from './config/config.loader';
 import { envNameFor, type LegacyVariable } from './config/legacy-env';
 import type { AppConfig } from './config/config.schema';
+import { LegacyAuthBridge, type LegacyMiddleware } from './legacy/legacy-auth.bridge';
 import type { LegacyHandler } from './legacy/legacy-fallback.filter';
 import { buildHttpsOptions } from './https/https-options';
 import { buildLoggerOptions } from './logging/pino-options';
 
 export interface LegacyServer {
     app: LegacyHandler;
+    authPipeline: LegacyMiddleware[];
     onlistening: () => void;
     stopBackgroundLoaders: () => void;
     close: () => Promise<void>;
@@ -63,6 +65,7 @@ export const start = async (options: StartOptions): Promise<RunningServer> => {
         logger.info('Legacy application loaded');
 
         const app = await createApp(legacy.app, options.rootModule, buildHttpsOptions(config.app.https));
+        app.get(LegacyAuthBridge).attach(legacy.authPipeline);
         await (config.app.host === undefined ? app.listen(config.app.port) : app.listen(config.app.port, config.app.host));
         logger.info({ port: config.app.port }, 'Server listening');
 

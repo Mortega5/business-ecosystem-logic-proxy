@@ -2,6 +2,8 @@ import { Controller, Get, Module } from '@nestjs/common';
 import { Writable } from 'node:stream';
 import express from 'express';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { AuthModule } from './auth/auth.module';
+import { Public } from './auth/public.decorator';
 import { AppConfigModule } from './config/app-config.module';
 import { LoggingModule } from './logging/logging.module';
 import { start, type LegacyServer } from './start';
@@ -11,6 +13,7 @@ import { request as httpsRequest } from 'node:https';
 import { request as httpRequest } from 'node:http';
 import type { TLSSocket } from 'node:tls';
 
+@Public()
 @Controller('new')
 class NewController {
     @Get()
@@ -19,7 +22,7 @@ class NewController {
     }
 }
 
-@Module({ imports: [AppConfigModule, LoggingModule], controllers: [NewController] })
+@Module({ imports: [AppConfigModule, LoggingModule, AuthModule], controllers: [NewController] })
 class TestRootModule {}
 
 const capture = () => {
@@ -42,7 +45,7 @@ const loadedAfter = (ms: number, onlistening = vi.fn()): (() => Promise<LegacySe
     return () =>
         new Promise((resolve) =>
             setTimeout(
-                () => resolve({ app: legacyApp, onlistening, stopBackgroundLoaders: vi.fn(), close: vi.fn() }),
+                () => resolve({ app: legacyApp, authPipeline: [], onlistening, stopBackgroundLoaders: vi.fn(), close: vi.fn() }),
                 ms
             )
         );

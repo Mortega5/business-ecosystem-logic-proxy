@@ -1,7 +1,9 @@
 import { Controller, Get } from '@nestjs/common';
 import { HealthCheck, HealthCheckService } from '@nestjs/terminus';
+import { Public } from '../auth/public.decorator';
 import { MongoHealthIndicator } from './mongo.health-indicator';
 
+@Public()
 @Controller('health')
 export class HealthController {
     constructor(

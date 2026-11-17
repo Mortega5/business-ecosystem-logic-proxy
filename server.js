@@ -117,15 +117,15 @@ i18n.expressBind(app, {
 });
 
 // Session
-app.use(
-    session({
-        secret: config.sessionSecret,
-        resave: true,
-        saveUninitialized: true
-    })
-);
+const sessionMiddleware = session({
+    secret: config.sessionSecret,
+    resave: true,
+    saveUninitialized: true
+});
+app.use(sessionMiddleware);
 
-app.use(cookieParser());
+const cookieMiddleware = cookieParser();
+app.use(cookieMiddleware);
 
 app.use(
     bodyParser.text({
@@ -246,8 +246,10 @@ passport.deserializeUser(function(obj, done) {
 });
 
 // Passport middlewares
-app.use(passport.initialize());
-app.use(passport.session());
+const passportInitialize = passport.initialize();
+const passportSession = passport.session();
+app.use(passportInitialize);
+app.use(passportSession);
 
 // Load local strategy
 
@@ -906,7 +908,18 @@ if (config.https.enabled === true) {
 const retryTimers = new Set();
 let loadersStopped = false;
 
-return { app, onlistening, stopBackgroundLoaders, close };
+// The same middlewares the legacy routes use to know who is calling, for the routes the Nest application serves
+const authPipeline = [
+    sessionMiddleware,
+    cookieMiddleware,
+    passportInitialize,
+    passportSession,
+    authMiddleware.headerAuthentication,
+    authMiddleware.checkOrganizations,
+    authMiddleware.setPartyObj
+];
+
+return { app, onlistening, stopBackgroundLoaders, close, authPipeline };
 
 function retryAsync(fn, {
   name,
