@@ -65,3 +65,25 @@ export const installGracefulShutdown = (target: ShutdownTarget, hooks: ShutdownH
     }
     return shutdown;
 };
+
+/**
+ * Until the application is up there is nothing to drain, so a signal ends the process at once. It matters in a
+ * container, where the process is PID 1: without a handler it ignores SIGTERM, and a pod that waits for MongoDB
+ * would keep terminating until Kubernetes kills it at the end of the grace period.
+ * Returns what removes the handlers once the orderly shutdown takes over.
+ */
+export const exitOnSignalUntilReady = (
+    hooks: { signals?: Pick<NodeJS.Process, 'on' | 'off'>; exit?: (code: number) => void } = {}
+): (() => void) => {
+    const source = hooks.signals ?? process;
+    const exit = hooks.exit ?? ((code: number) => process.exit(code));
+    const handler = (): void => exit(0);
+    for (const signal of SIGNALS) {
+        source.on(signal, handler);
+    }
+    return () => {
+        for (const signal of SIGNALS) {
+            source.off(signal, handler);
+        }
+    };
+};

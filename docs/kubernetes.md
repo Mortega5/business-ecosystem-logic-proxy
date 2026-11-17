@@ -113,6 +113,10 @@ containers:
 4. The Nest MongoDB connection is closed, then the connections of the legacy application.
 5. The process exits with code 0.
 
+Before the application is up (while it waits for MongoDB, for instance) there is nothing to drain: a signal ends the
+process at once, and `docker/entrypoint.sh` does the same while it waits for MongoDB before starting. As PID 1 a process
+without a handler ignores `SIGTERM`, so a pod stuck at start-up would otherwise only stop when Kubernetes kills it.
+
 If the shutdown has not finished `app.shutdownTimeoutMs` after the signal, the process exits with code 1.
 `app.shutdownTimeoutMs` must be greater than `app.shutdownDelayMs`. Kubernetes sends `SIGKILL` when
 `terminationGracePeriodSeconds` elapses, so that value should exceed `app.shutdownTimeoutMs`.

@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { installGracefulShutdown, type ShutdownTarget } from './graceful-shutdown';
+import { exitOnSignalUntilReady, installGracefulShutdown, type ShutdownTarget } from './graceful-shutdown';
 
 const setup = (overrides: Partial<{ close: () => Promise<void>; timeoutMs: number }> = {}) => {
     const calls: string[] = [];
@@ -82,5 +82,31 @@ describe('installGracefulShutdown', () => {
         expect(exit).toHaveBeenCalledWith(1);
         expect(exit).toHaveBeenCalledTimes(1);
         expect(logger.fatal).toHaveBeenCalledWith({ err: failure }, 'Shutdown failed');
+    });
+});
+
+describe('exitOnSignalUntilReady', () => {
+    it('ends the process at once on SIGTERM or SIGINT while the application is not up', () => {
+        const signals = new EventEmitter();
+        const exit = vi.fn();
+        exitOnSignalUntilReady({ signals: signals as unknown as Pick<NodeJS.Process, 'on' | 'off'>, exit });
+
+        signals.emit('SIGTERM');
+        signals.emit('SIGINT');
+
+        expect(exit).toHaveBeenCalledTimes(2);
+        expect(exit).toHaveBeenCalledWith(0);
+    });
+
+    it('stops reacting once the orderly shutdown takes over', () => {
+        const signals = new EventEmitter();
+        const exit = vi.fn();
+        const remove = exitOnSignalUntilReady({ signals: signals as unknown as Pick<NodeJS.Process, 'on' | 'off'>, exit });
+
+        remove();
+        signals.emit('SIGTERM');
+
+        expect(exit).not.toHaveBeenCalled();
+        expect(signals.listenerCount('SIGTERM')).toBe(0);
     });
 });

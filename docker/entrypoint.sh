@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+# As PID 1 bash ignores SIGTERM unless it traps it; without this a pod waiting for MongoDB cannot be stopped
+trap 'exit 0' TERM INT
+
 function test_connection {
     echo "Testing $1 connection"
     exec 10<>/dev/tcp/$2/$3
