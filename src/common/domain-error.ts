@@ -28,7 +28,7 @@ export class NotFoundError extends DomainError {
 }
 
 /** A third party failed; the client gets a 502 and the message says what could not be done. */
-export class UpstreamError extends DomainError {
+export class BadGatewayError extends DomainError {
     constructor(message: string) {
         super(message, 502);
     }

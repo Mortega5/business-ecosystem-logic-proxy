@@ -5,7 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApp } from '../bootstrap';
 import { AppConfigModule } from '../config/app-config.module';
 import { LoggingModule } from '../logging/logging.module';
-import { DomainError, NotFoundError, UpstreamError } from './domain-error';
+import { DomainError, NotFoundError, BadGatewayError } from './domain-error';
 
 @Controller('errors')
 class ErrorsController {
@@ -21,7 +21,7 @@ class ErrorsController {
 
     @Get('upstream')
     upstream(): never {
-        throw new UpstreamError('The catalog could not be reached');
+        throw new BadGatewayError('The catalog could not be reached');
     }
 
     @Get('http')
