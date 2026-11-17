@@ -23,8 +23,36 @@ export class AppConfigService {
         return this.value.mongo;
     }
 
-    get features(): AppConfig['features'] {
-        return this.value.features;
+    get purchase(): AppConfig['purchase'] {
+        return this.value.purchase;
+    }
+
+    get quotes(): AppConfig['quotes'] {
+        return this.value.quotes;
+    }
+
+    get tendering(): AppConfig['tendering'] {
+        return this.value.tendering;
+    }
+
+    get dsp(): AppConfig['dsp'] {
+        return this.value.dsp;
+    }
+
+    get launchValidation(): AppConfig['launchValidation'] {
+        return this.value.launchValidation;
+    }
+
+    get dataSpace(): AppConfig['dataSpace'] {
+        return this.value.dataSpace;
+    }
+
+    get catalogManagement(): AppConfig['catalogManagement'] {
+        return this.value.catalogManagement;
+    }
+
+    get catalog(): AppConfig['catalog'] {
+        return this.value.catalog;
     }
 
     get health(): AppConfig['health'] {

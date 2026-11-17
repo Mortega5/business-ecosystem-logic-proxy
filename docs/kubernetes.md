@@ -185,7 +185,12 @@ Variables of the legacy application that also configure the Nest application:
 | `BAE_LP_HTTPS_CERT`, `BAE_LP_HTTPS_KEY`, `BAE_LP_HTTPS_CA` | `app.https.certFile`, `app.https.keyFile`, `app.https.caFile` | |
 | `BAE_LP_HTTPS_PORT` | `app.port` | Used while HTTPS is enabled, as in the legacy application; `443` when it is not set |
 | `BAE_LP_MONGO_SERVER`, `BAE_LP_MONGO_PORT`, `BAE_LP_MONGO_DB`, `BAE_LP_MONGO_USER`, `BAE_LP_MONGO_PASS` | `mongo.uri` | `mongodb://[user:password@]server:port/db`. Parts that are not set take the values of the legacy application: server `mongo`, port `27017`, database `belp`. Credentials are used only when both a user and a password are set, and are percent-encoded |
-| `BAE_LP_PURCHASE_ENABLED`, `BAE_LP_DATASPACE_ENABLED`, `BAE_LP_CATALOG_MANAGEMENT_ENABLED`, `BAE_LP_DSP_ENABLED`, `BAE_LP_QUOTE_ENABLED`, `BAE_LP_TENDERING_ENABLED`, `BAE_LP_LAUNCH_VALIDATION_ENABLED`, `BAE_LP_TENDER_DEV_BUTTON_ENABLED` | `features.purchaseEnabled`, `features.dataSpaceEnabled`, `features.catalogManagementEnabled`, `features.dspEnabled`, `features.quotesEnabled`, `features.tenderingEnabled`, `features.launchValidationEnabled`, `features.tenderDevButtonsOpenCloseEnabled` | Anything other than `true` turns the flag off. Defaults: on for purchase, catalog management, quotes and tendering; off for the rest |
+| `BAE_LP_PURCHASE_ENABLED`, `BAE_LP_DATASPACE_ENABLED`, `BAE_LP_CATALOG_MANAGEMENT_ENABLED`, `BAE_LP_DSP_ENABLED`, `BAE_LP_QUOTE_ENABLED`, `BAE_LP_TENDERING_ENABLED`, `BAE_LP_LAUNCH_VALIDATION_ENABLED` | `purchase.enabled`, `dataSpace.enabled`, `catalogManagement.enabled`, `dsp.enabled`, `quotes.enabled`, `tendering.enabled`, `launchValidation.enabled` | Anything other than `true` turns the feature off |
+| `BAE_LP_TENDER_DEV_BUTTON_ENABLED` | `tendering.devButtonsOpenClose` | Same rule |
+| `BAE_LP_PAYMENT_GATEWAY`, `BAE_LP_PAYMENT_PROVIDER` | `purchase.paymentGateway`, `purchase.paymentProvider` | The provider is trimmed and lowercased; blank means `none` |
+| `BAE_LP_QUOTE_API` | `quotes.api` | |
+| `BAE_LP_DSP_CONTRACT_DEFINITION_SCHEMA` | `dsp.contractDefinitionSchema` | |
+| `BAE_LP_OFFERING_SCHEMA`, `BAE_LP_PRICE_COMP_SCHEMA`, `BAE_LP_BLUEPRINT_SCHEMA` | `catalog.offeringSchema`, `catalog.priceCompSchema`, `catalog.blueprintSchema` | |
 
 When none of the `BAE_LP_MONGO_*` variables is set, `mongo.uri` keeps its default.
 
@@ -217,7 +222,18 @@ Keys read by the application:
 | `mongo.heartbeatFrequencyMs` | integer ≥ 500 | `10000` | |
 | `mongo.retryInitialDelayMs` | integer | `1000` | |
 | `mongo.retryMaxDelayMs` | integer | `30000` | |
-| `features.<flag>` | boolean | see below | Static value of each feature flag; the `feature-flags` document in the `config` collection overrides it with its boolean values, read every 5 seconds |
+| `purchase.enabled` | boolean | `true` | |
+| `purchase.paymentProvider` | `dpas` `paypal` `stripe` `none` | `none` | |
+| `purchase.paymentGateway` | URL | not set | Required when the provider is `dpas`; there is no default |
+| `quotes.enabled` | boolean | `true` | |
+| `quotes.api` | string | `/quote/quoteManagement` | |
+| `tendering.enabled` | boolean | `true` | |
+| `tendering.devButtonsOpenClose` | boolean | `false` | |
+| `dsp.enabled` | boolean | `false` | |
+| `dsp.contractDefinitionSchema` | URL | not set | Required when `dsp.enabled` is `true` |
+| `launchValidation.enabled`, `dataSpace.enabled` | boolean | `false` | |
+| `catalogManagement.enabled` | boolean | `true` | |
+| `catalog.offeringSchema`, `catalog.priceCompSchema`, `catalog.blueprintSchema` | URL | the legacy values | `@schemaLocation` of offerings, price components and blueprint product specifications |
 | `health.mongoPingTimeoutMs` | integer | `1000` | |
 
 ## Logging
@@ -246,3 +262,11 @@ response header are redacted in any logged object. The access log does not inclu
 
 Certificates of outgoing HTTPS connections are verified. To trust a private certificate authority, mount the
 PEM file and set `NODE_EXTRA_CA_CERTS` to its path.
+
+### Feature switches
+
+Each feature keeps its settings next to its `enabled` switch. The `feature-flags` document of the `config` collection
+can override the switches only, with the names the admin API and the frontend use (`purchaseEnabled`,
+`dspEnabled`, `tenderDevButtonsOpenCloseEnabled`...), and it is read every 5 seconds. A feature that the database
+turns on while its settings are incomplete (for instance `dsp` without `dsp.contractDefinitionSchema`) stays off and
+a warning is logged.

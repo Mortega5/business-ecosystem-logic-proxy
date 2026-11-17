@@ -50,15 +50,31 @@ export const ConfigSchema = z.object({
         retryInitialDelayMs: z.coerce.number().int().positive(),
         retryMaxDelayMs: z.coerce.number().int().positive()
     }),
-    features: z.object({
-        purchaseEnabled: booleanLike,
-        dataSpaceEnabled: booleanLike,
-        catalogManagementEnabled: booleanLike,
-        dspEnabled: booleanLike,
-        quotesEnabled: booleanLike,
-        tenderingEnabled: booleanLike,
-        launchValidationEnabled: booleanLike,
-        tenderDevButtonsOpenCloseEnabled: booleanLike
+    purchase: z
+        .object({
+            enabled: booleanLike,
+            paymentProvider: z.enum(['dpas', 'paypal', 'stripe', 'none']),
+            paymentGateway: z.url().optional()
+        })
+        .refine((purchase) => purchase.paymentProvider !== 'dpas' || purchase.paymentGateway !== undefined, {
+            path: ['paymentGateway'],
+            message: 'is required when purchase.paymentProvider is dpas'
+        }),
+    quotes: z.object({ enabled: booleanLike, api: z.string().min(1) }),
+    tendering: z.object({ enabled: booleanLike, devButtonsOpenClose: booleanLike }),
+    dsp: z
+        .object({ enabled: booleanLike, contractDefinitionSchema: z.url().optional() })
+        .refine((dsp) => !dsp.enabled || dsp.contractDefinitionSchema !== undefined, {
+            path: ['contractDefinitionSchema'],
+            message: 'is required when dsp.enabled is true'
+        }),
+    launchValidation: z.object({ enabled: booleanLike }),
+    dataSpace: z.object({ enabled: booleanLike }),
+    catalogManagement: z.object({ enabled: booleanLike }),
+    catalog: z.object({
+        offeringSchema: z.url(),
+        priceCompSchema: z.url(),
+        blueprintSchema: z.url()
     }),
     health: z.object({
         mongoPingTimeoutMs: z.coerce.number().int().positive()

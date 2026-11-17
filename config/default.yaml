@@ -15,15 +15,34 @@ logging:
   prettyOptions:
     singleLine: true
 
-features:
-  purchaseEnabled: true
-  dataSpaceEnabled: false
-  catalogManagementEnabled: true
-  dspEnabled: false
-  quotesEnabled: true
-  tenderingEnabled: true
-  launchValidationEnabled: false
-  tenderDevButtonsOpenCloseEnabled: false
+purchase:
+  enabled: true
+  paymentProvider: none
+
+quotes:
+  enabled: true
+  api: /quote/quoteManagement
+
+tendering:
+  enabled: true
+  devButtonsOpenClose: false
+
+dsp:
+  enabled: false
+
+launchValidation:
+  enabled: false
+
+dataSpace:
+  enabled: false
+
+catalogManagement:
+  enabled: true
+
+catalog:
+  offeringSchema: https://raw.githubusercontent.com/DOME-Marketplace/tmf-api/refs/heads/main/DOME/ExternallyBilled.schema.json
+  priceCompSchema: https://raw.githubusercontent.com/DOME-Marketplace/tmf-api/refs/heads/main/DOME/PriceComponent.schema.json
+  blueprintSchema: https://gist.githubusercontent.com/vramperez/8a16d77f6fc2cdf5fea22dc11b325d52/raw/ad9ef7a1e933cd079732279218609141a731e3b2/blueprint-product-spec.json
 
 mongo:
   uri: mongodb://localhost:27017/belp

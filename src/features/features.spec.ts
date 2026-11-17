@@ -12,15 +12,26 @@ import { FeatureGuard } from './feature.guard';
 import { RequireFeature } from './require-feature';
 import { APP_GUARD } from '@nestjs/core';
 
-const staticFlags = {
-    purchaseEnabled: true,
-    dataSpaceEnabled: false,
-    catalogManagementEnabled: true,
-    dspEnabled: false,
-    quotesEnabled: true,
-    tenderingEnabled: true,
-    launchValidationEnabled: false,
-    tenderDevButtonsOpenCloseEnabled: false
+const staticValues = {
+    purchase: { enabled: true },
+    dataSpace: { enabled: false },
+    catalogManagement: { enabled: true },
+    dsp: { enabled: false, contractDefinitionSchema: undefined },
+    quotes: { enabled: true },
+    tendering: { enabled: true, devButtonsOpenClose: false },
+    launchValidation: { enabled: false }
+};
+const staticConfig = staticValues as unknown as AppConfigService;
+
+const staticFeatures = {
+    purchase: true,
+    dataSpace: false,
+    catalogManagement: true,
+    dsp: false,
+    quotes: true,
+    tendering: true,
+    launchValidation: false,
+    tenderDevButtons: false
 };
 
 class FakeDocuments extends ConfigDocumentRepository {
@@ -38,7 +49,7 @@ class FakeDocuments extends ConfigDocumentRepository {
     }
 }
 
-const build = (documents: FakeDocuments) => new FeatureFlagService({ features: staticFlags } as AppConfigService, documents);
+const build = (documents: FakeDocuments, config: AppConfigService = staticConfig) => new FeatureFlagService(config, documents);
 
 describe('FeatureFlagService', () => {
     let documents: FakeDocuments;
@@ -48,8 +59,8 @@ describe('FeatureFlagService', () => {
 
     it('uses the static flags when the DB has no document', async () => {
         const service = build(documents);
-        expect(await service.isEnabled('purchaseEnabled')).toBe(true);
-        expect(await service.isEnabled('dspEnabled')).toBe(false);
+        expect(await service.isEnabled('purchase')).toBe(true);
+        expect(await service.isEnabled('dsp')).toBe(false);
     });
 
     it('lets the boolean overrides of the DB win and ignores anything else', async () => {
@@ -57,23 +68,39 @@ describe('FeatureFlagService', () => {
             id: 'feature-flags',
             features: { purchaseEnabled: false, dspEnabled: 'yes', quotesEnabled: 1, unknownFlag: true }
         };
-        expect(await build(documents).all()).toEqual({ ...staticFlags, purchaseEnabled: false });
+        expect(await build(documents).all()).toEqual({ ...staticFeatures, purchase: false });
+    });
+
+    it('applies the DB override to the tender dev buttons', async () => {
+        documents.document = { id: 'feature-flags', features: { tenderDevButtonsOpenCloseEnabled: true } };
+        expect(await build(documents).isEnabled('tenderDevButtons')).toBe(true);
+    });
+
+    it('keeps a feature off when the DB turns it on but its configuration is incomplete', async () => {
+        documents.document = { id: 'feature-flags', features: { dspEnabled: true } };
+        expect(await build(documents).isEnabled('dsp')).toBe(false);
+
+        const configured = {
+            ...staticValues,
+            dsp: { enabled: false, contractDefinitionSchema: 'https://schemas.example.org/dsp.json' }
+        } as unknown as AppConfigService;
+        expect(await build(documents, configured).isEnabled('dsp')).toBe(true);
     });
 
     it('falls back to the static flags when the DB fails', async () => {
         documents.failing = true;
-        expect(await build(documents).isEnabled('quotesEnabled')).toBe(true);
+        expect(await build(documents).isEnabled('quotes')).toBe(true);
     });
 
     it('reads the DB once per refresh period', async () => {
         vi.useFakeTimers();
         try {
             const service = build(documents);
-            await service.isEnabled('purchaseEnabled');
-            await service.isEnabled('dspEnabled');
+            await service.isEnabled('purchase');
+            await service.isEnabled('dsp');
             expect(documents.reads).toBe(1);
             vi.advanceTimersByTime(6000);
-            await service.isEnabled('dspEnabled');
+            await service.isEnabled('dsp');
             expect(documents.reads).toBe(2);
         } finally {
             vi.useRealTimers();
@@ -84,13 +111,13 @@ describe('FeatureFlagService', () => {
 @Controller('gated')
 class GatedController {
     @Get('on')
-    @RequireFeature('purchaseEnabled')
+    @RequireFeature('purchase')
     on() {
         return { ok: true };
     }
 
     @Get('off')
-    @RequireFeature('dspEnabled')
+    @RequireFeature('dsp')
     off() {
         return { ok: true };
     }
@@ -111,7 +138,7 @@ describe('@RequireFeature', () => {
             controllers: [GatedController],
             providers: [
                 { provide: ConfigDocumentRepository, useClass: FakeDocuments },
-                { provide: AppConfigService, useValue: { features: staticFlags } },
+                { provide: AppConfigService, useValue: staticConfig },
                 FeatureFlagService,
                 { provide: APP_GUARD, useClass: FeatureGuard }
             ]

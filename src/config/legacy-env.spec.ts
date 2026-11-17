@@ -89,18 +89,43 @@ describe('envNameFor', () => {
     });
 });
 
-describe('feature flag variables', () => {
-    it('translates them and turns anything but "true" into false', () => {
+describe('feature variables', () => {
+    it('translates switches into their feature and turns anything but "true" into false', () => {
         const { values, used } = legacyEnvToObject({
             BAE_LP_PURCHASE_ENABLED: 'false',
             BAE_LP_DSP_ENABLED: 'true',
-            BAE_LP_QUOTE_ENABLED: 'maybe'
+            BAE_LP_QUOTE_ENABLED: 'maybe',
+            BAE_LP_TENDER_DEV_BUTTON_ENABLED: 'true'
         });
-        expect(values).toEqual({ features: { purchaseEnabled: 'false', dspEnabled: 'true', quotesEnabled: 'false' } });
+        expect(values).toEqual({
+            purchase: { enabled: 'false' },
+            dsp: { enabled: 'true' },
+            quotes: { enabled: 'false' },
+            tendering: { devButtonsOpenClose: 'true' }
+        });
         expect(used.map((entry) => entry.variable).sort()).toEqual([
             'BAE_LP_DSP_ENABLED',
             'BAE_LP_PURCHASE_ENABLED',
-            'BAE_LP_QUOTE_ENABLED'
+            'BAE_LP_QUOTE_ENABLED',
+            'BAE_LP_TENDER_DEV_BUTTON_ENABLED'
         ]);
+    });
+
+    it('moves each setting next to its feature', () => {
+        const { values } = legacyEnvToObject({
+            BAE_LP_PAYMENT_GATEWAY: 'https://pay.example.org',
+            BAE_LP_PAYMENT_PROVIDER: ' DPAS ',
+            BAE_LP_QUOTE_API: '/quotes',
+            BAE_LP_OFFERING_SCHEMA: 'https://schemas.example.org/offering.json'
+        });
+        expect(values).toEqual({
+            purchase: { paymentGateway: 'https://pay.example.org', paymentProvider: 'dpas' },
+            quotes: { api: '/quotes' },
+            catalog: { offeringSchema: 'https://schemas.example.org/offering.json' }
+        });
+    });
+
+    it('reads a blank payment provider as none', () => {
+        expect(legacyEnvToObject({ BAE_LP_PAYMENT_PROVIDER: '  ' }).values).toEqual({ purchase: { paymentProvider: 'none' } });
     });
 });

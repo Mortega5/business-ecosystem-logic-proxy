@@ -29,23 +29,45 @@ const buildMongoUri = (env: NodeJS.ProcessEnv): string | undefined => {
 const buildPort = (env: NodeJS.ProcessEnv): string | undefined =>
     env.BAE_LP_HTTPS_ENABLED === 'true' ? (present(env.BAE_LP_HTTPS_PORT) ? env.BAE_LP_HTTPS_PORT : '443') : env.BAE_LP_PORT;
 
-const FEATURE_VARIABLES: [string, string][] = [
-    ['purchaseEnabled', 'BAE_LP_PURCHASE_ENABLED'],
-    ['dataSpaceEnabled', 'BAE_LP_DATASPACE_ENABLED'],
-    ['catalogManagementEnabled', 'BAE_LP_CATALOG_MANAGEMENT_ENABLED'],
-    ['dspEnabled', 'BAE_LP_DSP_ENABLED'],
-    ['quotesEnabled', 'BAE_LP_QUOTE_ENABLED'],
-    ['tenderingEnabled', 'BAE_LP_TENDERING_ENABLED'],
-    ['launchValidationEnabled', 'BAE_LP_LAUNCH_VALIDATION_ENABLED'],
-    ['tenderDevButtonsOpenCloseEnabled', 'BAE_LP_TENDER_DEV_BUTTON_ENABLED']
+const SWITCHES: [string, string][] = [
+    ['purchase.enabled', 'BAE_LP_PURCHASE_ENABLED'],
+    ['dataSpace.enabled', 'BAE_LP_DATASPACE_ENABLED'],
+    ['catalogManagement.enabled', 'BAE_LP_CATALOG_MANAGEMENT_ENABLED'],
+    ['dsp.enabled', 'BAE_LP_DSP_ENABLED'],
+    ['quotes.enabled', 'BAE_LP_QUOTE_ENABLED'],
+    ['tendering.enabled', 'BAE_LP_TENDERING_ENABLED'],
+    ['launchValidation.enabled', 'BAE_LP_LAUNCH_VALIDATION_ENABLED'],
+    ['tendering.devButtonsOpenClose', 'BAE_LP_TENDER_DEV_BUTTON_ENABLED']
 ];
 
-// Like config.js, anything other than "true" turns the flag off
-const featureRules: LegacyRule[] = FEATURE_VARIABLES.map(([flag, variable]) => ({
-    key: `features.${flag}`,
+const VALUES: [string, string][] = [
+    ['purchase.paymentGateway', 'BAE_LP_PAYMENT_GATEWAY'],
+    ['quotes.api', 'BAE_LP_QUOTE_API'],
+    ['dsp.contractDefinitionSchema', 'BAE_LP_DSP_CONTRACT_DEFINITION_SCHEMA'],
+    ['catalog.offeringSchema', 'BAE_LP_OFFERING_SCHEMA'],
+    ['catalog.priceCompSchema', 'BAE_LP_PRICE_COMP_SCHEMA'],
+    ['catalog.blueprintSchema', 'BAE_LP_BLUEPRINT_SCHEMA']
+];
+
+// Like config.js, anything other than "true" turns a switch off
+const switchRules: LegacyRule[] = SWITCHES.map(([key, variable]) => ({
+    key,
     variables: [variable],
     build: (env) => (present(env[variable]) ? String(env[variable] === 'true') : undefined)
 }));
+
+const valueRules: LegacyRule[] = VALUES.map(([key, variable]) => ({
+    key,
+    variables: [variable],
+    build: (env) => env[variable]
+}));
+
+// The legacy application trims and lowercases the provider, and an empty one means none
+const paymentProviderRule: LegacyRule = {
+    key: 'purchase.paymentProvider',
+    variables: ['BAE_LP_PAYMENT_PROVIDER'],
+    build: (env) => (present(env.BAE_LP_PAYMENT_PROVIDER) ? env.BAE_LP_PAYMENT_PROVIDER.trim().toLowerCase() || 'none' : undefined)
+};
 
 const RULES: LegacyRule[] = [
     { key: 'app.port', variables: ['BAE_LP_PORT', 'BAE_LP_HTTPS_PORT'], build: buildPort },
@@ -62,7 +84,9 @@ const RULES: LegacyRule[] = [
         variables: ['BAE_LP_MONGO_SERVER', 'BAE_LP_MONGO_PORT', 'BAE_LP_MONGO_DB', 'BAE_LP_MONGO_USER', 'BAE_LP_MONGO_PASS'],
         build: buildMongoUri
     },
-    ...featureRules
+    paymentProviderRule,
+    ...switchRules,
+    ...valueRules
 ];
 
 /** BAE_APP__SHUTDOWN_TIMEOUT_MS for app.shutdownTimeoutMs */

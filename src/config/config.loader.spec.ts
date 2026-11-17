@@ -218,3 +218,39 @@ describe('loadStaticConfig', () => {
         );
     });
 });
+
+describe('feature configuration', () => {
+    const load = (env: NodeJS.ProcessEnv) => loadStaticConfig({ defaultsPath: DEFAULTS_PATH, env });
+
+    it('starts with the defaults and no payment gateway', () => {
+        const config = load({});
+        expect(config.purchase).toEqual({ enabled: true, paymentProvider: 'none' });
+        expect(config.catalog.offeringSchema).toMatch(/^https:/);
+    });
+
+    it('requires a payment gateway for the dpas provider', () => {
+        expect(() => load({ BAE_PURCHASE__PAYMENT_PROVIDER: 'dpas' })).toThrow('purchase.paymentGateway');
+        expect(
+            load({ BAE_PURCHASE__PAYMENT_PROVIDER: 'dpas', BAE_PURCHASE__PAYMENT_GATEWAY: 'https://pay.example.org' })
+                .purchase.paymentGateway
+        ).toBe('https://pay.example.org');
+    });
+
+    it('requires the contract definition schema when dsp is enabled', () => {
+        expect(() => load({ BAE_DSP__ENABLED: 'true' })).toThrow('dsp.contractDefinitionSchema');
+        expect(
+            load({ BAE_DSP__ENABLED: 'true', BAE_DSP__CONTRACT_DEFINITION_SCHEMA: 'https://schemas.example.org/dsp.json' })
+                .dsp.enabled
+        ).toBe(true);
+    });
+
+    it('accepts the legacy variables and reads anything but "true" as off', () => {
+        const config = load({
+            BAE_LP_PURCHASE_ENABLED: 'no',
+            BAE_LP_PAYMENT_PROVIDER: 'PayPal',
+            BAE_LP_QUOTE_API: '/quotes'
+        });
+        expect(config.purchase).toEqual({ enabled: false, paymentProvider: 'paypal' });
+        expect(config.quotes.api).toBe('/quotes');
+    });
+});
