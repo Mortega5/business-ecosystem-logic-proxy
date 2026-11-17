@@ -1,11 +1,20 @@
 import { Injectable } from '@nestjs/common';
 import { PinoLogger } from 'nestjs-pino';
+import { DomainError } from '../common/domain-error';
 import { AppConfigService } from '../config/app-config.service';
 import { sanitizeUrl } from '../logging/pino-options';
+import { assertSafePath } from './safe-path';
 import { UpstreamClient, UpstreamError, type UpstreamRequest, type UpstreamResponse } from './upstream-client';
 
+// The path is checked before it is joined, and the result afterwards: whatever the URL parser did, the request must
+// still go to the same server and stay under the base path of its API
 const buildUrl = (baseUrl: string, request: UpstreamRequest): URL => {
-    const url = new URL(`${baseUrl.replace(/\/+$/, '')}/${request.path.replace(/^\/+/, '')}`);
+    const base = new URL(baseUrl);
+    const basePath = base.pathname.replace(/\/+$/, '');
+    const url = new URL(`${baseUrl.replace(/\/+$/, '')}${assertSafePath(`/${request.path.replace(/^\/+/, '')}`)}`);
+    if (url.origin !== base.origin || !(url.pathname === basePath || url.pathname.startsWith(`${basePath}/`))) {
+        throw new DomainError('Invalid request path', 400);
+    }
     for (const [name, value] of Object.entries(request.query ?? {})) {
         for (const item of Array.isArray(value) ? value : [value]) {
             url.searchParams.append(name, item);

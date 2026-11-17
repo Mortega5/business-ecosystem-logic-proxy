@@ -204,3 +204,31 @@ describe('forwardableHeaders', () => {
         expect(forwarded).not.toHaveProperty('connection');
     });
 });
+
+describe('a path that tries to leave its API', () => {
+    const base = () => `http://127.0.0.1:${port}/tmf-api/documentManagement/v4`;
+
+    it.each([
+        '/../../productCatalogManagement/v4/productOffering',
+        '/%2e%2e/%2e%2e/productCatalogManagement/v4/productOffering',
+        '/documentSpecification/..%2f..%2fproductCatalogManagement',
+        '/..;/productCatalogManagement',
+        '/a?x=y'
+    ])('never reaches the server: %s', async (path) => {
+        seen = undefined;
+        await expect(clientFor(base()).send({ upstream: 'charging', path })).rejects.toMatchObject({
+            status: 400,
+            message: 'Invalid request path'
+        });
+        expect(seen).toBeUndefined();
+    });
+
+    it('applies to what a service builds from a client supplied id', async () => {
+        seen = undefined;
+        const id = '../../productCatalogManagement/v4/productOffering';
+        await expect(
+            clientFor(base()).send({ upstream: 'charging', path: `/documentSpecification/${id}` })
+        ).rejects.toMatchObject({ status: 400 });
+        expect(seen).toBeUndefined();
+    });
+});
