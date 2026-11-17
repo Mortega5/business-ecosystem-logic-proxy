@@ -3,6 +3,7 @@ import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
+import { ErrorFilter } from './common/error.filter';
 import { LegacyFallbackFilter, type LegacyHandler } from './legacy/legacy-fallback.filter';
 
 // bodyParser is off so requests reach the legacy app with their body untouched (it reads raw text)
@@ -18,6 +19,6 @@ export const createApp = async (
     });
     app.set('query parser', 'extended');
     app.useLogger(app.get(Logger));
-    app.useGlobalFilters(new LegacyFallbackFilter(legacy));
+    app.useGlobalFilters(new ErrorFilter(), new LegacyFallbackFilter(legacy));
     return app;
 };
