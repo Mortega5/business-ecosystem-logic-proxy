@@ -23,6 +23,10 @@ export class AppConfigService {
         return this.value.mongo;
     }
 
+    get features(): AppConfig['features'] {
+        return this.value.features;
+    }
+
     get health(): AppConfig['health'] {
         return this.value.health;
     }

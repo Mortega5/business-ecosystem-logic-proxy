@@ -15,6 +15,16 @@ logging:
   prettyOptions:
     singleLine: true
 
+features:
+  purchaseEnabled: true
+  dataSpaceEnabled: false
+  catalogManagementEnabled: true
+  dspEnabled: false
+  quotesEnabled: true
+  tenderingEnabled: true
+  launchValidationEnabled: false
+  tenderDevButtonsOpenCloseEnabled: false
+
 mongo:
   uri: mongodb://localhost:27017/belp
   maxPoolSize: 10

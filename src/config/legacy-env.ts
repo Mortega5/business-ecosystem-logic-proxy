@@ -29,6 +29,24 @@ const buildMongoUri = (env: NodeJS.ProcessEnv): string | undefined => {
 const buildPort = (env: NodeJS.ProcessEnv): string | undefined =>
     env.BAE_LP_HTTPS_ENABLED === 'true' ? (present(env.BAE_LP_HTTPS_PORT) ? env.BAE_LP_HTTPS_PORT : '443') : env.BAE_LP_PORT;
 
+const FEATURE_VARIABLES: [string, string][] = [
+    ['purchaseEnabled', 'BAE_LP_PURCHASE_ENABLED'],
+    ['dataSpaceEnabled', 'BAE_LP_DATASPACE_ENABLED'],
+    ['catalogManagementEnabled', 'BAE_LP_CATALOG_MANAGEMENT_ENABLED'],
+    ['dspEnabled', 'BAE_LP_DSP_ENABLED'],
+    ['quotesEnabled', 'BAE_LP_QUOTE_ENABLED'],
+    ['tenderingEnabled', 'BAE_LP_TENDERING_ENABLED'],
+    ['launchValidationEnabled', 'BAE_LP_LAUNCH_VALIDATION_ENABLED'],
+    ['tenderDevButtonsOpenCloseEnabled', 'BAE_LP_TENDER_DEV_BUTTON_ENABLED']
+];
+
+// Like config.js, anything other than "true" turns the flag off
+const featureRules: LegacyRule[] = FEATURE_VARIABLES.map(([flag, variable]) => ({
+    key: `features.${flag}`,
+    variables: [variable],
+    build: (env) => (present(env[variable]) ? String(env[variable] === 'true') : undefined)
+}));
+
 const RULES: LegacyRule[] = [
     { key: 'app.port', variables: ['BAE_LP_PORT', 'BAE_LP_HTTPS_PORT'], build: buildPort },
     {
@@ -43,7 +61,8 @@ const RULES: LegacyRule[] = [
         key: 'mongo.uri',
         variables: ['BAE_LP_MONGO_SERVER', 'BAE_LP_MONGO_PORT', 'BAE_LP_MONGO_DB', 'BAE_LP_MONGO_USER', 'BAE_LP_MONGO_PASS'],
         build: buildMongoUri
-    }
+    },
+    ...featureRules
 ];
 
 /** BAE_APP__SHUTDOWN_TIMEOUT_MS for app.shutdownTimeoutMs */

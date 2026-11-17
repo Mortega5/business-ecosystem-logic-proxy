@@ -50,6 +50,16 @@ export const ConfigSchema = z.object({
         retryInitialDelayMs: z.coerce.number().int().positive(),
         retryMaxDelayMs: z.coerce.number().int().positive()
     }),
+    features: z.object({
+        purchaseEnabled: booleanLike,
+        dataSpaceEnabled: booleanLike,
+        catalogManagementEnabled: booleanLike,
+        dspEnabled: booleanLike,
+        quotesEnabled: booleanLike,
+        tenderingEnabled: booleanLike,
+        launchValidationEnabled: booleanLike,
+        tenderDevButtonsOpenCloseEnabled: booleanLike
+    }),
     health: z.object({
         mongoPingTimeoutMs: z.coerce.number().int().positive()
     }),

@@ -88,3 +88,19 @@ describe('envNameFor', () => {
         expect(envNameFor(key)).toBe(expected);
     });
 });
+
+describe('feature flag variables', () => {
+    it('translates them and turns anything but "true" into false', () => {
+        const { values, used } = legacyEnvToObject({
+            BAE_LP_PURCHASE_ENABLED: 'false',
+            BAE_LP_DSP_ENABLED: 'true',
+            BAE_LP_QUOTE_ENABLED: 'maybe'
+        });
+        expect(values).toEqual({ features: { purchaseEnabled: 'false', dspEnabled: 'true', quotesEnabled: 'false' } });
+        expect(used.map((entry) => entry.variable).sort()).toEqual([
+            'BAE_LP_DSP_ENABLED',
+            'BAE_LP_PURCHASE_ENABLED',
+            'BAE_LP_QUOTE_ENABLED'
+        ]);
+    });
+});

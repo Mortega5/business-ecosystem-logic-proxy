@@ -15,6 +15,16 @@ const VALUE: AppConfig = {
         retryInitialDelayMs: 1000,
         retryMaxDelayMs: 30000
     },
+    features: {
+        purchaseEnabled: true,
+        dataSpaceEnabled: false,
+        catalogManagementEnabled: true,
+        dspEnabled: false,
+        quotesEnabled: true,
+        tenderingEnabled: true,
+        launchValidationEnabled: false,
+        tenderDevButtonsOpenCloseEnabled: false
+    },
     health: { mongoPingTimeoutMs: 1000 },
     upstreams: { catalog: { baseUrl: 'http://catalog:8080/tmf-api', timeoutMs: 5000 } }
 };
@@ -32,5 +42,6 @@ describe('AppConfigService', () => {
         expect(service.mongo.uri).toBe('mongodb://localhost/test');
         expect(service.upstreams.catalog?.timeoutMs).toBe(5000);
         expect(service.health.mongoPingTimeoutMs).toBe(1000);
+        expect(service.features.purchaseEnabled).toBe(true);
     });
 });
