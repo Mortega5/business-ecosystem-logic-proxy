@@ -10,6 +10,8 @@ export interface ProxyTarget {
     upstream: UpstreamName;
     /** The path on the upstream, built by the controller from what it has validated; never the client's own URL. */
     path: string;
+    /** The body to send, when the route takes one: it is the controller that says so, never the request. */
+    body?: string;
 }
 
 // What an upstream must not decide for the proxy's own origin: cookies, cross-origin policy, what software it runs
@@ -34,6 +36,7 @@ export class TmfProxy {
                 upstream: target.upstream,
                 path: target.path,
                 method: req.method,
+                ...(target.body === undefined ? {} : { body: target.body }),
                 ...(queryStart < 0 ? {} : { search: req.originalUrl.slice(queryStart) }),
                 headers: buildUpstreamHeaders({
                     client: req.headers,

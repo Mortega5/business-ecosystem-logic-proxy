@@ -4,6 +4,7 @@ export interface SeenRequest {
     method: string | undefined;
     url: string | undefined;
     headers: IncomingHttpHeaders;
+    body: string;
 }
 
 /** A server standing for an upstream: it answers what the test says and records what it was asked. */
@@ -29,8 +30,12 @@ export class FakeUpstream {
 
     async start(): Promise<void> {
         this.server = createServer((req, res) => {
-            this.seen = { method: req.method, url: req.url, headers: req.headers };
-            this.answerWith(res);
+            const chunks: Buffer[] = [];
+            req.on('data', (chunk: Buffer) => chunks.push(chunk));
+            req.on('end', () => {
+                this.seen = { method: req.method, url: req.url, headers: req.headers, body: Buffer.concat(chunks).toString() };
+                this.answerWith(res);
+            });
         });
         await new Promise<void>((resolve) => this.server?.listen(0, '127.0.0.1', resolve));
         this.port = (this.server.address() as { port: number }).port;

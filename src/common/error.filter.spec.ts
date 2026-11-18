@@ -29,6 +29,18 @@ class ErrorsController {
         throw new BadRequestException('Bad filter');
     }
 
+    @Get('too-large')
+    tooLarge(): never {
+        // What the body parser throws for a body over the limit
+        throw Object.assign(new Error('request entity too large'), { status: 413, expose: true });
+    }
+
+    @Get('hidden')
+    hidden(): never {
+        // A 4xx that is not meant to be shown is not shown
+        throw Object.assign(new Error('internal detail'), { status: 400, expose: false });
+    }
+
     @Get('unavailable')
     unavailable(): never {
         throw new ServiceUnavailableException({ status: 'error', details: { mongodb: { status: 'down' } } });
@@ -85,6 +97,13 @@ describe('error filter', () => {
             status: 503,
             body: { status: 'error', details: { mongodb: { status: 'down' } } }
         });
+    });
+
+    it('tells the client the 4xx errors of the body parser, and only those meant to be told', async () => {
+        expect(await get('/errors/too-large')).toEqual({ status: 413, body: { error: 'request entity too large' } });
+        const hidden = await get('/errors/hidden');
+        expect(hidden.status).toBe(500);
+        expect(hidden.body).toEqual({ error: 'Unexpected error. The error has been notified to the administrators.' });
     });
 
     it('hides the details of an unexpected error', async () => {
