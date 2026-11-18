@@ -208,7 +208,7 @@ Variables of the legacy application that also configure the Nest application:
 | `BAE_LP_CORS_EXPOSE_REDIRECT` | `http.cors.exposeRedirect` | Anything other than `true` turns it off |
 | `BAE_LP_PROPAGATE_TOKEN`, `BAE_LP_ALLOW_LOCAL_EORI` | `auth.propagateToken`, `auth.allowLocalEori` | Anything other than `true` turns the option off |
 | `BAE_LP_OAUTH2_ADMIN_ROLE`, `_SELLER_ROLE`, `_CUSTOMER_ROLE`, `_ORG_ADMIN_ROLE` | `auth.roles.admin`, `.seller`, `.customer`, `.orgAdmin` | |
-| `BAE_LP_ENDPOINT_<NAME>_HOST`, `_PORT`, `_PATH`, `_SECURED` | `upstreams.tmforum.apis.<api>` or `upstreams.<name>` | See [Upstreams](#upstreams) for the names. `SECURED=true` sets `scheme: https`. What is not set (host or port) comes from the group; a missing `PATH` means an empty path, as before |
+| `BAE_LP_ENDPOINT_<NAME>_HOST`, `_PORT`, `_PATH`, `_SECURED` | `upstreams.tmforum.apis.<api>` or `upstreams.<name>` | See [Upstreams](#upstreams) for the names. `SECURED=true` sets `scheme: https`. What is not set (host or port) comes from the group; a missing `PATH` means the path the legacy application had for that endpoint, which is empty except for `revenue` (`/revenue`) and `invoicing` (`/invoicing`) |
 
 When none of the `BAE_LP_MONGO_*` variables is set, `mongo.uri` keeps its default.
 
@@ -319,7 +319,7 @@ upstreams:
 There is no default host: an upstream the application needs and that resolves to no `host` is an error that names the
 keys to set. The legacy `BAE_LP_ENDPOINT_*` variables keep working one API at a time, and the host or the port they
 leave out comes from the group. An API that has any of them gets an empty path unless `PATH` says otherwise, as in
-the legacy application, so a lone `PORT` also drops the default path. Their names are crossed for two APIs:
+the legacy application, so a lone `PORT` also drops the default path of the API. Their names are crossed for two APIs:
 `BAE_LP_ENDPOINT_BILLING_*` configures `account` and `BAE_LP_ENDPOINT_CUSTOMER_BILL_*` configures `customerBill`.
 
 ### Security

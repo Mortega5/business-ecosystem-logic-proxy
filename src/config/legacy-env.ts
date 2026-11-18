@@ -107,7 +107,10 @@ const STANDALONE_ENDPOINTS: [string, string][] = [
 ];
 
 // What the legacy application did not get from its variables it took from placeholder defaults; here it comes from
-// the group. The path is the exception: it is empty unless PATH says otherwise.
+// the group. The path is the exception: it is the default path the legacy application had for that endpoint, which
+// is empty for all but two, unless PATH says otherwise.
+const LEGACY_DEFAULT_PATHS: Record<string, string> = { REVENUE: '/revenue', INVOICING: '/invoicing' };
+
 const buildEndpoint =
     (legacyName: string) =>
     (env: NodeJS.ProcessEnv): Built => {
@@ -120,7 +123,7 @@ const buildEndpoint =
             return undefined;
         }
         return {
-            path: path ?? '',
+            path: path ?? LEGACY_DEFAULT_PATHS[legacyName] ?? '',
             ...(host === undefined ? {} : { host }),
             ...(port === undefined ? {} : { port }),
             ...(secured === undefined ? {} : { scheme: secured === 'true' ? 'https' : 'http' })

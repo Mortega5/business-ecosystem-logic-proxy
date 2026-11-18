@@ -171,6 +171,16 @@ describe('legacy endpoint variables', () => {
         expect(apis(values).account?.path).toBe('/tmf-api/accountManagement/v4');
     });
 
+    it('keeps the default path the legacy application had for revenue and invoicing', () => {
+        expect(legacyEnvToObject(endpoint('REVENUE', { HOST: 'revenue', PORT: '8080' })).values).toEqual({
+            upstreams: { revenue: { host: 'revenue', port: '8080', path: '/revenue' } }
+        });
+        expect(apis(legacyEnvToObject(endpoint('INVOICING', { HOST: 'tmf', PORT: '8080' })).values).invoicing?.path).toBe('/invoicing');
+        expect(legacyEnvToObject(endpoint('REVENUE', { HOST: 'revenue', PORT: '8080', PATH: '/other' })).values).toEqual({
+            upstreams: { revenue: { host: 'revenue', port: '8080', path: '/other' } }
+        });
+    });
+
     it('configures the standalone upstreams', () => {
         const { values } = legacyEnvToObject(endpoint('CHARGING', { HOST: 'charging.svc.cluster.local', PORT: '8006' }));
         expect(values).toEqual({ upstreams: { charging: { host: 'charging.svc.cluster.local', port: '8006', path: '' } } });
