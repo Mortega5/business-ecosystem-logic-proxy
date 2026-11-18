@@ -17,6 +17,7 @@ import { LegacyAuthBridge } from '../legacy/legacy-auth.bridge';
 import { MongoConnectionService } from '../persistence/mongo-connection.service';
 import { DocumentModule } from '../tmf/document/document.module';
 import { RevenueModule } from '../tmf/revenue/revenue.module';
+import { InvoicingModule } from '../tmf/invoicing/invoicing.module';
 import { SearchModule } from '../tmf/search/search.module';
 import { fakeLogin, LOGGED_IN } from '../testing/fake-login';
 import { FakeUpstream } from '../testing/fake-upstream';
@@ -156,6 +157,8 @@ describe('responses against docs/openapi.yaml', () => {
         invalid?: { url?: string; body?: string };
         /** A body over the limit, when the route takes one. */
         tooLarge?: boolean;
+        /** What the 200 is, when it is not JSON. */
+        page?: { contentType: string; body: string };
     }
 
     // What every proxied route of the portal answers, as documented
@@ -164,7 +167,20 @@ describe('responses against docs/openapi.yaml', () => {
         const headers = { ...LOGGED_IN, ...options.headers };
         const base = { method, path, url, ...(options.body === undefined ? {} : { body: options.body }) };
         return [
-            { ...base, status: '200', headers, arrange: () => tmforum.answer((res) => tmforum.json(res, 200, answer)) },
+            {
+                ...base,
+                status: '200',
+                headers,
+                arrange: () =>
+                    tmforum.answer((res) => {
+                        if (options.page === undefined) {
+                            tmforum.json(res, 200, answer);
+                        } else {
+                            res.writeHead(200, { 'content-type': options.page.contentType });
+                            res.end(options.page.body);
+                        }
+                    })
+            },
             ...(options.invalid === undefined
                 ? []
                 : [
@@ -211,13 +227,22 @@ describe('responses against docs/openapi.yaml', () => {
         }),
         ...['categories', 'countries', 'complianceLevels'].flatMap((name) =>
             proxied(`/search-bck/api/${name}`, `/search-bck/api/${name}`, '["Cloud","Data"]')
+        ),
+        ...proxied(
+            '/invoicing/invoices/{id}',
+            `/invoicing/invoices/${encodeURIComponent('urn:ngsi-ld:invoice:7a1c0f3e')}?format=xml-html`,
+            '',
+            {
+                invalid: { url: '/invoicing/invoices/a%20b?format=xml-html' },
+                page: { contentType: 'text/html', body: '<html><body><h1>Invoice</h1></body></html>' }
+            }
         )
     ];
 
     beforeAll(async () => {
         await tmforum.start();
 
-        @Module({ imports: [DependenciesStub, LoggerModule.forRoot({ pinoHttp: { level: 'silent' } }), HealthModule, AuthModule, DocumentModule, RevenueModule, SearchModule] })
+        @Module({ imports: [DependenciesStub, LoggerModule.forRoot({ pinoHttp: { level: 'silent' } }), HealthModule, AuthModule, DocumentModule, RevenueModule, SearchModule, InvoicingModule] })
         class Contract {}
 
         app = await createApp(express(), Contract);
@@ -257,13 +282,20 @@ describe('responses against docs/openapi.yaml', () => {
             ...(headers === undefined ? {} : { headers }),
             ...(requestBody === undefined ? {} : { body: requestBody })
         });
-        const body: unknown = await res.json();
 
         expect(res.status).toBe(Number(status));
-        const schema = response?.content?.['application/json']?.schema;
-        expect(schema).toBeDefined();
-        const validate = ajv.compile(schema ?? {});
-        expect(validate(body), JSON.stringify(validate.errors)).toBe(true);
+        const types = Object.keys(response?.content ?? {});
+        if (types.includes('application/json')) {
+            const schema = response?.content?.['application/json']?.schema;
+            const validate = ajv.compile(schema ?? {});
+            const body: unknown = await res.json();
+            expect(validate(body), JSON.stringify(validate.errors)).toBe(true);
+        } else {
+            // A page: the type is the documented one and there is a body
+            expect(types.length).toBe(1);
+            expect(res.headers.get('content-type')).toContain(types[0] ?? '');
+            expect((await res.text()).length).toBeGreaterThan(0);
+        }
         for (const header of Object.keys(response?.headers ?? {})) {
             expect(res.headers.get(header), `header ${header}`).not.toBeNull();
         }

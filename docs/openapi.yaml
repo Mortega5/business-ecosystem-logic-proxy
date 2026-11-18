@@ -17,6 +17,8 @@ tags:
     description: The revenue sharing service, as far as the portal uses it.
   - name: search
     description: The organisation search, as far as the portal uses it.
+  - name: invoicing
+    description: The invoicing API, as far as the portal uses it.
 paths:
   /health/live:
     get:
@@ -345,11 +347,70 @@ paths:
           $ref: '#/components/responses/UpstreamNotFound'
         '504':
           $ref: '#/components/responses/UpstreamUnreachable'
+  /invoicing/invoices/{id}:
+    get:
+      tags: [invoicing]
+      operationId: getInvoice
+      summary: Invoice
+      description: |
+        Reads an invoice from the invoicing API as an HTML page. The portal opens it in a new tab, so the user is the
+        one of the session cookie. The page is served with `Content-Security-Policy: sandbox` and `Cache-Control: no-store`. Only `format=xml-html` is accepted and nothing else of the query is sent. Any other method or path
+        under `/invoicing` answers 404.
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ResourceId'
+        - name: format
+          in: query
+          required: true
+          description: The format of the invoice.
+          schema:
+            type: string
+            enum: [xml-html]
+      responses:
+        '200':
+          description: The invoice, as the invoicing API answers it.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+            Content-Security-Policy:
+              description: Always `sandbox`.
+              schema:
+                type: string
+            Cache-Control:
+              description: Always `no-store`.
+              schema:
+                type: string
+          content:
+            text/html:
+              schema:
+                type: string
+              example: <html><body><h1>Invoice</h1></body></html>
+        '400':
+          description: The id or the format is not valid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: Invalid id
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
 components:
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: connect.sid
   parameters:
     ResourceId:
       name: id
