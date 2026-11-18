@@ -33,6 +33,7 @@ const buildPort = (env: NodeJS.ProcessEnv): string | undefined =>
     env.BAE_LP_HTTPS_ENABLED === 'true' ? (present(env.BAE_LP_HTTPS_PORT) ? env.BAE_LP_HTTPS_PORT : '443') : env.BAE_LP_PORT;
 
 const SWITCHES: [string, string][] = [
+    ['http.cors.exposeRedirect', 'BAE_LP_CORS_EXPOSE_REDIRECT'],
     ['auth.propagateToken', 'BAE_LP_PROPAGATE_TOKEN'],
     ['auth.allowLocalEori', 'BAE_LP_ALLOW_LOCAL_EORI'],
     ['purchase.enabled', 'BAE_LP_PURCHASE_ENABLED'],

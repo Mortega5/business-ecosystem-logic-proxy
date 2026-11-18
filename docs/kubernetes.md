@@ -189,7 +189,14 @@ Variables of the legacy application that also configure the Nest application:
 | `BAE_LP_HTTPS_CERT`, `BAE_LP_HTTPS_KEY`, `BAE_LP_HTTPS_CA` | `app.https.certFile`, `app.https.keyFile`, `app.https.caFile` | |
 | `BAE_LP_HTTPS_PORT` | `app.port` | Used while HTTPS is enabled, as in the legacy application; `443` when it is not set |
 | `BAE_LP_MONGO_SERVER`, `BAE_LP_MONGO_PORT`, `BAE_LP_MONGO_DB`, `BAE_LP_MONGO_USER`, `BAE_LP_MONGO_PASS` | `mongo.uri` | `mongodb://[user:password@]server:port/db`. Parts that are not set take the values of the legacy application: server `mongo`, port `27017`, database `belp`. Credentials are used only when both a user and a password are set, and are percent-encoded |
-| `BAE_LP_PURCHASE_ENABLED`, `BAE_LP_DATASPACE_ENABLED`, `BAE_LP_CATALOG_MANAGEMENT_ENABLED`, `BAE_LP_DSP_ENABLED`, `BAE_LP_QUOTE_ENABLED`, `BAE_LP_TENDERING_ENABLED`, `BAE_LP_LAUNCH_VALIDATION_ENABLED` | `auth.propagateToken` | boolean | `true` | Sends the user's access token to the upstreams as `Authorization: Bearer` |
+| `BAE_LP_PURCHASE_ENABLED`, `BAE_LP_DATASPACE_ENABLED`, `BAE_LP_CATALOG_MANAGEMENT_ENABLED`, `BAE_LP_DSP_ENABLED`, `BAE_LP_QUOTE_ENABLED`, `BAE_LP_TENDERING_ENABLED`, `BAE_LP_LAUNCH_VALIDATION_ENABLED` | `http.cors.origins` | list of origins or `"*"` | `["*"]` | Origins that may call the API from a browser; `*` is what the legacy application did |
+| `http.cors.exposeRedirect` | boolean | `false` | Exposes `X-Redirect-URL` to the browser |
+| `security.csp.reportOnly` | boolean | `true` | Sends `Content-Security-Policy-Report-Only` instead of enforcing the policy |
+| `security.hsts.enabled`, `.maxAgeSeconds`, `.includeSubDomains` | boolean, integer, boolean | `true`, `31536000`, `false` | `Strict-Transport-Security`; browsers ignore it over plain HTTP |
+| `security.crossOriginResourcePolicy` | `same-origin` `same-site` `cross-origin` | `same-origin` | |
+| `security.csrf.enabled` | boolean | `true` | Refuses state-changing requests a browser says come from another site |
+| `security.csrf.trustedOrigins` | list of origins | `[]` | Origins exempt from that check; meant for tests and development |
+| `auth.propagateToken` | boolean | `true` | Sends the user's access token to the upstreams as `Authorization: Bearer` |
 | `auth.allowLocalEori` | boolean | `false` | A local IdP user acts under their display name as IdP id |
 | `auth.roles.admin`, `.customer`, `.seller`, `.orgAdmin` | string | `admin`, `Buyer`, `Seller`, `orgAdmin` | Names of the roles in the identity provider |
 | `purchase.enabled`, `dataSpace.enabled`, `catalogManagement.enabled`, `dsp.enabled`, `quotes.enabled`, `tendering.enabled`, `launchValidation.enabled` | Anything other than `true` turns the feature off |
@@ -198,6 +205,7 @@ Variables of the legacy application that also configure the Nest application:
 | `BAE_LP_QUOTE_API` | `quotes.api` | |
 | `BAE_LP_DSP_CONTRACT_DEFINITION_SCHEMA` | `dsp.contractDefinitionSchema` | |
 | `BAE_LP_OFFERING_SCHEMA`, `BAE_LP_PRICE_COMP_SCHEMA`, `BAE_LP_BLUEPRINT_SCHEMA` | `catalog.offeringSchema`, `catalog.priceCompSchema`, `catalog.blueprintSchema` | |
+| `BAE_LP_CORS_EXPOSE_REDIRECT` | `http.cors.exposeRedirect` | Anything other than `true` turns it off |
 | `BAE_LP_PROPAGATE_TOKEN`, `BAE_LP_ALLOW_LOCAL_EORI` | `auth.propagateToken`, `auth.allowLocalEori` | Anything other than `true` turns the option off |
 | `BAE_LP_OAUTH2_ADMIN_ROLE`, `_SELLER_ROLE`, `_CUSTOMER_ROLE`, `_ORG_ADMIN_ROLE` | `auth.roles.admin`, `.seller`, `.customer`, `.orgAdmin` | |
 | `BAE_LP_ENDPOINT_<NAME>_HOST`, `_PORT`, `_PATH`, `_SECURED` | `upstreams.tmforum.apis.<api>` or `upstreams.<name>` | See [Upstreams](#upstreams) for the names. `SECURED=true` sets `scheme: https`. What is not set (host or port) comes from the group; a missing `PATH` means an empty path, as before |
@@ -313,3 +321,19 @@ keys to set. The legacy `BAE_LP_ENDPOINT_*` variables keep working one API at a 
 leave out comes from the group. An API that has any of them gets an empty path unless `PATH` says otherwise, as in
 the legacy application, so a lone `PORT` also drops the default path. Their names are crossed for two APIs:
 `BAE_LP_ENDPOINT_BILLING_*` configures `account` and `BAE_LP_ENDPOINT_CUSTOMER_BILL_*` configures `customerBill`.
+
+### Security
+
+`security.*` and `http.cors.*` set, for the routes Nest serves and for what it hands to the legacy application:
+
+- **Headers.** `X-Content-Type-Options`, `Strict-Transport-Security`, `Cross-Origin-*`, `Referrer-Policy` and a
+  `Content-Security-Policy` that only reports until `security.csp.reportOnly` is `false`. `X-Powered-By` is removed.
+- **CSRF.** A `POST`, `PUT`, `PATCH` or `DELETE` that the browser marks as cross-site (`Sec-Fetch-Site`, or a foreign
+  `Origin`) is refused with 403. Reads, preflights and clients that are not browsers are not affected. When the portal
+  runs on another origin in development (for instance `http://localhost:4200`), list it in
+  `security.csrf.trustedOrigins`, as `BAE_SECURITY__CSRF__TRUSTED_ORIGINS='["http://localhost:4200"]'`; do not use it
+  in production.
+- **CORS.** Every origin is allowed until `http.cors.origins` says otherwise, as before. The legacy application still
+  answers with its own `*` on the routes it serves.
+- **Request body.** `http.bodyLimit` is `2mb`; the legacy application still accepts 50 MB until its routes are migrated.
+- **Rate limiting** is not done here: it belongs to the ingress.

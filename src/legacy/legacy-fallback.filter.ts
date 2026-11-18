@@ -30,7 +30,10 @@ const keepQuery = (req: IncomingMessage): void => {
 /** Hands every request Nest has no route for to the legacy Express app. */
 @Catch(NotFoundException)
 export class LegacyFallbackFilter implements ExceptionFilter {
-    constructor(private readonly legacy: LegacyHandler) {}
+    constructor(private readonly legacy: LegacyHandler) {
+        // The legacy app announces Express on its own answers; it is told not to without changing its code
+        (legacy as { disable?: (setting: string) => unknown }).disable?.('x-powered-by');
+    }
 
     catch(_exception: NotFoundException, host: ArgumentsHost): void {
         const http = host.switchToHttp();

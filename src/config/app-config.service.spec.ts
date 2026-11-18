@@ -8,7 +8,13 @@ const EMPTY_APIS = Object.fromEntries(TMFORUM_APIS.map((api) => [api, {}])) as A
 
 const VALUE: AppConfig = {
     app: { host: '0.0.0.0', port: 8004, shutdownTimeoutMs: 1000, shutdownDelayMs: 0, https: { enabled: false } },
-    http: { trustedProxies: [], bodyLimit: '50mb' },
+    http: { trustedProxies: [], bodyLimit: '2mb', cors: { origins: ['*'], exposeRedirect: false } },
+    security: {
+        csp: { reportOnly: true },
+        hsts: { enabled: true, maxAgeSeconds: 31536000, includeSubDomains: false },
+        crossOriginResourcePolicy: 'same-origin',
+        csrf: { enabled: true, trustedOrigins: [] }
+    },
     logging: { level: 'info', format: 'json', prettyOptions: {} },
     mongo: {
         uri: 'mongodb://localhost/test',
@@ -50,7 +56,7 @@ describe('AppConfigService', () => {
         const service = module.get(AppConfigService);
 
         expect(service.app.port).toBe(8004);
-        expect(service.http.bodyLimit).toBe('50mb');
+        expect(service.http.bodyLimit).toBe('2mb');
         expect(service.logging.format).toBe('json');
         expect(service.mongo.uri).toBe('mongodb://localhost/test');
         expect(service.upstream('tmforum.catalog')).toEqual({ baseUrl: 'http://tmforum:8080/catalog', timeoutMs: 5000 });

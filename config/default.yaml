@@ -7,7 +7,22 @@ app:
 
 http:
   trustedProxies: []
-  bodyLimit: 50mb
+  bodyLimit: 2mb
+  cors:
+    origins: ["*"]
+    exposeRedirect: false
+
+security:
+  csp:
+    reportOnly: true
+  hsts:
+    enabled: true
+    maxAgeSeconds: 31536000
+    includeSubDomains: false
+  crossOriginResourcePolicy: same-origin
+  csrf:
+    enabled: true
+    trustedOrigins: []
 
 logging:
   level: info

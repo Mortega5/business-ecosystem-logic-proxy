@@ -5,6 +5,10 @@ const booleanLike = z
     .union([z.boolean(), z.enum(['true', 'false'])])
     .transform((value) => value === true || value === 'true');
 
+// `*` or a serialized origin (scheme://host[:port], no path)
+const strictOrigin = z.string().regex(/^https?:\/\/[^/\s?#*]+$/, 'must be an origin such as https://portal.example.org');
+const origin = z.union([z.literal('*'), strictOrigin]);
+
 const timeoutMs = z.coerce.number().int().positive();
 
 const address = {
@@ -85,7 +89,24 @@ export const ConfigSchema = z.object({
         }),
     http: z.object({
         trustedProxies: z.array(z.string().min(1)),
-        bodyLimit: z.string().min(1)
+        bodyLimit: z.string().min(1),
+        cors: z.object({
+            origins: z.array(origin),
+            exposeRedirect: booleanLike
+        })
+    }),
+    security: z.object({
+        csp: z.object({ reportOnly: booleanLike }),
+        hsts: z.object({
+            enabled: booleanLike,
+            maxAgeSeconds: z.coerce.number().int().positive(),
+            includeSubDomains: booleanLike
+        }),
+        crossOriginResourcePolicy: z.enum(['same-origin', 'same-site', 'cross-origin']),
+        csrf: z.object({
+            enabled: booleanLike,
+            trustedOrigins: z.array(strictOrigin)
+        })
     }),
     logging: z.object({
         level: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']),

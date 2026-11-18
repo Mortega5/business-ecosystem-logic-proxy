@@ -7,6 +7,7 @@ import type { AppConfig } from './config/config.schema';
 import { LegacyAuthBridge, type LegacyMiddleware } from './legacy/legacy-auth.bridge';
 import type { LegacyHandler } from './legacy/legacy-fallback.filter';
 import { buildHttpsOptions } from './https/https-options';
+import { configureSecurity } from './security/configure-security';
 import { buildLoggerOptions } from './logging/pino-options';
 
 export interface LegacyServer {
@@ -66,6 +67,7 @@ export const start = async (options: StartOptions): Promise<RunningServer> => {
 
         const app = await createApp(legacy.app, options.rootModule, buildHttpsOptions(config.app.https));
         // The client address (req.ip) comes from X-Forwarded-For only for the proxies the configuration trusts
+        configureSecurity(app, config);
         app.set('trust proxy', config.http.trustedProxies.length === 0 ? false : config.http.trustedProxies);
         app.get(LegacyAuthBridge).attach(legacy.authPipeline);
         await (config.app.host === undefined ? app.listen(config.app.port) : app.listen(config.app.port, config.app.host));
