@@ -11,6 +11,8 @@ info:
 tags:
   - name: health
     description: Probes for the container orchestrator.
+  - name: document
+    description: The TMForum document API, as far as the portal uses it.
 paths:
   /health/live:
     get:
@@ -97,7 +99,78 @@ paths:
                     details:
                       mongodb:
                         status: up
+  /document/documentSpecification/{id}:
+    get:
+      tags: [document]
+      operationId: getDocumentSpecification
+      summary: Document specification
+      description: |
+        Reads a document specification from the TMForum document API; the portal uses it to download the content of an
+        attachment. The user is identified by the bearer token or the session cookie, and the id is passed to the
+        upstream as given once it is known to be an id. Any other method or path under `/document` answers 404.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - name: id
+          in: path
+          required: true
+          description: 'Identifier of the specification, for instance a URN: letters, digits and the marks : . _ -, up to 200 characters.'
+          schema:
+            type: string
+            pattern: '^(?!\.+$)[A-Za-z0-9:._-]{1,200}$'
+      responses:
+        '200':
+          description: The specification, as the TMForum server answers it.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                id: urn:ngsi-ld:document-specification:7a1c0f3e
+                name: Terms of the offering
+        '400':
+          description: The id is not valid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: Invalid id
+        '401':
+          description: Nobody is logged in.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: You need to be authenticated to perform this request
+        '404':
+          description: The server does not know that specification; the body is the one the server sends.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                error: Not found
+        '504':
+          description: The TMForum server did not answer in time or cannot be reached.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: Service unreachable
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
   parameters:
     RequestId:
       name: X-Request-Id
@@ -112,6 +185,12 @@ components:
       schema:
         type: string
   schemas:
+    ErrorResult:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
     LivenessResult:
       type: object
       required: [status]
