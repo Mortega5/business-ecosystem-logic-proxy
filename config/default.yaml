@@ -8,6 +8,7 @@ app:
 http:
   trustedProxies: []
   bodyLimit: 2mb
+  uploadLimit: 50mb
   cors:
     origins: ["*"]
     exposeRedirect: false

@@ -4,14 +4,18 @@ import { AppConfigService } from '../config/app-config.service';
 
 /**
  * The body of a request as text, up to `http.bodyLimit`; a bigger one is refused
- * with 413. Applied to the controllers that take a body, so no other route parses one.
+ * with 413. A multipart body is left alone, for a route that sends it on as a stream. Applied to the controllers
+ * that take a body, so no other route parses one.
  */
 @Injectable()
 export class RawTextMiddleware implements NestMiddleware {
     private readonly parse: RequestHandler;
 
     constructor(config: AppConfigService) {
-        this.parse = express.text({ type: () => true, limit: config.http.bodyLimit });
+        this.parse = express.text({
+            type: (req) => !(req.headers['content-type'] ?? '').toLowerCase().startsWith('multipart/form-data'),
+            limit: config.http.bodyLimit
+        });
     }
 
     use(req: Request, res: Response, next: NextFunction): void {

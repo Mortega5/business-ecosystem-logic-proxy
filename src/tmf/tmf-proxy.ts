@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
+import { Readable } from 'node:stream';
 import type { Request, Response } from 'express';
 import { DomainError } from '../common/domain-error';
+import { parseSize } from '../common/size';
 import { AppConfigService } from '../config/app-config.service';
 import type { UpstreamName } from '../config/upstream-names';
 import { forwardableHeaders, UpstreamClient, UpstreamError, type UpstreamResponse } from '../http-client/upstream-client';
@@ -12,6 +14,8 @@ export interface ProxyTarget {
     path: string;
     /** The body to send, when the route takes one: it is the controller that says so, never the request. */
     body?: string;
+    /** The request is a file upload (multipart): its body is sent on as it arrives, up to `http.uploadLimit`. */
+    upload?: boolean;
     /** The query string to send, with its `?`; when the route sets it, the client's own is not sent at all. */
     search?: string;
     /** Headers of the answer that the route sets itself, whatever the upstream said. */
@@ -42,6 +46,7 @@ export class TmfProxy {
                 path: target.path,
                 method: req.method,
                 ...(target.body === undefined ? {} : { body: target.body }),
+                ...(target.upload === true ? { body: this.upload(req) } : {}),
                 ...(search === undefined ? {} : { search }),
                 headers: buildUpstreamHeaders({
                     client: req.headers,
@@ -56,6 +61,30 @@ export class TmfProxy {
             }
             throw error;
         }
+    }
+
+    /** The body of the request as a stream, refused when it is not a multipart one or goes over the limit. */
+    private upload(req: Request): ReadableStream<Uint8Array> {
+        const limit = parseSize(this.config.http.uploadLimit) ?? 0;
+        if (!(req.headers['content-type'] ?? '').toLowerCase().startsWith('multipart/form-data')) {
+            throw new DomainError('Unsupported media type', 415);
+        }
+        const declared = Number(req.headers['content-length']);
+        if (Number.isFinite(declared) && declared > limit) {
+            throw new DomainError('Upload too large', 413);
+        }
+        let received = 0;
+        const counter = new TransformStream<Uint8Array, Uint8Array>({
+            transform(chunk, controller) {
+                received += chunk.byteLength;
+                if (received > limit) {
+                    controller.error(new DomainError('Upload too large', 413));
+                    return;
+                }
+                controller.enqueue(chunk);
+            }
+        });
+        return (Readable.toWeb(req) as ReadableStream<Uint8Array>).pipeThrough(counter);
     }
 
     reply(res: Response, response: UpstreamResponse, headers: Record<string, string> = {}): void {

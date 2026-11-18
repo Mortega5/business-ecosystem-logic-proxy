@@ -81,6 +81,9 @@ Take [`src/tmf/document/`](../src/tmf/document/) as the model.
    The text is forwarded as it came only when the controller does not look into it. When it reads or changes a field
    to decide something, it forwards `JSON.stringify` of what it validated and never the original text: the proxy and
    the upstream could read the same text differently (duplicate keys, for instance) and the check would be bypassed.
+   A route that takes a file upload (multipart) passes `upload: true` to `forward`: the middleware leaves that body
+   alone and it goes on to the upstream as a stream, counted against `http.uploadLimit` (413 beyond it, 415 when it is
+   not multipart). `OptionalJsonBodyPipe` is the pipe for a route that may come with no body.
 5. **Say who may call it.** Nothing means private. `@Public()` opens it, `@RequireFeature('quotes')` ties it to a
    feature.
 6. **Register the module** in `AppModule` and **document the routes** in `docs/openapi.yaml`; the test in

@@ -8,7 +8,7 @@ const EMPTY_APIS = Object.fromEntries(TMFORUM_APIS.map((api) => [api, {}])) as A
 
 const VALUE: AppConfig = {
     app: { host: '0.0.0.0', port: 8004, shutdownTimeoutMs: 1000, shutdownDelayMs: 0, https: { enabled: false } },
-    http: { trustedProxies: [], bodyLimit: '2mb', cors: { origins: ['*'], exposeRedirect: false } },
+    http: { trustedProxies: [], bodyLimit: '2mb', uploadLimit: '50mb', cors: { origins: ['*'], exposeRedirect: false } },
     security: {
         csp: { reportOnly: true },
         hsts: { enabled: true, maxAgeSeconds: 31536000, includeSubDomains: false },

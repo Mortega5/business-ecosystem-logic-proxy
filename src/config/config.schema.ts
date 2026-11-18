@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { parseSize } from '../common/size';
 
 // Environment variables always arrive as strings, and z.coerce.boolean() reads "false" as true
 const booleanLike = z
@@ -89,6 +90,7 @@ export const ConfigSchema = z.object({
     http: z.object({
         trustedProxies: z.array(z.string().min(1)),
         bodyLimit: z.string().min(1),
+        uploadLimit: z.string().refine((value) => parseSize(value) !== undefined, 'must be a size such as 50mb'),
         cors: z.object({
             origins: z.array(origin),
             exposeRedirect: booleanLike

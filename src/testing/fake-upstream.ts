@@ -5,6 +5,7 @@ export interface SeenRequest {
     url: string | undefined;
     headers: IncomingHttpHeaders;
     body: string;
+    bytes: Buffer;
 }
 
 /** A server standing for an upstream: it answers what the test says and records what it was asked. */
@@ -33,7 +34,8 @@ export class FakeUpstream {
             const chunks: Buffer[] = [];
             req.on('data', (chunk: Buffer) => chunks.push(chunk));
             req.on('end', () => {
-                this.seen = { method: req.method, url: req.url, headers: req.headers, body: Buffer.concat(chunks).toString() };
+                const bytes = Buffer.concat(chunks);
+                this.seen = { method: req.method, url: req.url, headers: req.headers, body: bytes.toString(), bytes };
                 this.answerWith(res);
             });
         });

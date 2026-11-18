@@ -8,7 +8,7 @@ export interface UpstreamRequest {
     /** The query string of a request being forwarded, as it came: keeps nested and repeated parameters exactly. */
     search?: string;
     headers?: Record<string, string>;
-    body?: string | Uint8Array<ArrayBuffer> | FormData;
+    body?: string | Uint8Array<ArrayBuffer> | FormData | ReadableStream<Uint8Array>;
     timeoutMs?: number;
 }
 

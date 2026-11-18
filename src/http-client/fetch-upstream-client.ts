@@ -49,6 +49,7 @@ export class FetchUpstreamClient extends UpstreamClient {
                 method,
                 ...(request.headers === undefined ? {} : { headers: request.headers }),
                 ...(request.body === undefined ? {} : { body: request.body }),
+                ...(request.body instanceof ReadableStream ? { duplex: 'half' } : {}),
                 redirect: 'manual',
                 signal: AbortSignal.timeout(request.timeoutMs ?? upstream.timeoutMs)
             });
@@ -57,6 +58,11 @@ export class FetchUpstreamClient extends UpstreamClient {
             this.logger[level]({ ...logged, statusCode: response.status, durationMs: elapsed() }, 'upstream request completed');
             return { status: response.status, headers: response.headers, body };
         } catch (error) {
+            // What a route raised while its body was being sent, such as a file over the limit
+            const raised = error instanceof DomainError ? error : error instanceof Error ? error.cause : undefined;
+            if (raised instanceof DomainError) {
+                throw raised;
+            }
             const timedOut = error instanceof DOMException && error.name === 'TimeoutError';
             this.logger.error({ ...logged, durationMs: elapsed(), err: error }, 'upstream request failed');
             throw new UpstreamError(

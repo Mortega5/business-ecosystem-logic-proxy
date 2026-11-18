@@ -286,3 +286,17 @@ describe('authentication configuration', () => {
         expect(auth.roles).toMatchObject({ seller: 'provider', orgAdmin: 'organisation-admin', admin: 'admin' });
     });
 });
+
+describe('request size configuration', () => {
+    const load = (env: NodeJS.ProcessEnv) => loadStaticConfig({ defaultsPath: DEFAULTS_PATH, env });
+
+    it('has a limit for a body and a larger one for an upload', () => {
+        expect(load({}).http).toMatchObject({ bodyLimit: '2mb', uploadLimit: '50mb' });
+        expect(load({ BAE_HTTP__UPLOAD_LIMIT: '100mb' }).http.uploadLimit).toBe('100mb');
+    });
+
+    it('refuses an upload limit that is not a size', () => {
+        expect(() => load({ BAE_HTTP__UPLOAD_LIMIT: 'big' })).toThrow('http.uploadLimit');
+        expect(() => load({ BAE_HTTP__UPLOAD_LIMIT: '50' })).toThrow('http.uploadLimit');
+    });
+});
