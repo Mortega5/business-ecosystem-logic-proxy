@@ -150,7 +150,11 @@ describe('POST /account/billingAccount', () => {
         const res = await call('/account/billingAccount/', { method: 'POST', headers: JSON_HEADERS, body });
 
         expect(res.status).toBe(200);
-        expect(upstream.seen).toMatchObject({ method: 'POST', url: TARGET, body });
+        expect(upstream.seen).toMatchObject({ method: 'POST', url: TARGET });
+        expect(JSON.parse(upstream.seen?.body ?? '')).toEqual({
+            ...(JSON.parse(body) as object),
+            relatedParty: [{ id: 'p-ana', href: 'p-ana', name: 'u-ana', role: 'Seller', '@referredType': 'Individual' }]
+        });
     });
 
     it('sends what it checked: a key that comes twice is the one it read, so the upstream cannot read the other', async () => {
@@ -158,7 +162,7 @@ describe('POST /account/billingAccount', () => {
         const res = await call('/account/billingAccount', { method: 'POST', headers: JSON_HEADERS, body });
 
         expect(res.status).toBe(200);
-        expect(upstream.seen?.body).toBe('{"relatedParty":[{"id":"p-ana","role":"Seller"}]}');
+        expect(upstream.seen?.body).toBe('{"relatedParty":[{"id":"p-ana","href":"p-ana","name":"u-ana","role":"Seller","@referredType":"Individual"}]}');
     });
 
     it('creates the account of the organisation the caller acts for', async () => {

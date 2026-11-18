@@ -6,7 +6,9 @@ import { JsonBodyPipe } from '../json-body.pipe';
 import { OwnedResources, type OwnedRead } from '../owned-resources';
 import { callerParty, isOwnedOnlyBy } from '../related-party';
 import { ResourceIdPipe } from '../resource-id.pipe';
+import { SellerParties } from '../seller-parties';
 import { TmfProxy } from '../tmf-proxy';
+import type { UpstreamUser } from '../upstream-headers';
 import { parseBillingAccount, validateContacts } from './billing-account';
 
 const NOT_THE_OWNER = 'The user making the request is not the specified owner';
@@ -21,7 +23,8 @@ export class AccountController {
     constructor(
         private readonly proxy: TmfProxy,
         private readonly owned: OwnedResources,
-        private readonly config: AppConfigService
+        private readonly config: AppConfigService,
+        private readonly sellers: SellerParties
     ) {}
 
     private account(id: string): OwnedRead {
@@ -54,6 +57,8 @@ export class AccountController {
             throw new ForbiddenError(NOT_THE_OWNER);
         }
         validateContacts(account);
+        const [owner] = account['relatedParty'] as Record<string, unknown>[];
+        account['relatedParty'] = this.sellers.of(owner as Record<string, unknown>, (req as Request & { user: UpstreamUser }).user);
         return this.proxy.forward(req, res, { upstream: 'tmforum.account', path: '/billingAccount', body: JSON.stringify(account) });
     }
 
