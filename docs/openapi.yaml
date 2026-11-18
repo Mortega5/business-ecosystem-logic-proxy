@@ -31,6 +31,8 @@ tags:
     description: The resource specifications, as far as the portal uses them.
   - name: service
     description: The service specifications, as far as the portal uses them.
+  - name: charging
+    description: The charging backend, as far as the portal uses it.
 paths:
   /health/live:
     get:
@@ -245,7 +247,7 @@ paths:
               example:
                 content: []
         '400':
-          description: The body is not a JSON object or array.
+          description: The body is not JSON of the kind the route takes, an object or, where it takes one, a list.
           content:
             application/json:
               schema:
@@ -2171,6 +2173,168 @@ paths:
           $ref: '#/components/responses/BadGateway'
         '504':
           $ref: '#/components/responses/UpstreamUnreachable'
+  /charging/api/orderManagement/orders/confirm:
+    post:
+      tags: [charging]
+      operationId: confirmOrder
+      summary: Confirm an order
+      description: |
+        The confirmation of an order that comes back from the payment provider; the signature of the body is what says the provider made
+        it, so it is open to anybody and asked for with the identity of the caller when there is one. The body is sent on as it came.
+        Any other path under `/charging`, the refund of an order included, answers 404.
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: The answer of the charging backend.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                ok: true
+        '400':
+          $ref: '#/components/responses/InvalidBody'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+  /charging/api/orderManagement/notify/config:
+    get:
+      tags: [charging]
+      operationId: getNotifyConfig
+      summary: The configuration of the e-mail
+      description: |
+        For an administrator. It is the configuration of the SMTP server of the marketplace, with its password, and of the destinations of
+        the contact form; the answer is not for a cache.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      responses:
+        '200':
+          description: The configuration, as the charging backend answers it.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                smtpServer: smtp.example.org
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/NotAnAdministrator'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+    post:
+      tags: [charging]
+      operationId: setNotifyConfig
+      summary: Change the configuration of the e-mail
+      description: |
+        For an administrator. The body is sent on as it came.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: The answer of the charging backend.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                ok: true
+        '400':
+          $ref: '#/components/responses/InvalidBody'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/NotAnAdministrator'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+  /charging/api/assetManagement/assets/uploadJob:
+    post:
+      tags: [charging]
+      operationId: uploadAsset
+      summary: Upload a file
+      description: |
+        For a user who is logged in. The file travels in the body in base64, as `{ content: { name, data }, contentType, isPublic }`, which
+        makes it the biggest body that the proxy takes (`http.bodyLimit`). The name, the type and the content are checked, and only those
+        fields and `isPublic` are sent on.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: The asset, as the charging backend answers it.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                ok: true
+        '400':
+          $ref: '#/components/responses/InvalidBody'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '422':
+          $ref: '#/components/responses/InvalidUpload'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
 components:
   securitySchemes:
     bearerAuth:
@@ -2333,6 +2497,22 @@ components:
             $ref: '#/components/schemas/ErrorResult'
           example:
             error: The resource spec could not be read
+    InvalidUpload:
+      description: The name of the file has a folder or a control character, the type is not a media type, or the content is not base64.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResult'
+          example:
+            error: Invalid file name
+    NotAnAdministrator:
+      description: The caller is not an administrator.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResult'
+          example:
+            error: You are not allowed to access this resource
     UpstreamNotFound:
       description: The server behind does not know the resource; the body is the one it sends.
       content:

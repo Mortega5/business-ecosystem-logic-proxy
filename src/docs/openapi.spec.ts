@@ -17,6 +17,7 @@ import { LegacyAuthBridge } from '../legacy/legacy-auth.bridge';
 import { MongoConnectionService } from '../persistence/mongo-connection.service';
 import { AccountModule } from '../tmf/account/account.module';
 import { DocumentModule } from '../tmf/document/document.module';
+import { ChargingModule } from '../tmf/charging/charging.module';
 import { ResourceModule } from '../tmf/resource/resource.module';
 import { RevenueModule } from '../tmf/revenue/revenue.module';
 import { InventoryModule } from '../tmf/inventory/inventory.module';
@@ -25,7 +26,7 @@ import { PartyModule } from '../tmf/party/party.module';
 import { QuoteModule } from '../tmf/quote/quote.module';
 import { ServiceModule } from '../tmf/service/service.module';
 import { SearchModule } from '../tmf/search/search.module';
-import { AS_ORGANISATION, AS_SELLER, fakeLogin, LOGGED_IN } from '../testing/fake-login';
+import { AS_ADMIN, AS_ORGANISATION, AS_SELLER, fakeLogin, LOGGED_IN } from '../testing/fake-login';
 import { FakeUpstream } from '../testing/fake-upstream';
 
 interface ResponseObject {
@@ -405,6 +406,25 @@ describe('responses against docs/openapi.yaml', () => {
         ];
     };
 
+    // The charging backend: the confirmation of an order, the configuration of the e-mail of the administrator, and the upload of a file
+    const chargingCases = (): Case[] => {
+        const base = '/charging/api';
+        const confirm = `${base}/orderManagement/orders/confirm`;
+        const config = `${base}/orderManagement/notify/config`;
+        const upload = `${base}/assetManagement/assets/uploadJob`;
+        const administrator = { ...json, ...AS_ADMIN };
+        const withoutLogin = (cases: Case[]): Case[] => cases.filter((c) => c.status !== '401');
+        return [
+            ...withoutLogin(proxied(confirm, `${confirm}/`, '{"ok":true}', { method: 'post', headers: json, body: '{"confirm_action":"accept"}', invalid: { body: 'not json' }, tooLarge: true })),
+            ...proxied(config, config, '{"smtpServer":"smtp.example.org"}', { headers: AS_ADMIN }),
+            refused('get', config, '403', config, undefined, '{}'),
+            ...proxied(config, config, '{"ok":true}', { method: 'post', headers: administrator, body: '{"smtpServer":"smtp.example.org"}', invalid: { body: 'not json' }, tooLarge: true }),
+            refused('post', config, '403', config, '{"smtpServer":"smtp.example.org"}', '{}'),
+            ...proxied(upload, upload, '{"ok":true}', { method: 'post', headers: json, body: '{"content":{"name":"a.png","data":"QQ=="},"contentType":"image/png","isPublic":true}', invalid: { body: 'not json' }, tooLarge: true }),
+            refused('post', upload, '422', upload, '{"content":{"name":"../a.png","data":"QQ=="},"contentType":"image/png"}', '{}')
+        ];
+    };
+
     const cases: Case[] = [
         { method: 'get', path: '/health/live', status: '200', arrange: () => mongo.ping.mockResolvedValue(false) },
         { method: 'get', path: '/health/ready', status: '200', arrange: () => mongo.ping.mockResolvedValue(true) },
@@ -445,13 +465,14 @@ describe('responses against docs/openapi.yaml', () => {
         ...accountCases(),
         ...partyCases(),
         ...specificationCases('/resource/resourceSpecification'),
-        ...specificationCases('/service/serviceSpecification')
+        ...specificationCases('/service/serviceSpecification'),
+        ...chargingCases()
     ];
 
     beforeAll(async () => {
         await tmforum.start();
 
-        @Module({ imports: [DependenciesStub, LoggerModule.forRoot({ pinoHttp: { level: 'silent' } }), HealthModule, AuthModule, DocumentModule, RevenueModule, SearchModule, InvoicingModule, QuoteModule, InventoryModule, AccountModule, PartyModule, ResourceModule, ServiceModule] })
+        @Module({ imports: [DependenciesStub, LoggerModule.forRoot({ pinoHttp: { level: 'silent' } }), HealthModule, AuthModule, DocumentModule, RevenueModule, SearchModule, InvoicingModule, QuoteModule, InventoryModule, AccountModule, PartyModule, ResourceModule, ServiceModule, ChargingModule] })
         class Contract {}
 
         app = await createApp(express(), Contract);
