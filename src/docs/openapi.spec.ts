@@ -16,6 +16,7 @@ import { HealthModule } from '../health/health.module';
 import { LegacyAuthBridge } from '../legacy/legacy-auth.bridge';
 import { MongoConnectionService } from '../persistence/mongo-connection.service';
 import { DocumentModule } from '../tmf/document/document.module';
+import { RevenueModule } from '../tmf/revenue/revenue.module';
 import { fakeLogin, LOGGED_IN } from '../testing/fake-login';
 import { FakeUpstream } from '../testing/fake-upstream';
 
@@ -46,7 +47,7 @@ const mongo = { ping: vi.fn<(timeoutMs: number) => Promise<boolean>>() };
                 app: { shutdownDelayMs: 0 },
                 health: { mongoPingTimeoutMs: 500 },
                 auth: { propagateToken: true, allowLocalEori: false, roles: { admin: 'admin', customer: 'Buyer', seller: 'Seller', orgAdmin: 'orgAdmin' } },
-                upstream: () => ({ baseUrl: `http://127.0.0.1:${tmforum.port}/tmf-api/documentManagement/v4`, timeoutMs: 300 })
+                upstream: (name: string) => ({ baseUrl: `http://127.0.0.1:${tmforum.port}/${name}`, timeoutMs: 300 })
             }
         },
         { provide: MongoConnectionService, useValue: mongo }
@@ -135,8 +136,6 @@ describe('responses against docs/openapi.yaml', () => {
     let url: string;
     const ajv = new Ajv({ strict: false, allErrors: true });
 
-    const id = encodeURIComponent('urn:ngsi-ld:document-specification:7a1c0f3e');
-    const documentPath = '/document/documentSpecification/{id}';
     interface Case {
         method: string;
         path: string;
@@ -145,42 +144,36 @@ describe('responses against docs/openapi.yaml', () => {
         headers?: Record<string, string>;
         arrange: () => void;
     }
+
+    // What every proxied route of the portal answers, as documented
+    const proxied = (path: string, url: string, body: string): Case[] => [
+        { method: 'get', path, status: '200', url, headers: LOGGED_IN, arrange: () => tmforum.answer((res) => tmforum.json(res, 200, body)) },
+        { method: 'get', path, status: '400', url: url.replace(/[^/]+$/, 'a%20b'), headers: LOGGED_IN, arrange: () => undefined },
+        { method: 'get', path, status: '401', url, arrange: () => undefined },
+        { method: 'get', path, status: '404', url, headers: LOGGED_IN, arrange: () => tmforum.answer((res) => tmforum.json(res, 404, '{"error":"Not found"}')) },
+        { method: 'get', path, status: '504', url, headers: LOGGED_IN, arrange: () => tmforum.answer((res) => void setTimeout(() => res.end(), 800)) }
+    ];
+
     const cases: Case[] = [
         { method: 'get', path: '/health/live', status: '200', arrange: () => mongo.ping.mockResolvedValue(false) },
         { method: 'get', path: '/health/ready', status: '200', arrange: () => mongo.ping.mockResolvedValue(true) },
         { method: 'get', path: '/health/ready', status: '503', arrange: () => mongo.ping.mockResolvedValue(false) },
-        {
-            method: 'get',
-            path: documentPath,
-            status: '200',
-            url: `/document/documentSpecification/${id}`,
-            headers: LOGGED_IN,
-            arrange: () => tmforum.answer((res) => tmforum.json(res, 200, '{"id":"urn:ngsi-ld:document-specification:7a1c0f3e","name":"Terms"}'))
-        },
-        { method: 'get', path: documentPath, status: '400', url: '/document/documentSpecification/a%20b', headers: LOGGED_IN, arrange: () => undefined },
-        { method: 'get', path: documentPath, status: '401', url: `/document/documentSpecification/${id}`, arrange: () => undefined },
-        {
-            method: 'get',
-            path: documentPath,
-            status: '404',
-            url: `/document/documentSpecification/${id}`,
-            headers: LOGGED_IN,
-            arrange: () => tmforum.answer((res) => tmforum.json(res, 404, '{"error":"Not found"}'))
-        },
-        {
-            method: 'get',
-            path: documentPath,
-            status: '504',
-            url: `/document/documentSpecification/${id}`,
-            headers: LOGGED_IN,
-            arrange: () => tmforum.answer((res) => void setTimeout(() => res.end(), 800))
-        }
+        ...proxied(
+            '/document/documentSpecification/{id}',
+            `/document/documentSpecification/${encodeURIComponent('urn:ngsi-ld:document-specification:7a1c0f3e')}`,
+            '{"id":"urn:ngsi-ld:document-specification:7a1c0f3e","name":"Terms"}'
+        ),
+        ...proxied(
+            '/revenue/dashboard/{id}',
+            `/revenue/dashboard/${encodeURIComponent('urn:ngsi-ld:organization:a195013a')}`,
+            '[{"label":"Subscription","text":null,"link":null,"items":null}]'
+        )
     ];
 
     beforeAll(async () => {
         await tmforum.start();
 
-        @Module({ imports: [DependenciesStub, LoggerModule.forRoot({ pinoHttp: { level: 'silent' } }), HealthModule, AuthModule, DocumentModule] })
+        @Module({ imports: [DependenciesStub, LoggerModule.forRoot({ pinoHttp: { level: 'silent' } }), HealthModule, AuthModule, DocumentModule, RevenueModule] })
         class Contract {}
 
         app = await createApp(express(), Contract);

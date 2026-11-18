@@ -13,6 +13,8 @@ tags:
     description: Probes for the container orchestrator.
   - name: document
     description: The TMForum document API, as far as the portal uses it.
+  - name: revenue
+    description: The revenue sharing service, as far as the portal uses it.
 paths:
   /health/live:
     get:
@@ -112,13 +114,7 @@ paths:
         - bearerAuth: []
       parameters:
         - $ref: '#/components/parameters/RequestId'
-        - name: id
-          in: path
-          required: true
-          description: 'Identifier of the specification, for instance a URN: letters, digits and the marks : . _ -, up to 200 characters.'
-          schema:
-            type: string
-            pattern: '^(?!\.+$)[A-Za-z0-9:._-]{1,200}$'
+        - $ref: '#/components/parameters/ResourceId'
       responses:
         '200':
           description: The specification, as the TMForum server answers it.
@@ -134,44 +130,67 @@ paths:
                 id: urn:ngsi-ld:document-specification:7a1c0f3e
                 name: Terms of the offering
         '400':
-          description: The id is not valid.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResult'
-              example:
-                error: Invalid id
+          $ref: '#/components/responses/InvalidId'
         '401':
-          description: Nobody is logged in.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResult'
-              example:
-                error: You need to be authenticated to perform this request
+          $ref: '#/components/responses/NotAuthenticated'
         '404':
-          description: The server does not know that specification; the body is the one the server sends.
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: true
-              example:
-                error: Not found
+          $ref: '#/components/responses/UpstreamNotFound'
         '504':
-          description: The TMForum server did not answer in time or cannot be reached.
+          $ref: '#/components/responses/UpstreamUnreachable'
+  /revenue/dashboard/{id}:
+    get:
+      tags: [revenue]
+      operationId: getRevenueDashboard
+      summary: Revenue dashboard of an organisation
+      description: |
+        Reads the revenue sharing dashboard of an organisation from the revenue service: a list of sections the portal
+        shows to a provider. The user is identified by the bearer token or the session cookie. Any other method or path
+        under `/revenue` answers 404.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: The dashboard, as the revenue service answers it.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResult'
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
               example:
-                error: Service unreachable
+                - label: Subscription
+                  text: No active subscription found for this user.
+                  link: null
+                  items: null
+        '400':
+          $ref: '#/components/responses/InvalidId'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
 components:
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
   parameters:
+    ResourceId:
+      name: id
+      in: path
+      required: true
+      description: 'Identifier of the resource, for instance a URN: letters, digits and the marks : . _ -, up to 200 characters.'
+      schema:
+        type: string
+        pattern: '^(?!\.+$)[A-Za-z0-9:._-]{1,200}$'
     RequestId:
       name: X-Request-Id
       in: header
@@ -179,6 +198,40 @@ components:
       description: Identifier of the request, used in the logs. Generated when absent.
       schema:
         type: string
+  responses:
+    InvalidId:
+      description: The id is not valid.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResult'
+          example:
+            error: Invalid id
+    NotAuthenticated:
+      description: Nobody is logged in.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResult'
+          example:
+            error: You need to be authenticated to perform this request
+    UpstreamNotFound:
+      description: The server behind does not know the resource; the body is the one it sends.
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: true
+          example:
+            error: Not found
+    UpstreamUnreachable:
+      description: The server behind did not answer in time or cannot be reached.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResult'
+          example:
+            error: Service unreachable
   headers:
     RequestId:
       description: Identifier of the request, as it appears in the logs.
