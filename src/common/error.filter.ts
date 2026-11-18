@@ -38,7 +38,7 @@ export class ErrorFilter implements ExceptionFilter {
                 res.status(status).json({ error: exception.message });
                 return;
             }
-            // Thrown on purpose with its own body, such as the answer of a failing health check
+            // An HTTP exception of 5xx keeps the body it was thrown with, such as the answer of a failing health check
             const body = exception.getResponse();
             res.status(status).json(typeof body === 'string' ? { error: body } : body);
             return;

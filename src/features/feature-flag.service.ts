@@ -49,7 +49,7 @@ export class FeatureFlagService {
         return wanted;
     }
 
-    // When the DB cannot be read the static flags apply, as in the legacy application
+    // When the database cannot be read the static flags apply
     private async overrides(): Promise<Partial<Flags>> {
         try {
             const features = (await this.documents.findById(FEATURE_FLAGS_DOCUMENT_ID))?.features;

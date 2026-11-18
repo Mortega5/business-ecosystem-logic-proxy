@@ -88,8 +88,6 @@ Take [`src/tmf/document/`](../src/tmf/document/) as the model.
 7. **Test it.** A controller spec with `FakeUpstream` and `fakeLogin` (see `document.controller.spec.ts`): the happy
    path, 401, a refused id, every route that must be closed. Dot-segment ids must be sent with `http.request`, because
    `fetch` normalises them.
-8. **Compare with v11** by adding scenarios to the differential harness (local, see its README). What v12 does
-   differently on purpose is listed as expected differences in the scenario.
 
 ## When the legacy application goes away
 

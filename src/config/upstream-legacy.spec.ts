@@ -36,7 +36,7 @@ for (const [name, path] of Object.entries(PATHS)) {
 describe('a deployment configured with the legacy endpoint variables', () => {
     const { upstreams } = loadStaticConfig({ defaultsPath: DEFAULTS_PATH, env: deployment });
 
-    it('reaches every TMForum API at the same URL as before', () => {
+    it('reaches every TMForum API at the URL the variables describe', () => {
         expect(resolveUpstream(upstreams, 'tmforum.catalog').baseUrl).toBe(`http://${TMF}:8080${PATHS.CATALOG}`);
         expect(resolveUpstream(upstreams, 'tmforum.account').baseUrl).toBe(`http://${TMF}:8080${PATHS.BILLING}`);
         expect(resolveUpstream(upstreams, 'tmforum.customerBill').baseUrl).toBe(`http://${TMF}:8080${PATHS.CUSTOMER_BILL}`);

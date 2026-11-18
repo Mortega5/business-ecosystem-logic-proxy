@@ -13,7 +13,6 @@ export interface UpstreamUser {
     roles?: { name: string }[];
     idp?: string;
     issuerDid?: string;
-    agreedOnTerms?: boolean;
     accessToken?: string;
 }
 
@@ -78,8 +77,7 @@ const identityHeaders = (user: UpstreamUser, policy: HeaderPolicy): Record<strin
         'X-Party-ID': user.partyId ?? undefined,
         'X-User-Party-ID': user.userPartyId ?? user.partyId ?? undefined,
         'X-IDP-ID': idpId,
-        'X-ISSUER-DID': user.issuerDid,
-        'X-Terms-Accepted': user.agreedOnTerms === true ? 'True' : undefined
+        'X-ISSUER-DID': user.issuerDid
     };
 };
 

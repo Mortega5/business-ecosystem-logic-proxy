@@ -16,7 +16,7 @@ const upstream = new FakeUpstream();
 @Module({ imports: [AppConfigModule, LoggingModule, AuthModule, SearchModule] })
 class Root {}
 
-// What the legacy application would answer for anything under /search-bck, as v11 does
+// The legacy application answers anything under /search-bck
 const legacy = express();
 legacy.all('/search-bck/*path', (_req, res) => {
     res.json({ from: 'legacy' });

@@ -11,7 +11,7 @@ export class HealthController {
         private readonly mongo: MongoHealthIndicator
     ) {}
 
-    /** The process is running; deliberately independent of every dependency so an outage never restarts the pod. */
+    /** The process is running. It checks no dependency. */
     @Get('live')
     live(): { status: string } {
         return { status: 'ok' };

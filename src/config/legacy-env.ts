@@ -59,7 +59,7 @@ const VALUES: [string, string][] = [
     ['catalog.blueprintSchema', 'BAE_LP_BLUEPRINT_SCHEMA']
 ];
 
-// Like config.js, anything other than "true" turns a switch off
+// Anything other than "true" turns a switch off
 const switchRules: LegacyRule[] = SWITCHES.map(([key, variable]) => ({
     key,
     variables: [variable],
@@ -72,7 +72,7 @@ const valueRules: LegacyRule[] = VALUES.map(([key, variable]) => ({
     build: (env) => env[variable]
 }));
 
-// The legacy application trims and lowercases the provider, and an empty one means none
+// The provider is trimmed and lowercased, and an empty one means none
 const paymentProviderRule: LegacyRule = {
     key: 'purchase.paymentProvider',
     variables: ['BAE_LP_PAYMENT_PROVIDER'],
@@ -88,7 +88,7 @@ const TMFORUM_ENDPOINTS: [string, string][] = [
     ['serviceInventory', 'SERVICE_INVENTORY'],
     ['resourceInventory', 'RESOURCE_INVENTORY'],
     ['party', 'PARTY'],
-    // The legacy names are crossed: BILLING configured the account endpoint and CUSTOMER_BILL the billing one
+    // BILLING is the account API and CUSTOMER_BILL the customer bill one
     ['account', 'BILLING'],
     ['customer', 'CUSTOMER'],
     ['customerBill', 'CUSTOMER_BILL'],
@@ -105,9 +105,8 @@ const STANDALONE_ENDPOINTS: [string, string][] = [
     ['search', 'SEARCH']
 ];
 
-// What the legacy application did not get from its variables it took from placeholder defaults; here it comes from
-// the group. The path is the exception: it is the default path the legacy application had for that endpoint, which
-// is empty for all but two, unless PATH says otherwise.
+// The host or the port that the variables leave out come from the group. The path is the one of the legacy endpoint,
+// which is empty except for revenue and invoicing, unless PATH says otherwise.
 const LEGACY_DEFAULT_PATHS: Record<string, string> = { REVENUE: '/revenue', INVOICING: '/invoicing' };
 
 const buildEndpoint =

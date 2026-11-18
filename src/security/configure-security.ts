@@ -1,7 +1,7 @@
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import type { AppConfig } from '../config/config.schema';
 
-// What the legacy application allowed and exposed, so the portal keeps working
+// Methods and headers of the API as the portal uses them
 const CORS_METHODS = ['HEAD', 'POST', 'GET', 'PATCH', 'PUT', 'OPTIONS', 'DELETE'];
 const CORS_HEADERS = [
     'origin',

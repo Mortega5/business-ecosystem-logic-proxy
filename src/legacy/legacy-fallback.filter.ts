@@ -31,7 +31,7 @@ const keepQuery = (req: IncomingMessage): void => {
 @Catch(NotFoundException)
 export class LegacyFallbackFilter implements ExceptionFilter {
     constructor(private readonly legacy: LegacyHandler) {
-        // The legacy app announces Express on its own answers; it is told not to without changing its code
+        // Turns off the X-Powered-By header of the legacy application
         (legacy as { disable?: (setting: string) => unknown }).disable?.('x-powered-by');
     }
 

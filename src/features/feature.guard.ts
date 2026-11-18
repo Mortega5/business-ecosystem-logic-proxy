@@ -17,7 +17,7 @@ export class FeatureGuard implements CanActivate {
         if (flag === undefined || (await this.flags.isEnabled(flag))) {
             return true;
         }
-        // NotFoundException would be handed to the legacy app; a disabled feature simply does not exist
+        // NotFoundError and not NotFoundException: the latter is handed to the legacy application
         throw new NotFoundError('Not found');
     }
 }

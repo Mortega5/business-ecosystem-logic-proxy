@@ -3,7 +3,7 @@ import express, { type NextFunction, type Request, type RequestHandler, type Res
 import { AppConfigService } from '../config/app-config.service';
 
 /**
- * The body of a request as text, as the legacy application read it, up to `http.bodyLimit`; a bigger one is refused
+ * The body of a request as text, up to `http.bodyLimit`; a bigger one is refused
  * with 413. Applied to the controllers that take a body, so no other route parses one.
  */
 @Injectable()

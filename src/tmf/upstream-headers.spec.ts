@@ -110,14 +110,16 @@ describe('buildUpstreamHeaders', () => {
         expect(refused['X-IDP-ID']).toBe('local');
     });
 
-    it('adds the issuer and the accepted terms only when the user has them', () => {
-        const headers = buildUpstreamHeaders({
-            client: {},
-            user: { ...ana, issuerDid: 'did:web:issuer.example', agreedOnTerms: true },
-            forwardedFor: undefined,
-            policy
-        });
-        expect(headers).toMatchObject({ 'X-ISSUER-DID': 'did:web:issuer.example', 'X-Terms-Accepted': 'True' });
+    it('adds the issuer only when the user has one', () => {
+        const headers = buildUpstreamHeaders({ client: {}, user: { ...ana, issuerDid: 'did:web:issuer.example' }, forwardedFor: undefined, policy });
+        expect(headers['X-ISSUER-DID']).toBe('did:web:issuer.example');
+        expect(buildUpstreamHeaders({ client: {}, user: ana, forwardedFor: undefined, policy })).not.toHaveProperty('X-ISSUER-DID');
+    });
+
+    it('never sends the acceptance of the terms: not the one of the client, nor one the profile may carry', () => {
+        const profile = { ...ana, agreedOnTerms: true } as UpstreamUser;
+        const headers = buildUpstreamHeaders({ client: { 'x-terms-accepted': 'true' }, user: profile, forwardedFor: undefined, policy });
+        expect(Object.keys(headers).map((name) => name.toLowerCase())).not.toContain('x-terms-accepted');
     });
 
     it('does not send the token when propagation is off', () => {

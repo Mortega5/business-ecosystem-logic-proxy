@@ -6,7 +6,7 @@ import { TmfProxy } from '../tmf-proxy';
 
 /**
  * The organisation search, as far as the portal uses it: the search itself and the lists of values it filters by.
- * Everything else under /search-bck is closed here, so it is not handed on to the legacy application either.
+ * Everything else under /search-bck is closed here, so it is not handed to the legacy application.
  */
 @Controller('search-bck')
 export class SearchController {

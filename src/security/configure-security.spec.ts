@@ -127,7 +127,7 @@ describe('CORS', () => {
             headers: { origin, 'access-control-request-method': 'PATCH', 'access-control-request-headers': 'authorization,x-organization' }
         });
 
-    it('lets every origin in until it is configured, as the legacy application did', async () => {
+    it('lets every origin in until it is configured', async () => {
         const url = await serve();
         const res = await preflight(url, 'https://anyone.example');
         expect(res.status).toBe(204);

@@ -6,7 +6,7 @@ import { TmfProxy } from '../tmf-proxy';
 
 /**
  * The document API, as far as the portal uses it: it reads a document specification (the content of an attachment).
- * Everything else under /document is closed here, so it is not handed on to the legacy application either.
+ * Everything else under /document is closed here, so it is not handed to the legacy application.
  */
 @Controller('document')
 export class DocumentController {

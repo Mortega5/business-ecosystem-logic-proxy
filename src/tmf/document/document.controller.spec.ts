@@ -17,7 +17,7 @@ const upstream = new FakeUpstream();
 @Module({ imports: [AppConfigModule, LoggingModule, AuthModule, DocumentModule] })
 class Root {}
 
-// What the legacy application would answer for anything under /document, as v11 does
+// The legacy application answers anything under /document
 const legacy = express();
 legacy.all('/document/*path', (_req, res) => {
     res.json({ from: 'legacy' });

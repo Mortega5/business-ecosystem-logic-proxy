@@ -6,7 +6,7 @@ import { TmfProxy } from '../tmf-proxy';
 
 /**
  * The revenue sharing API, as far as the portal uses it: the dashboard of an organisation. Everything else under
- * /revenue is closed here, so it is not handed on to the legacy application either.
+ * /revenue is closed here, so it is not handed to the legacy application.
  */
 @Controller('revenue')
 export class RevenueController {

@@ -58,7 +58,7 @@ describe('legacyEnvToObject', () => {
         });
     });
 
-    it('uses credentials only when there is both a user and a password, as the legacy application does', () => {
+    it('uses credentials only when there is both a user and a password', () => {
         expect(legacyEnvToObject({ BAE_LP_MONGO_USER: 'proxy' }).values).toEqual({
             mongo: { uri: 'mongodb://mongo:27017/belp' }
         });
@@ -150,7 +150,7 @@ describe('legacy endpoint variables', () => {
         ]);
     });
 
-    it('turns SECURED into the scheme and gives an empty path when there is no PATH, as the legacy app did', () => {
+    it('turns SECURED into the scheme and gives the path of the legacy endpoint when there is no PATH', () => {
         expect(apis(legacyEnvToObject(endpoint('QUOTE', { HOST: 'quote', PORT: '8443', SECURED: 'true' })).values)).toEqual({
             quote: { host: 'quote', port: '8443', scheme: 'https', path: '' }
         });
