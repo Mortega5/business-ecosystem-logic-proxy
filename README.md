@@ -63,7 +63,7 @@ For further documentation, you can check the API Reference available at:
 To execute the unit tests, just run:
 
 ```
-npm test
+pnpm test
 ```
 
 ## Advanced Topics
