@@ -60,7 +60,8 @@ Take [`src/tmf/document/`](../src/tmf/document/) as the model.
 2. **Name the upstream.** Its name is in `TMFORUM_APIS` ([`src/config/upstream-names.ts`](../src/config/upstream-names.ts))
    with its standard path in `config/default.yaml`; the server is `upstreams.tmforum.host`/`port`, or its own.
 3. **Write the controller.** One method per route, ids through `ResourceIdPipe`, then `this.proxy.forward(req, res,
-   { upstream, path })`. If the API validates or changes something, call `send`, do it, then `reply`. End with the
+   { upstream, path })`. A route can also fix the query it sends (`search`) and set
+   headers of the answer (`responseHeaders`, for instance a sandbox policy for HTML that is not ours). If the API validates or changes something, call `send`, do it, then `reply`. End with the
    route that closes the prefix:
 
    ```ts

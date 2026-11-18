@@ -12,6 +12,10 @@ export interface ProxyTarget {
     path: string;
     /** The body to send, when the route takes one: it is the controller that says so, never the request. */
     body?: string;
+    /** The query string to send, with its `?`; when the route sets it, the client's own is not sent at all. */
+    search?: string;
+    /** Headers of the answer that the route sets itself, whatever the upstream said. */
+    responseHeaders?: Record<string, string>;
 }
 
 // What an upstream must not decide for the proxy's own origin: cookies, cross-origin policy, what software it runs
@@ -31,13 +35,14 @@ export class TmfProxy {
 
     async send(req: Request, target: ProxyTarget): Promise<UpstreamResponse> {
         const queryStart = req.originalUrl.indexOf('?');
+        const search = target.search ?? (queryStart < 0 ? undefined : req.originalUrl.slice(queryStart));
         try {
             return await this.upstream.send({
                 upstream: target.upstream,
                 path: target.path,
                 method: req.method,
                 ...(target.body === undefined ? {} : { body: target.body }),
-                ...(queryStart < 0 ? {} : { search: req.originalUrl.slice(queryStart) }),
+                ...(search === undefined ? {} : { search }),
                 headers: buildUpstreamHeaders({
                     client: req.headers,
                     user: (req as Request & { user?: UpstreamUser }).user,
@@ -53,12 +58,15 @@ export class TmfProxy {
         }
     }
 
-    reply(res: Response, response: UpstreamResponse): void {
+    reply(res: Response, response: UpstreamResponse, headers: Record<string, string> = {}): void {
         res.status(response.status);
         for (const [name, value] of Object.entries(forwardableHeaders(response.headers))) {
             if (!NOT_FORWARDED.has(name) && !name.startsWith('access-control-')) {
                 res.setHeader(name, value);
             }
+        }
+        for (const [name, value] of Object.entries(headers)) {
+            res.setHeader(name, value);
         }
         // Without a type the body is not HTML, and no browser is to guess that it is
         if (!res.hasHeader('content-type')) {
@@ -69,6 +77,6 @@ export class TmfProxy {
     }
 
     async forward(req: Request, res: Response, target: ProxyTarget): Promise<void> {
-        this.reply(res, await this.send(req, target));
+        this.reply(res, await this.send(req, target), target.responseHeaders);
     }
 }

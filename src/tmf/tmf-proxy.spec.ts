@@ -35,6 +35,16 @@ class TestController {
         this.proxy.reply(res, { ...response, body: response.body.toUpperCase() });
     }
 
+    @Get('fixed')
+    fixed(@Req() req: Request, @Res() res: Response) {
+        return this.proxy.forward(req, res, {
+            upstream: 'charging',
+            path: '/items',
+            search: '?format=xml-html',
+            responseHeaders: { 'content-security-policy': 'sandbox', 'cache-control': 'no-store' }
+        });
+    }
+
     @Get('escape')
     escape(@Req() req: Request, @Res() res: Response) {
         return this.proxy.forward(req, res, { upstream: 'charging', path: '/items/../../other' });
@@ -140,6 +150,22 @@ describe('TmfProxy', () => {
     it('lets a controller change the answer between send and reply', async () => {
         const res = await fetch(`${url}/t/split`);
         expect(await res.text()).toBe('{"OK":TRUE}');
+    });
+
+    it('sends the query the route fixed and not the client\'s, and sets its own answer headers', async () => {
+        answer = (res) => {
+            res.writeHead(200, { 'content-type': 'text/html', 'content-security-policy': 'default-src *' });
+            res.end('<p>invoice</p>');
+        };
+        const res = await fetch(`${url}/t/fixed?format=pdf&evil=1`, {
+            headers: { 'if-none-match': '"abc"', 'if-modified-since': 'Wed, 21 Oct 2015 07:28:00 GMT' }
+        });
+
+        expect(res.status).toBe(200);
+        expect(await res.text()).toBe('<p>invoice</p>');
+        expect(res.headers.get('content-security-policy')).toBe('sandbox');
+        expect(res.headers.get('cache-control')).toBe('no-store');
+        expect(seen?.url).toBe('/items?format=xml-html');
     });
 
     it('answers 504 when the upstream is too slow', async () => {
