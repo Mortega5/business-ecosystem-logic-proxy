@@ -1,5 +1,6 @@
-import { All, Body, Controller, Get, Post, Req, Res } from '@nestjs/common';
+import { All, Body, Controller, Get, Post, Req, Res, UseInterceptors } from '@nestjs/common';
 import type { Request, Response } from 'express';
+import { BodyTextInterceptor } from '../body-text.interceptor';
 import { NotFoundError } from '../../common/domain-error';
 import { JsonBodyPipe } from '../json-body.pipe';
 import { TmfProxy } from '../tmf-proxy';
@@ -8,6 +9,7 @@ import { TmfProxy } from '../tmf-proxy';
  * The organisation search, as far as the portal uses it: the search itself and the lists of values it filters by.
  * Everything else under /search-bck is closed here, so it is not handed to the legacy application.
  */
+@UseInterceptors(BodyTextInterceptor)
 @Controller('search-bck')
 export class SearchController {
     constructor(private readonly proxy: TmfProxy) {}

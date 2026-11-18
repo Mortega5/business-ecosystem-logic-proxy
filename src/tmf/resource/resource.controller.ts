@@ -1,5 +1,6 @@
-import { All, Body, Controller, Delete, Get, Param, Patch, Post, Req, Res } from '@nestjs/common';
+import { All, Body, Controller, Delete, Get, Param, Patch, Post, Req, Res, UseInterceptors } from '@nestjs/common';
 import type { Request, Response } from 'express';
+import { BodyTextInterceptor } from '../body-text.interceptor';
 import { OptionalAuth } from '../../auth/public.decorator';
 import { NotFoundError } from '../../common/domain-error';
 import { AppConfigService } from '../../config/app-config.service';
@@ -29,6 +30,7 @@ const RESOURCE_SPECIFICATIONS: SpecificationApi = {
  * The resource specifications of the resource catalog, as far as the portal uses them (see `Specifications` for the rules).
  * Everything else under /resource is closed here, so it is not handed to the legacy application.
  */
+@UseInterceptors(BodyTextInterceptor)
 @Controller('resource')
 export class ResourceController {
     private readonly specifications: Specifications;

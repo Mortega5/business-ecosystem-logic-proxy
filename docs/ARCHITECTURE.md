@@ -73,8 +73,10 @@ Take [`src/tmf/document/`](../src/tmf/document/) as the model.
 
    `NotFoundError` and not `NotFoundException`: the latter is what hands a request to the legacy application. This
    route exists only while the legacy application does; without it Nest's own 404 is enough, and these routes are removed.
-4. **If a route takes a body,** apply `RawTextMiddleware` to the controller in its module (`consumer.apply(RawTextMiddleware)
-   .forRoutes(...)`, see `search.module.ts`): it reads the body as text up to `http.bodyLimit` and answers 413 beyond it.
+4. **If a route takes a body,** apply `BodyTextInterceptor` to the controller (`@UseInterceptors(BodyTextInterceptor)`, see
+   `search.controller.ts`): it reads the body as text up to `http.bodyLimit` and answers 413 beyond it. It is an interceptor and not a
+   middleware so that it runs after the guards: a request that is refused for who it comes from, or for a feature that is off, has
+   its body left unread, and so a check that needs no body (such as `AdministratorGuard`) belongs in a guard.
    Check it with a pipe such as `JsonBodyPipe` and hand it to `forward` explicitly (`{ upstream, path, body }`); the proxy
    never sends a body the controller did not name. A route that takes none needs nothing.
 

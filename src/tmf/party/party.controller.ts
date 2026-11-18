@@ -1,5 +1,6 @@
-import { All, Body, Controller, Get, Param, Patch, Req, Res } from '@nestjs/common';
+import { All, Body, Controller, Get, Param, Patch, Req, Res, UseInterceptors } from '@nestjs/common';
 import type { Request, Response } from 'express';
+import { BodyTextInterceptor } from '../body-text.interceptor';
 import { OptionalAuth } from '../../auth/public.decorator';
 import { BadGatewayError, DomainError, ForbiddenError, NotFoundError } from '../../common/domain-error';
 import { AppConfigService } from '../../config/app-config.service';
@@ -32,6 +33,7 @@ const PUBLIC_INDIVIDUAL = ['id', 'href', '@type', 'givenName', 'familyName'];
  * is changed only by itself. Everything else under /party, the list of individuals and the writes but the patch included,
  * is closed here, so it is not handed to the legacy application.
  */
+@UseInterceptors(BodyTextInterceptor)
 @Controller('party')
 export class PartyController {
     constructor(

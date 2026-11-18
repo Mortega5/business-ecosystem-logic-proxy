@@ -1,5 +1,6 @@
-import { All, Body, Controller, Get, Param, Patch, Post, Req, Res } from '@nestjs/common';
+import { All, Body, Controller, Get, Param, Patch, Post, Req, Res, UseInterceptors } from '@nestjs/common';
 import type { Request, Response } from 'express';
+import { BodyTextInterceptor } from '../body-text.interceptor';
 import { DomainError, ForbiddenError, NotFoundError } from '../../common/domain-error';
 import { AppConfigService } from '../../config/app-config.service';
 import { JsonBodyPipe } from '../json-body.pipe';
@@ -18,6 +19,7 @@ const NOT_THE_OWNER = 'The user making the request is not the specified owner';
  * are related to it as its owner, which is the seller role. Everything else under /account, a delete included, is closed
  * here, so it is not handed to the legacy application.
  */
+@UseInterceptors(BodyTextInterceptor)
 @Controller('account')
 export class AccountController {
     constructor(

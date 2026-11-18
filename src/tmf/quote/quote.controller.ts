@@ -1,5 +1,6 @@
-import { All, Body, Controller, Delete, Get, Param, Patch, Post, Req, Res, UseGuards } from '@nestjs/common';
+import { All, Body, Controller, Delete, Get, Param, Patch, Post, Req, Res, UseGuards, UseInterceptors } from '@nestjs/common';
 import type { Request, Response } from 'express';
+import { BodyTextInterceptor } from '../body-text.interceptor';
 import { NotFoundError } from '../../common/domain-error';
 import { RequireFeature } from '../../features/require-feature';
 import { JsonBodyPipe, OptionalJsonBodyPipe } from '../json-body.pipe';
@@ -14,6 +15,7 @@ const ROOT = 'quoteManagement';
  * the `tendering` one. The routes that name a user in the path are for the party of the caller. Everything else under
  * /quote is closed here, so it is not handed to the legacy application.
  */
+@UseInterceptors(BodyTextInterceptor)
 @Controller('quote')
 @RequireFeature('quotes')
 export class QuoteController {
