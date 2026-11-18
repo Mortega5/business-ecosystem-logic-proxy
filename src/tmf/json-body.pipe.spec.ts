@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { JsonBodyPipe, OptionalJsonBodyPipe } from './json-body.pipe';
+import { JsonBodyPipe, JsonObjectBodyPipe, OptionalJsonBodyPipe } from './json-body.pipe';
 
 describe('JsonBodyPipe', () => {
     const pipe = new JsonBodyPipe();
@@ -10,6 +10,18 @@ describe('JsonBodyPipe', () => {
     });
 
     it.each([undefined, null, '', 'not json', '"text"', '7', 'true', 'null', {}])('refuses %j', (body) => {
+        expect(() => pipe.transform(body)).toThrow('Invalid body');
+    });
+});
+
+describe('JsonObjectBodyPipe', () => {
+    const pipe = new JsonObjectBodyPipe();
+
+    it('hands over the text of a JSON object as it came', () => {
+        expect(pipe.transform('{ "a" : 1 }')).toBe('{ "a" : 1 }');
+    });
+
+    it.each([undefined, null, '', 'not json', '"text"', '7', 'null', '[]', '[1, 2]', {}])('refuses %j', (body) => {
         expect(() => pipe.transform(body)).toThrow('Invalid body');
     });
 });

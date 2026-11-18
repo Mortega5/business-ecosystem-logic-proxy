@@ -1,14 +1,14 @@
 import { Injectable, type PipeTransform } from '@nestjs/common';
 import { DomainError } from '../common/domain-error';
 
-const checked = (body: string): string => {
+const checked = (body: string, allowList = true): string => {
     let parsed: unknown;
     try {
         parsed = JSON.parse(body);
     } catch {
         throw new DomainError('Invalid body', 400);
     }
-    if (typeof parsed !== 'object' || parsed === null) {
+    if (typeof parsed !== 'object' || parsed === null || (!allowList && Array.isArray(parsed))) {
         throw new DomainError('Invalid body', 400);
     }
     return body;
@@ -22,6 +22,17 @@ export class JsonBodyPipe implements PipeTransform<unknown, string> {
             throw new DomainError('Invalid body', 400);
         }
         return checked(body);
+    }
+}
+
+/** Like `JsonBodyPipe`, for a route whose body is an object and never a list. */
+@Injectable()
+export class JsonObjectBodyPipe implements PipeTransform<unknown, string> {
+    transform(body: unknown): string {
+        if (typeof body !== 'string') {
+            throw new DomainError('Invalid body', 400);
+        }
+        return checked(body, false);
     }
 }
 
