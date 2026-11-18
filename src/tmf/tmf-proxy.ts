@@ -14,6 +14,8 @@ export interface ProxyTarget {
     path: string;
     /** The method to use when it is not the request's own, as in a read that comes before a write. */
     method?: string;
+    /** The type of a body the route builds itself, as the client's own would not describe it. */
+    contentType?: string;
     /** The body to send, when the route takes one: it is the controller that says so, never the request. */
     body?: string;
     /** The request is a file upload (multipart): its body is sent on as it arrives, up to `http.uploadLimit`. */
@@ -50,12 +52,15 @@ export class TmfProxy {
                 ...(target.body === undefined ? {} : { body: target.body }),
                 ...(target.upload === true ? { body: this.upload(req) } : {}),
                 ...(search === undefined ? {} : { search }),
-                headers: buildUpstreamHeaders({
-                    client: req.headers,
-                    user: (req as Request & { user?: UpstreamUser }).user,
-                    forwardedFor: req.ip,
-                    policy: this.config.auth
-                })
+                headers: {
+                    ...buildUpstreamHeaders({
+                        client: req.headers,
+                        user: (req as Request & { user?: UpstreamUser }).user,
+                        forwardedFor: req.ip,
+                        policy: this.config.auth
+                    }),
+                    ...(target.contentType === undefined ? {} : { 'content-type': target.contentType })
+                }
             });
         } catch (error) {
             if (error instanceof UpstreamError) {
