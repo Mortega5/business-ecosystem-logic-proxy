@@ -18,6 +18,7 @@ export const createApp = async (
         ...(httpsOptions === undefined ? {} : { httpsOptions })
     });
     app.set('query parser', 'extended');
+    app.disable('x-powered-by');
     app.useLogger(app.get(Logger));
     app.useGlobalFilters(new ErrorFilter(), new LegacyFallbackFilter(legacy));
     return app;

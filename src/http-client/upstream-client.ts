@@ -5,6 +5,8 @@ export interface UpstreamRequest {
     path: string;
     method?: string;
     query?: Record<string, string | string[]>;
+    /** The query string of a request being forwarded, as it came: keeps nested and repeated parameters exactly. */
+    search?: string;
     headers?: Record<string, string>;
     body?: string | Uint8Array<ArrayBuffer> | FormData;
     timeoutMs?: number;

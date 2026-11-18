@@ -65,6 +65,8 @@ export const start = async (options: StartOptions): Promise<RunningServer> => {
         logger.info('Legacy application loaded');
 
         const app = await createApp(legacy.app, options.rootModule, buildHttpsOptions(config.app.https));
+        // The client address (req.ip) comes from X-Forwarded-For only for the proxies the configuration trusts
+        app.set('trust proxy', config.http.trustedProxies.length === 0 ? false : config.http.trustedProxies);
         app.get(LegacyAuthBridge).attach(legacy.authPipeline);
         await (config.app.host === undefined ? app.listen(config.app.port) : app.listen(config.app.port, config.app.host));
         logger.info({ port: config.app.port }, 'Server listening');

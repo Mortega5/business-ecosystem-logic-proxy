@@ -15,6 +15,9 @@ const buildUrl = (baseUrl: string, request: UpstreamRequest): URL => {
     if (url.origin !== base.origin || !(url.pathname === basePath || url.pathname.startsWith(`${basePath}/`))) {
         throw new DomainError('Invalid request path', 400);
     }
+    if (request.search !== undefined && request.search !== '') {
+        url.search = request.search;
+    }
     for (const [name, value] of Object.entries(request.query ?? {})) {
         for (const item of Array.isArray(value) ? value : [value]) {
             url.searchParams.append(name, item);
