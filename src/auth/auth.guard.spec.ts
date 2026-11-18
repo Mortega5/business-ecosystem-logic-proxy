@@ -9,7 +9,7 @@ import { AppConfigModule } from '../config/app-config.module';
 import { LegacyAuthBridge, type LegacyMiddleware } from '../legacy/legacy-auth.bridge';
 import { LoggingModule } from '../logging/logging.module';
 import { AuthModule } from './auth.module';
-import { Public } from './public.decorator';
+import { OptionalAuth, Public } from './public.decorator';
 
 const nodeRequire = createRequire(__filename);
 // The legacy dependencies have no type declarations
@@ -87,6 +87,12 @@ class ProbeController {
         return { loggedIn: true };
     }
 
+    @OptionalAuth()
+    @Get('optional')
+    optional(@Req() req: { user?: { id: string } }) {
+        return { user: req.user?.id ?? null };
+    }
+
     @Public()
     @Get('public')
     public_(@Req() req: { user?: { id: string }; session?: unknown }) {
@@ -157,6 +163,17 @@ describe('@Public()', () => {
     });
 });
 
+describe('@OptionalAuth()', () => {
+    it('identifies a user who is logged in, and lets in one who is not', async () => {
+        expect(await call('/probe/optional', { Authorization: 'Bearer ana-token' })).toMatchObject({ status: 200, body: { user: 'u-ana' } });
+        expect(await call('/probe/optional')).toMatchObject({ status: 200, body: { user: null } });
+    });
+
+    it('answers what the legacy middleware answers when the token is not valid', async () => {
+        expect((await call('/probe/optional', { Authorization: 'Bearer nobody' })).status).toBe(401);
+    });
+});
+
 describe('without the legacy chain', () => {
     it('keeps private routes closed and public ones open', async () => {
         const bare = await createApp(express(), Root);
@@ -165,6 +182,7 @@ describe('without the legacy chain', () => {
         try {
             expect((await fetch(`${bareUrl}/probe/private`, { headers: { Authorization: 'Bearer ana-token' } })).status).toBe(401);
             expect((await fetch(`${bareUrl}/probe/public`)).status).toBe(200);
+            expect((await fetch(`${bareUrl}/probe/optional`)).status).toBe(200);
         } finally {
             await bare.close();
         }
