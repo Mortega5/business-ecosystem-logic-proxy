@@ -51,7 +51,7 @@ describe('a deployment configured with the legacy endpoint variables', () => {
 
     it('does not guess a host for what the deployment leaves out', () => {
         expect(() => resolveUpstream(upstreams, 'tmforum.quote')).toThrow('has no host');
-        expect(() => resolveUpstream(upstreams, 'rss')).toThrow('has no host');
+        expect(() => resolveUpstream(upstreams, 'revenue')).toThrow('has no host');
     });
 
     it('takes the host or the port a legacy variable leaves out from the group default', () => {

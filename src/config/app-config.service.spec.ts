@@ -42,7 +42,6 @@ const VALUE: AppConfig = {
         timeoutMs: 5000,
         tmforum: { host: 'tmforum', port: 8080, apis: { ...EMPTY_APIS, catalog: { path: '/catalog' } } },
         charging: { host: 'charging', port: 8006 },
-        rss: {},
         revenue: {},
         search: {}
     }

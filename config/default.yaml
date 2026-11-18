@@ -100,6 +100,5 @@ upstreams:
       software: { path: /tmf-api/softwareCompute/v4 }
       quote: { path: "" }
   charging: {}
-  rss: {}
   revenue: { path: /revenue }
   search: {}

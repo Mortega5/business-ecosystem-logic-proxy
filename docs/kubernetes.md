@@ -255,7 +255,7 @@ Keys read by the application:
 | `upstreams.timeoutMs` | integer | `30000` | Timeout of every upstream that does not set its own |
 | `upstreams.tmforum.host`, `.port`, `.scheme` | string, integer, `http` `https` | not set (`http` when no scheme is given) | Default server of every TMForum API |
 | `upstreams.tmforum.apis.<api>.host`, `.port`, `.scheme`, `.path`, `.timeoutMs` | | the standard TMForum paths | What one API sets itself; see [Upstreams](#upstreams) |
-| `upstreams.charging`, `.rss`, `.revenue`, `.search` | `host`, `port`, `scheme`, `path`, `timeoutMs` | not set (`revenue.path` is `/revenue`) | The services that are not TMForum APIs |
+| `upstreams.charging`, `.revenue`, `.search` | `host`, `port`, `scheme`, `path`, `timeoutMs` | not set (`revenue.path` is `/revenue`) | The services that are not TMForum APIs |
 | `health.mongoPingTimeoutMs` | integer | `1000` | |
 
 ## Logging
@@ -297,7 +297,7 @@ a warning is logged.
 
 The services the proxy calls are grouped in blocks. The `tmforum` block holds the TMForum APIs (`catalog`, `resource`,
 `service`, `ordering`, `inventory`, `serviceInventory`, `resourceInventory`, `party`, `account`, `customer`,
-`customerBill`, `usage`, `document`, `invoicing`, `software` and `quote`); `charging`, `rss`, `revenue` and `search`
+`customerBill`, `usage`, `document`, `invoicing`, `software` and `quote`); `charging`, `revenue` and `search`
 are standalone. Each API takes its own value for `host`, `port`, `scheme`, `path` and `timeoutMs` and, when it has none,
 its group's; the timeout falls back to `upstreams.timeoutMs`. The URL is `<scheme>://<host>[:<port>]<path>`.
 

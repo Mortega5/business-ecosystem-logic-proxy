@@ -17,7 +17,7 @@ export const TMFORUM_APIS = [
     'quote'
 ] as const;
 
-export const STANDALONE_UPSTREAMS = ['charging', 'rss', 'revenue', 'search'] as const;
+export const STANDALONE_UPSTREAMS = ['charging', 'revenue', 'search'] as const;
 
 export type TmforumApi = (typeof TMFORUM_APIS)[number];
 export type UpstreamName = `tmforum.${TmforumApi}` | (typeof STANDALONE_UPSTREAMS)[number];

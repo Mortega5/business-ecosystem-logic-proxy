@@ -101,7 +101,6 @@ const TMFORUM_ENDPOINTS: [string, string][] = [
 
 const STANDALONE_ENDPOINTS: [string, string][] = [
     ['charging', 'CHARGING'],
-    ['rss', 'RSS'],
     ['revenue', 'REVENUE'],
     ['search', 'SEARCH']
 ];

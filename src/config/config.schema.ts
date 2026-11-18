@@ -54,7 +54,6 @@ const upstreamsSchema = z.strictObject({
         apis: tmforumApis
     }),
     charging: upstreamEntry,
-    rss: upstreamEntry,
     revenue: upstreamEntry,
     search: upstreamEntry
 });
