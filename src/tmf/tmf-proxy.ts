@@ -12,6 +12,8 @@ export interface ProxyTarget {
     upstream: UpstreamName;
     /** The path on the upstream, built by the controller from what it has validated; never the client's own URL. */
     path: string;
+    /** The method to use when it is not the request's own, as in a read that comes before a write. */
+    method?: string;
     /** The body to send, when the route takes one: it is the controller that says so, never the request. */
     body?: string;
     /** The request is a file upload (multipart): its body is sent on as it arrives, up to `http.uploadLimit`. */
@@ -44,7 +46,7 @@ export class TmfProxy {
             return await this.upstream.send({
                 upstream: target.upstream,
                 path: target.path,
-                method: req.method,
+                method: target.method ?? req.method,
                 ...(target.body === undefined ? {} : { body: target.body }),
                 ...(target.upload === true ? { body: this.upload(req) } : {}),
                 ...(search === undefined ? {} : { search }),

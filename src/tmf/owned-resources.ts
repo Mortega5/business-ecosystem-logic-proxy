@@ -3,8 +3,9 @@ import type { Request, Response } from 'express';
 import { DomainError, ForbiddenError } from '../common/domain-error';
 import { AppConfigService } from '../config/app-config.service';
 import type { UpstreamName } from '../config/upstream-names';
+import type { UpstreamResponse } from '../http-client/upstream-client';
+import { callerParty, isRelatedAs } from './related-party';
 import { TmfProxy } from './tmf-proxy';
-import type { UpstreamUser } from './upstream-headers';
 
 // A filter is any field of the resource, with an optional `*` for the regular expression form. The TMForum server splits
 // a query on `&` and `;` even when they are encoded, so neither can be part of a name or a value.
@@ -22,9 +23,16 @@ const hasControlCharacter = (value: string): boolean => {
     return false;
 };
 
+/** The role of the caller in the resource that makes it theirs. */
+export type OwnerRole = 'customer' | 'seller';
+
 export interface OwnedList {
     upstream: UpstreamName;
     path: string;
+    /** The role that makes a resource the caller's; the customer by default. */
+    role?: OwnerRole;
+    /** The refusal when the caller has no party; the inventory's by default. */
+    refusal?: string;
 }
 
 export interface OwnedRead {
@@ -32,11 +40,15 @@ export interface OwnedRead {
     path: string;
     /** What the resource is called in the refusal. */
     noun: string;
+    /** The role that makes the resource the caller's; the customer by default. */
+    role?: OwnerRole;
+    /** The whole refusal, when it is not the inventory's. */
+    refusal?: string;
 }
 
 /**
  * Resources that belong to the parties related to them: a list is filtered for the caller and a resource is only
- * given to a party that is related to it as a customer.
+ * given to a party that is related to it in the role that makes it theirs.
  */
 @Injectable()
 export class OwnedResources {
@@ -45,20 +57,12 @@ export class OwnedResources {
         private readonly config: AppConfigService
     ) {}
 
-    private partyOf(req: Request, what: string): string {
-        const partyId = (req as Request & { user?: UpstreamUser }).user?.partyId;
-        if (typeof partyId !== 'string' || partyId === '') {
-            throw new ForbiddenError(what);
-        }
-        return partyId;
-    }
-
     /**
      * The list of the caller. Every filter the client sends goes on, except the ones about the related party, which the
      * proxy sets itself: the party of the caller and its role, last and next to each other, as the broker needs them.
      */
     async list(req: Request, res: Response, options: OwnedList): Promise<void> {
-        const partyId = this.partyOf(req, 'You are not authorized to list the inventory');
+        const partyId = callerParty(req, options.refusal ?? 'You are not authorized to list the inventory');
         const params = new URLSearchParams();
         const filters = Object.entries(req.query);
         if (filters.length > MAX_FILTERS) {
@@ -74,36 +78,34 @@ export class OwnedResources {
             params.append(name, value);
         }
         params.append('relatedParty.id', partyId);
-        params.append('relatedParty.role', this.config.auth.roles.customer);
+        params.append('relatedParty.role', this.config.auth.roles[options.role ?? 'customer']);
         await this.proxy.forward(req, res, { upstream: options.upstream, path: options.path, search: `?${params.toString()}` });
     }
 
-    /** One resource, given only when the caller is related to it as a customer. */
+    /** One resource, given only when the caller is related to it in the role that makes it theirs. */
     async read(req: Request, res: Response, options: OwnedRead): Promise<void> {
-        const refusal = `You are not authorized to retrieve the specified ${options.noun} from the inventory`;
-        const partyId = this.partyOf(req, refusal);
-        const response = await this.proxy.send(req, { upstream: options.upstream, path: options.path, search: '' });
-        if (response.status < 400 && !this.isCustomer(partyId, response.body)) {
-            throw new ForbiddenError(refusal);
-        }
-        this.proxy.reply(res, response);
+        this.proxy.reply(res, await this.fetch(req, options));
     }
 
-    private isCustomer(partyId: string, body: string): boolean {
-        let resource: unknown;
+    /**
+     * The resource as the upstream has it, for the caller to act on it: a success is returned only when the caller is
+     * related to the resource in the role that makes it theirs, and any other answer is returned as it came.
+     */
+    async fetch(req: Request, options: OwnedRead): Promise<UpstreamResponse> {
+        const refusal = options.refusal ?? `You are not authorized to retrieve the specified ${options.noun} from the inventory`;
+        const partyId = callerParty(req, refusal);
+        const response = await this.proxy.send(req, { upstream: options.upstream, path: options.path, method: 'GET', search: '' });
+        if (response.status < 400 && !this.isRelated(partyId, response.body, options.role ?? 'customer')) {
+            throw new ForbiddenError(refusal);
+        }
+        return response;
+    }
+
+    private isRelated(partyId: string, body: string, ownerRole: OwnerRole): boolean {
         try {
-            resource = JSON.parse(body);
+            return isRelatedAs(JSON.parse(body), partyId, this.config.auth.roles[ownerRole]);
         } catch {
             return false;
         }
-        const parties = typeof resource === 'object' && resource !== null && !Array.isArray(resource) ? (resource as { relatedParty?: unknown }).relatedParty : undefined;
-        const customer = this.config.auth.roles.customer.toLowerCase();
-        return (
-            Array.isArray(parties) &&
-            parties.some((party: unknown) => {
-                const { id, role } = (typeof party === 'object' && party !== null ? party : {}) as { id?: unknown; role?: unknown };
-                return id === partyId && typeof role === 'string' && role.toLowerCase() === customer;
-            })
-        );
     }
 }
