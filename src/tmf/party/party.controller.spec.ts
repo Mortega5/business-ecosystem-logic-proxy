@@ -143,6 +143,7 @@ describe('GET /party/individual/:id', () => {
         expect(res.status).toBe(200);
         expect(await res.json()).toEqual({ id: 'p-ana', givenName: 'Ana', contactMedium: [{ mediumType: 'Email' }] });
         expect(upstream.seen?.url).toBe(`${BASE}/individual/p-ana`);
+        expect(res.headers.get('cache-control')).toBe('private, no-store');
     });
 
     it('is given whole to the individual behind the organisation they act for', async () => {
@@ -156,6 +157,7 @@ describe('GET /party/individual/:id', () => {
 
         expect(res.status).toBe(200);
         expect(await res.json()).toEqual({ id: 'p-bob', href: 'p-bob', '@type': 'Individual', givenName: 'Bob', familyName: 'Builder' });
+        expect(res.headers.get('cache-control')).toBe('private, no-store');
     });
 
     it.each([

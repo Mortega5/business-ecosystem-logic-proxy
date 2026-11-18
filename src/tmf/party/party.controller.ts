@@ -13,6 +13,9 @@ import { parsePartyChanges, validateOrganizationChanges } from './party-changes'
 
 const NOT_ALLOWED = 'You are not allowed to access this resource';
 
+// What an individual shows depends on who asks, so a cache in between must not give it to somebody else
+const NOT_SHARED = { 'cache-control': 'private, no-store' };
+
 // What the portal asks of the list of organisations; the directory of providers (`lifecycleStatus`, `keyword`) is not served yet
 const LIST_FILTERS: Record<string, RegExp> = {
     fields: /^[A-Za-z0-9_.@,-]{1,200}$/,
@@ -71,7 +74,7 @@ export class PartyController {
         const user = this.user(req);
         const response = await this.proxy.send(req, { upstream: 'tmforum.party', path: `/individual/${encodeURIComponent(id)}`, search: '' });
         if (response.status >= 400 || id === user.partyId || id === user.userPartyId) {
-            this.proxy.reply(res, response);
+            this.proxy.reply(res, response, NOT_SHARED);
             return;
         }
         let individual: unknown;
@@ -84,7 +87,7 @@ export class PartyController {
             throw new BadGatewayError('The individual could not be read');
         }
         const name = Object.fromEntries(PUBLIC_INDIVIDUAL.filter((field) => field in individual).map((field) => [field, individual[field]]));
-        this.proxy.reply(res, { ...response, body: JSON.stringify(name) });
+        this.proxy.reply(res, { ...response, body: JSON.stringify(name) }, NOT_SHARED);
     }
 
     @Patch('individual/:id')
