@@ -70,7 +70,8 @@ Take [`src/tmf/document/`](../src/tmf/document/) as the model.
    }
    ```
 
-   `NotFoundError` and not `NotFoundException`: the latter is what hands a request to the legacy application.
+   `NotFoundError` and not `NotFoundException`: the latter is what hands a request to the legacy application. This
+   route exists only while the legacy application does; without it Nest's own 404 is enough, and these routes are removed.
 4. **Say who may call it.** Nothing means private. `@Public()` opens it, `@RequireFeature('quotes')` ties it to a
    feature.
 5. **Register the module** in `AppModule` and **document the routes** in `docs/openapi.yaml`; the test in
@@ -87,5 +88,6 @@ The bridge is referenced from a few places outside `src/legacy/`, and those are 
 
 - `src/auth/auth.guard.ts` and `auth.module.ts` stop using `LegacyAuthBridge`; the guard resolves the user itself.
 - `src/start.ts` stops attaching `authPipeline` and `src/bootstrap.ts` stops registering the fallback filter.
+- The closing `@All` route of each API controller is deleted: Nest's default 404 does the same.
 - `server.js` and its `authPipeline` export go, and so does `src/testing/fake-login.ts` (replaced by a fake strategy).
 - Then `src/legacy/` is deleted.
