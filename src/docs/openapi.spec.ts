@@ -18,6 +18,7 @@ import { MongoConnectionService } from '../persistence/mongo-connection.service'
 import { DocumentModule } from '../tmf/document/document.module';
 import { RevenueModule } from '../tmf/revenue/revenue.module';
 import { InvoicingModule } from '../tmf/invoicing/invoicing.module';
+import { QuoteModule } from '../tmf/quote/quote.module';
 import { SearchModule } from '../tmf/search/search.module';
 import { fakeLogin, LOGGED_IN } from '../testing/fake-login';
 import { FakeUpstream } from '../testing/fake-upstream';
@@ -48,7 +49,7 @@ const mongo = { ping: vi.fn<(timeoutMs: number) => Promise<boolean>>() };
             useValue: {
                 app: { shutdownDelayMs: 0 },
                 health: { mongoPingTimeoutMs: 500 },
-                http: { bodyLimit: '1kb' },
+                http: { bodyLimit: '1kb', uploadLimit: '1kb' },
                 auth: { propagateToken: true, allowLocalEori: false, roles: { admin: 'admin', customer: 'Buyer', seller: 'Seller', orgAdmin: 'orgAdmin' } },
                 upstream: (name: string) => ({ baseUrl: `http://127.0.0.1:${tmforum.port}/${name}`, timeoutMs: 300 })
             }
@@ -155,8 +156,8 @@ describe('responses against docs/openapi.yaml', () => {
         body?: string;
         /** The request that is not valid: another url, or another body. */
         invalid?: { url?: string; body?: string };
-        /** A body over the limit, when the route takes one. */
-        tooLarge?: boolean;
+        /** A body over the limit, when the route takes one: true for a JSON one, or the body itself. */
+        tooLarge?: boolean | string;
         /** What the 200 is, when it is not JSON. */
         page?: { contentType: string; body: string };
     }
@@ -193,14 +194,82 @@ describe('responses against docs/openapi.yaml', () => {
                           arrange: () => undefined
                       }
                   ]),
-            ...(options.tooLarge === true
-                ? [{ ...base, status: '413', body: JSON.stringify({ filler: 'x'.repeat(2000) }), headers, arrange: () => undefined }]
+            ...(options.tooLarge !== undefined && options.tooLarge !== false
+                ? [
+                      {
+                          ...base,
+                          status: '413',
+                          body: typeof options.tooLarge === 'string' ? options.tooLarge : JSON.stringify({ filler: 'x'.repeat(2000) }),
+                          headers,
+                          arrange: () => undefined
+                      }
+                  ]
                 : []),
             { ...base, status: '401', ...(options.headers === undefined ? {} : { headers: options.headers }), arrange: () => undefined },
             { ...base, status: '404', headers, arrange: () => tmforum.answer((res) => tmforum.json(res, 404, '{"error":"Not found"}')) },
             { ...base, status: '504', headers, arrange: () => tmforum.answer((res) => void setTimeout(() => res.end(), 800)) }
         ];
     };
+
+    const quoteRoot = '/quote/quoteManagement';
+    const quoteId = encodeURIComponent('urn:ngsi-ld:quote:7a1c0f3e');
+    const json = { 'content-type': 'application/json' };
+    const answer = '{"ok":true}';
+    const UPLOAD_TYPE = 'multipart/form-data; boundary=b';
+    const UPLOAD = '--b\r\nContent-Disposition: form-data; name="file"; filename="a.pdf"\r\n\r\nx\r\n--b--\r\n';
+
+    // One entry per route of the quote service: its method, documented path, real path and what it takes
+    const quoteRoutes: [string, string, string, ProxiedOptions][] = [
+        ['post', 'createQuote', 'createQuote', { headers: json, body: '{"a":1}', invalid: { body: 'not json' }, tooLarge: true }],
+        ['post', 'quote', 'quote', { headers: json, body: '{"a":1}', invalid: { body: 'not json' }, tooLarge: true }],
+        ['get', 'quote', 'quote', {}],
+        ['get', 'quoteById/{id}', `quoteById/${quoteId}`, { invalid: { url: `${quoteRoot}/quoteById/a%20b` } }],
+        ['delete', 'quote/{id}', `quote/${quoteId}`, { invalid: { url: `${quoteRoot}/quote/a%20b` } }],
+        ...['updateQuoteStatus', 'updateQuoteDate', 'addNoteToQuote'].map((name): [string, string, string, ProxiedOptions] => [
+            'patch',
+            `${name}/{id}`,
+            `${name}/${quoteId}`,
+            { headers: json, body: '{"a":1}', invalid: { url: `${quoteRoot}/${name}/a%20b` }, tooLarge: true }
+        ]),
+        ['get', 'quoteByUser/{userId}', 'quoteByUser/p-ana', { invalid: { url: `${quoteRoot}/quoteByUser/a%20b` } }],
+        ['post', 'tendering/createCoordinatorQuote', 'tendering/createCoordinatorQuote', { headers: json, body: '{"a":1}', invalid: { body: 'not json' }, tooLarge: true }],
+        ['post', 'tendering/createQuote', 'tendering/createQuote', { headers: json, body: '{"a":1}', invalid: { body: 'not json' }, tooLarge: true }],
+        ['get', 'tendering/coordinatorQuotes/{userId}', 'tendering/coordinatorQuotes/p-ana', { invalid: { url: `${quoteRoot}/tendering/coordinatorQuotes/a%20b` } }],
+        ['get', 'tendering/quotes/{userId}', 'tendering/quotes/p-ana', { invalid: { url: `${quoteRoot}/tendering/quotes/a%20b` } }],
+        ['post', 'tendering/broadcastMessage', 'tendering/broadcastMessage', { headers: json, body: '{"a":1}', invalid: { body: 'not json' }, tooLarge: true }]
+    ];
+
+    const quoteCases = (): Case[] => [
+        ...quoteRoutes.flatMap(([method, path, real, options]) =>
+            proxied(`${quoteRoot}/${path}`, `${quoteRoot}/${real}`, answer, { ...options, method })
+        ),
+        ...proxied(`${quoteRoot}/addAttachmentToQuote/{id}`, `${quoteRoot}/addAttachmentToQuote/${quoteId}`, answer, {
+            method: 'patch',
+            headers: { 'content-type': UPLOAD_TYPE },
+            body: UPLOAD,
+            invalid: { url: `${quoteRoot}/addAttachmentToQuote/a%20b` },
+            tooLarge: UPLOAD + 'x'.repeat(2000)
+        }),
+        ...['quoteByUser/{userId}', 'tendering/coordinatorQuotes/{userId}', 'tendering/quotes/{userId}'].map(
+            (path): Case => ({
+                method: 'get',
+                path: `${quoteRoot}/${path}`,
+                status: '403',
+                url: `${quoteRoot}/${path.replace('{userId}', 'p-other')}`,
+                headers: LOGGED_IN,
+                arrange: () => undefined
+            })
+        ),
+        {
+            method: 'patch',
+            path: `${quoteRoot}/addAttachmentToQuote/{id}`,
+            status: '415',
+            url: `${quoteRoot}/addAttachmentToQuote/${quoteId}`,
+            headers: { ...LOGGED_IN, ...json },
+            body: '{"a":1}',
+            arrange: () => undefined
+        }
+    ];
 
     const cases: Case[] = [
         { method: 'get', path: '/health/live', status: '200', arrange: () => mongo.ping.mockResolvedValue(false) },
@@ -236,13 +305,14 @@ describe('responses against docs/openapi.yaml', () => {
                 invalid: { url: '/invoicing/invoices/a%20b?format=xml-html' },
                 page: { contentType: 'text/html', body: '<html><body><h1>Invoice</h1></body></html>' }
             }
-        )
+        ),
+        ...quoteCases()
     ];
 
     beforeAll(async () => {
         await tmforum.start();
 
-        @Module({ imports: [DependenciesStub, LoggerModule.forRoot({ pinoHttp: { level: 'silent' } }), HealthModule, AuthModule, DocumentModule, RevenueModule, SearchModule, InvoicingModule] })
+        @Module({ imports: [DependenciesStub, LoggerModule.forRoot({ pinoHttp: { level: 'silent' } }), HealthModule, AuthModule, DocumentModule, RevenueModule, SearchModule, InvoicingModule, QuoteModule] })
         class Contract {}
 
         app = await createApp(express(), Contract);

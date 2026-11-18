@@ -19,6 +19,8 @@ tags:
     description: The organisation search, as far as the portal uses it.
   - name: invoicing
     description: The invoicing API, as far as the portal uses it.
+  - name: quote
+    description: The quote management service, as far as the portal uses it.
 paths:
   /health/live:
     get:
@@ -402,6 +404,632 @@ paths:
           $ref: '#/components/responses/UpstreamNotFound'
         '504':
           $ref: '#/components/responses/UpstreamUnreachable'
+  /quote/quoteManagement/createQuote:
+    post:
+      tags: [quote]
+      operationId: createQuoteRequest
+      summary: Create a quote (request form)
+      description: |
+        Goes to the quote management service. Available while the `quotes` feature is on; it answers 404 otherwise.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: The answer of the quote service.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: array
+                    items: {}
+                  - type: object
+                    additionalProperties: true
+              example:
+                ok: true
+        '400':
+          $ref: '#/components/responses/InvalidBody'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+  /quote/quoteManagement/quote:
+    post:
+      tags: [quote]
+      operationId: createQuote
+      summary: Create a quote
+      description: |
+        Goes to the quote management service. Available while the `quotes` feature is on; it answers 404 otherwise.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: The answer of the quote service.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: array
+                    items: {}
+                  - type: object
+                    additionalProperties: true
+              example:
+                ok: true
+        '400':
+          $ref: '#/components/responses/InvalidBody'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+    get:
+      tags: [quote]
+      operationId: listQuotes
+      summary: List quotes
+      description: |
+        Goes to the quote management service. Available while the `quotes` feature is on; it answers 404 otherwise.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      responses:
+        '200':
+          description: The answer of the quote service.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: array
+                    items: {}
+                  - type: object
+                    additionalProperties: true
+              example:
+                ok: true
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+  /quote/quoteManagement/quoteById/{id}:
+    get:
+      tags: [quote]
+      operationId: getQuoteById
+      summary: Read a quote
+      description: |
+        Goes to the quote management service. Available while the `quotes` feature is on; it answers 404 otherwise.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: The answer of the quote service.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: array
+                    items: {}
+                  - type: object
+                    additionalProperties: true
+              example:
+                ok: true
+        '400':
+          $ref: '#/components/responses/InvalidId'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+  /quote/quoteManagement/quote/{id}:
+    delete:
+      tags: [quote]
+      operationId: deleteQuote
+      summary: Delete a quote
+      description: |
+        Goes to the quote management service. Available while the `quotes` feature is on; it answers 404 otherwise.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: The answer of the quote service.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: array
+                    items: {}
+                  - type: object
+                    additionalProperties: true
+              example:
+                ok: true
+        '400':
+          $ref: '#/components/responses/InvalidId'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+  /quote/quoteManagement/updateQuoteStatus/{id}:
+    patch:
+      tags: [quote]
+      operationId: updateQuoteStatus
+      summary: Update the status of a quote
+      description: |
+        Goes to the quote management service. Available while the `quotes` feature is on; it answers 404 otherwise.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ResourceId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: The answer of the quote service.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: array
+                    items: {}
+                  - type: object
+                    additionalProperties: true
+              example:
+                ok: true
+        '400':
+          $ref: '#/components/responses/InvalidIdOrBody'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+  /quote/quoteManagement/updateQuoteDate/{id}:
+    patch:
+      tags: [quote]
+      operationId: updateQuoteDate
+      summary: Update a date of a quote
+      description: |
+        Goes to the quote management service. Available while the `quotes` feature is on; it answers 404 otherwise.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ResourceId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: The answer of the quote service.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: array
+                    items: {}
+                  - type: object
+                    additionalProperties: true
+              example:
+                ok: true
+        '400':
+          $ref: '#/components/responses/InvalidIdOrBody'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+  /quote/quoteManagement/addNoteToQuote/{id}:
+    patch:
+      tags: [quote]
+      operationId: addNoteToQuote
+      summary: Add a note to a quote
+      description: |
+        Goes to the quote management service. Available while the `quotes` feature is on; it answers 404 otherwise.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ResourceId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: The answer of the quote service.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: array
+                    items: {}
+                  - type: object
+                    additionalProperties: true
+              example:
+                ok: true
+        '400':
+          $ref: '#/components/responses/InvalidIdOrBody'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+  /quote/quoteManagement/addAttachmentToQuote/{id}:
+    patch:
+      tags: [quote]
+      operationId: addAttachmentToQuote
+      summary: Attach a file to a quote
+      description: |
+        Goes to the quote management service. Available while the `quotes` feature is on; it answers 404 otherwise.
+        The body is a multipart upload, sent on as it arrives, up to `http.uploadLimit`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ResourceId'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                description:
+                  type: string
+      responses:
+        '200':
+          description: The answer of the quote service.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: array
+                    items: {}
+                  - type: object
+                    additionalProperties: true
+              example:
+                ok: true
+        '400':
+          $ref: '#/components/responses/InvalidIdOrBody'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+  /quote/quoteManagement/quoteByUser/{userId}:
+    get:
+      tags: [quote]
+      operationId: getQuotesByUser
+      summary: List the quotes of a user
+      description: |
+        Goes to the quote management service. Available while the `quotes` feature is on; it answers 404 otherwise.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: The answer of the quote service.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: array
+                    items: {}
+                  - type: object
+                    additionalProperties: true
+              example:
+                ok: true
+        '400':
+          $ref: '#/components/responses/InvalidId'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+  /quote/quoteManagement/tendering/createCoordinatorQuote:
+    post:
+      tags: [quote]
+      operationId: createCoordinatorQuote
+      summary: Create the quote of the coordinator of a tender
+      description: |
+        Goes to the quote management service. Available while the `tendering` feature is on; it answers 404 otherwise.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: The answer of the quote service.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: array
+                    items: {}
+                  - type: object
+                    additionalProperties: true
+              example:
+                ok: true
+        '400':
+          $ref: '#/components/responses/InvalidBody'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+  /quote/quoteManagement/tendering/createQuote:
+    post:
+      tags: [quote]
+      operationId: createTenderQuote
+      summary: Create a quote of a tender
+      description: |
+        Goes to the quote management service. Available while the `tendering` feature is on; it answers 404 otherwise.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: The answer of the quote service.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: array
+                    items: {}
+                  - type: object
+                    additionalProperties: true
+              example:
+                ok: true
+        '400':
+          $ref: '#/components/responses/InvalidBody'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+  /quote/quoteManagement/tendering/coordinatorQuotes/{userId}:
+    get:
+      tags: [quote]
+      operationId: getCoordinatorQuotes
+      summary: List the quotes a coordinator manages
+      description: |
+        Goes to the quote management service. Available while the `tendering` feature is on; it answers 404 otherwise.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: The answer of the quote service.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: array
+                    items: {}
+                  - type: object
+                    additionalProperties: true
+              example:
+                ok: true
+        '400':
+          $ref: '#/components/responses/InvalidId'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+  /quote/quoteManagement/tendering/quotes/{userId}:
+    get:
+      tags: [quote]
+      operationId: getTenderQuotes
+      summary: List the quotes of a user in tenders
+      description: |
+        Goes to the quote management service. Available while the `tendering` feature is on; it answers 404 otherwise.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: The answer of the quote service.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: array
+                    items: {}
+                  - type: object
+                    additionalProperties: true
+              example:
+                ok: true
+        '400':
+          $ref: '#/components/responses/InvalidId'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+  /quote/quoteManagement/tendering/broadcastMessage:
+    post:
+      tags: [quote]
+      operationId: broadcastMessage
+      summary: Send a message to the providers of a tender
+      description: |
+        Goes to the quote management service. Available while the `tendering` feature is on; it answers 404 otherwise.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: The answer of the quote service.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: array
+                    items: {}
+                  - type: object
+                    additionalProperties: true
+              example:
+                ok: true
+        '400':
+          $ref: '#/components/responses/InvalidBody'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
 components:
   securitySchemes:
     bearerAuth:
@@ -412,6 +1040,14 @@ components:
       in: cookie
       name: connect.sid
   parameters:
+    UserId:
+      name: userId
+      in: path
+      required: true
+      description: 'Identifier of a user or of an organisation: letters, digits and the marks : . _ -, up to 200 characters.'
+      schema:
+        type: string
+        pattern: '^(?!\.+$)[A-Za-z0-9:._-]{1,200}$'
     ResourceId:
       name: id
       in: path
@@ -436,6 +1072,46 @@ components:
             $ref: '#/components/schemas/ErrorResult'
           example:
             error: Invalid id
+    InvalidBody:
+      description: The body is not a JSON object or array.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResult'
+          example:
+            error: Invalid body
+    InvalidIdOrBody:
+      description: The id or the body is not valid.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResult'
+          example:
+            error: Invalid id
+    PayloadTooLarge:
+      description: The body is bigger than `http.bodyLimit`, or the upload than `http.uploadLimit`.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResult'
+          example:
+            error: Upload too large
+    UnsupportedMediaType:
+      description: The upload is not a multipart body.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResult'
+          example:
+            error: Unsupported media type
+    Forbidden:
+      description: The party in the path is not the one of the caller, who is not an administrator either.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResult'
+          example:
+            error: You are not allowed to access the resources of another party
     NotAuthenticated:
       description: Nobody is logged in.
       content:

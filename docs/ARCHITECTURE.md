@@ -85,7 +85,8 @@ Take [`src/tmf/document/`](../src/tmf/document/) as the model.
    alone and it goes on to the upstream as a stream, counted against `http.uploadLimit` (413 beyond it, 415 when it is
    not multipart). `OptionalJsonBodyPipe` is the pipe for a route that may come with no body.
 5. **Say who may call it.** Nothing means private. `@Public()` opens it, `@RequireFeature('quotes')` ties it to a
-   feature.
+   feature, on the controller or on a route; the one of a route wins. A route that names a party in its path as `:userId` uses `OwnPartyGuard`, which lets in only that party (the
+   individual's, or the organisation's when acting for one) and administrators.
 6. **Register the module** in `AppModule` and **document the routes** in `docs/openapi.yaml`; the test in
    `src/docs/openapi.spec.ts` fails until every route and every documented answer has a case.
 7. **Test it.** A controller spec with `FakeUpstream` and `fakeLogin` (see `document.controller.spec.ts`): the happy
