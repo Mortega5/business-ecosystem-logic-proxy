@@ -20,9 +20,10 @@ import { DocumentModule } from '../tmf/document/document.module';
 import { RevenueModule } from '../tmf/revenue/revenue.module';
 import { InventoryModule } from '../tmf/inventory/inventory.module';
 import { InvoicingModule } from '../tmf/invoicing/invoicing.module';
+import { PartyModule } from '../tmf/party/party.module';
 import { QuoteModule } from '../tmf/quote/quote.module';
 import { SearchModule } from '../tmf/search/search.module';
-import { fakeLogin, LOGGED_IN } from '../testing/fake-login';
+import { AS_ORGANISATION, fakeLogin, LOGGED_IN } from '../testing/fake-login';
 import { FakeUpstream } from '../testing/fake-upstream';
 
 interface ResponseObject {
@@ -52,6 +53,7 @@ const mongo = { ping: vi.fn<(timeoutMs: number) => Promise<boolean>>() };
                 app: { shutdownDelayMs: 0 },
                 health: { mongoPingTimeoutMs: 500 },
                 http: { bodyLimit: '1kb', uploadLimit: '1kb' },
+                party: { editEnabled: true },
                 auth: { propagateToken: true, allowLocalEori: false, roles: { admin: 'admin', customer: 'Buyer', seller: 'Seller', orgAdmin: 'orgAdmin' } },
                 upstream: (name: string) => ({ baseUrl: `http://127.0.0.1:${tmforum.port}/${name}`, timeoutMs: 300 })
             }
@@ -207,11 +209,29 @@ describe('responses against docs/openapi.yaml', () => {
                       }
                   ]
                 : []),
-            { ...base, status: '401', ...(options.headers === undefined ? {} : { headers: options.headers }), arrange: () => undefined },
+            {
+                ...base,
+                status: '401',
+                ...(options.headers === undefined
+                    ? {}
+                    : { headers: Object.fromEntries(Object.entries(options.headers).filter(([name]) => name.toLowerCase() !== 'authorization')) }),
+                arrange: () => undefined
+            },
             { ...base, status: '404', headers, arrange: () => tmforum.answer((res) => tmforum.json(res, 404, '{"error":"Not found"}')) },
             { ...base, status: '504', headers, arrange: () => tmforum.answer((res) => void setTimeout(() => res.end(), 800)) }
         ];
     };
+
+    // A request the proxy refuses, or one that the upstream's answer makes it refuse
+    const refused = (method: string, path: string, status: string, target: string, body: string | undefined, upstreamAnswer: string, caller: Record<string, string> = LOGGED_IN): Case => ({
+        method,
+        path,
+        status,
+        url: target,
+        headers: { ...caller, ...(body === undefined ? {} : { 'content-type': 'application/json' }) },
+        ...(body === undefined ? {} : { body }),
+        arrange: () => tmforum.answer((res) => tmforum.json(res, 200, upstreamAnswer))
+    });
 
     const quoteRoot = '/quote/quoteManagement';
     const quoteId = encodeURIComponent('urn:ngsi-ld:quote:7a1c0f3e');
@@ -292,18 +312,8 @@ describe('responses against docs/openapi.yaml', () => {
     const accountCases = (): Case[] => {
         const mine = '{"id":"x-1","relatedParty":[{"id":"p-ana","role":"Seller"}]}';
         const notMine = '{"id":"x-1","relatedParty":[{"id":"p-other","role":"Seller"}]}';
-        const json = { 'content-type': 'application/json' };
         const owner = '{"relatedParty":[{"id":"p-ana","role":"Seller"}]}';
         const badPhone = '{"contact":[{"contactMedium":[{"mediumType":"TelephoneNumber","characteristic":{"phoneNumber":"12"}}]}]}';
-        const refused = (method: string, path: string, status: string, target: string, body: string | undefined, upstreamAnswer: string): Case => ({
-            method,
-            path,
-            status,
-            url: target,
-            headers: { ...LOGGED_IN, ...(body === undefined ? {} : json) },
-            ...(body === undefined ? {} : { body }),
-            arrange: () => tmforum.answer((res) => tmforum.json(res, 200, upstreamAnswer))
-        });
         return [
             ...proxied('/account/billingAccount', '/account/billingAccount?limit=5', '[]', { invalid: { url: '/account/billingAccount?q=x' } }),
             ...proxied('/account/billingAccount/{id}', '/account/billingAccount/x-1', mine, { invalid: { url: '/account/billingAccount/a%20b' } }),
@@ -326,6 +336,35 @@ describe('responses against docs/openapi.yaml', () => {
             }),
             refused('patch', '/account/billingAccount/{id}', '403', '/account/billingAccount/x-1', '{"state":"Active"}', notMine),
             refused('patch', '/account/billingAccount/{id}', '422', '/account/billingAccount/x-1', badPhone, mine)
+        ];
+    };
+
+    // The party API: the organisations are open, an individual is for those who are logged in, and a party is changed by itself
+    const partyCases = (): Case[] => {
+        const individual = '{"id":"p-bob","href":"p-bob","@type":"Individual","givenName":"Bob","familyName":"Builder"}';
+        const withoutLogin = (cases: Case[]): Case[] => cases.filter((c) => c.status !== '401');
+        return [
+            ...withoutLogin(proxied('/party/organization', '/party/organization?fields=id&offset=0&limit=5', '[{"id":"p-acme"}]', { invalid: { url: '/party/organization?keyword=cloud' } })),
+            ...withoutLogin(proxied('/party/organization/{id}', '/party/organization/p-acme', '{"id":"p-acme","tradingName":"Acme"}', { invalid: { url: '/party/organization/a%20b' } })),
+            ...proxied('/party/individual/{id}', '/party/individual/p-bob', individual, { invalid: { url: '/party/individual/a%20b' } }),
+            refused('get', '/party/individual/{id}', '502', '/party/individual/p-bob', undefined, 'not json'),
+            ...proxied('/party/individual/{id}', '/party/individual/p-ana', '{"id":"p-ana"}', {
+                method: 'patch',
+                headers: json,
+                body: '{"givenName":"Ana"}',
+                invalid: { url: '/party/individual/a%20b' },
+                tooLarge: true
+            }),
+            refused('patch', '/party/individual/{id}', '403', '/party/individual/p-bob', '{"givenName":"Bob"}', '{}'),
+            ...proxied('/party/organization/{id}', '/party/organization/p-acme', '{"id":"p-acme"}', {
+                method: 'patch',
+                headers: { ...json, ...AS_ORGANISATION },
+                body: '{"tradingName":"Acme"}',
+                invalid: { url: '/party/organization/a%20b' },
+                tooLarge: true
+            }),
+            refused('patch', '/party/organization/{id}', '403', '/party/organization/p-ana', '{"tradingName":"Ana"}', '{}'),
+            refused('patch', '/party/organization/{id}', '422', '/party/organization/p-acme', '{"contactMedium":[{"mediumType":"TelephoneNumber"}]}', '{}', AS_ORGANISATION)
         ];
     };
 
@@ -366,13 +405,14 @@ describe('responses against docs/openapi.yaml', () => {
         ),
         ...quoteCases(),
         ...inventoryCases(),
-        ...accountCases()
+        ...accountCases(),
+        ...partyCases()
     ];
 
     beforeAll(async () => {
         await tmforum.start();
 
-        @Module({ imports: [DependenciesStub, LoggerModule.forRoot({ pinoHttp: { level: 'silent' } }), HealthModule, AuthModule, DocumentModule, RevenueModule, SearchModule, InvoicingModule, QuoteModule, InventoryModule, AccountModule] })
+        @Module({ imports: [DependenciesStub, LoggerModule.forRoot({ pinoHttp: { level: 'silent' } }), HealthModule, AuthModule, DocumentModule, RevenueModule, SearchModule, InvoicingModule, QuoteModule, InventoryModule, AccountModule, PartyModule] })
         class Contract {}
 
         app = await createApp(express(), Contract);

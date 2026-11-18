@@ -25,6 +25,8 @@ tags:
     description: The product, service and resource inventories, as far as the portal uses them.
   - name: account
     description: The billing accounts of the caller, as far as the portal uses them.
+  - name: party
+    description: The organisations and individuals, as far as the portal uses them.
 paths:
   /health/live:
     get:
@@ -1488,6 +1490,227 @@ paths:
           $ref: '#/components/responses/InvalidPhoneNumber'
         '504':
           $ref: '#/components/responses/UpstreamUnreachable'
+  /party/organization:
+    get:
+      tags: [party]
+      operationId: listOrganizations
+      summary: List of organisations
+      description: |
+        Open to anybody; it is asked for with the identity of the caller when there is one. Only the filters the portal uses are
+        accepted, each once. The directory of providers (`lifecycleStatus`, `keyword`) is not served yet and is refused like any
+        other filter.
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - name: fields
+          in: query
+          required: false
+          description: 'Comma-separated fields: letters, digits and the marks _ . @ , -, up to 200 characters.'
+          schema:
+            type: string
+            pattern: '^[A-Za-z0-9_.@,-]{1,200}$'
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+      responses:
+        '200':
+          description: The organisations, as the party API answers them.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
+              example:
+                - id: urn:ngsi-ld:organization:1
+        '400':
+          $ref: '#/components/responses/InvalidQuery'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+  /party/organization/{id}:
+    get:
+      tags: [party]
+      operationId: getOrganization
+      summary: An organisation
+      description: Open to anybody; it is asked for with the identity of the caller when there is one. The query is not sent on.
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: The organisation, as the party API answers it.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                id: urn:ngsi-ld:organization:1
+        '400':
+          $ref: '#/components/responses/InvalidId'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+    patch:
+      tags: [party]
+      operationId: updateOrganization
+      summary: Change an organisation
+      description: |
+        Only the organisation itself, through a user who acts for it and has the organisation administrator role, and only in an
+        instance that allows to edit parties. `id` and `href` of the body are dropped. A telephone has to have a valid number in the
+        international format and a country has to be a code of two letters. The legacy application forgets the organisation once the
+        change is made.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ResourceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: The organisation changed, as the party API answers it.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                id: urn:ngsi-ld:organization:1
+        '400':
+          $ref: '#/components/responses/InvalidIdOrBody'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/NotAllowedParty'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '422':
+          $ref: '#/components/responses/InvalidPartyChanges'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+  /party/individual/{id}:
+    get:
+      tags: [party]
+      operationId: getIndividual
+      summary: An individual
+      description: |
+        For a user who is logged in. The individual themselves, or the one behind the organisation they act for, gets the whole
+        profile; anybody else gets the name only (`id`, `href`, `@type`, `givenName` and `familyName`). The query is not sent on.
+        The list of individuals does not exist.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: The individual, as the party API answers it.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                id: urn:ngsi-ld:individual:1
+                givenName: Ana
+        '400':
+          $ref: '#/components/responses/InvalidId'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '502':
+          description: What the party API answered for an individual of somebody else is not an individual, so there is no name to give.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: The individual could not be read
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+    patch:
+      tags: [party]
+      operationId: updateIndividual
+      summary: Change an individual
+      description: |
+        Only the individual themselves, while they do not act for an organisation, and only in an instance that allows to edit
+        parties. `id` and `href` of the body are dropped. The legacy application forgets the individual once the change is made.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ResourceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: The individual changed, as the party API answers it.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                id: urn:ngsi-ld:individual:1
+        '400':
+          $ref: '#/components/responses/InvalidIdOrBody'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/NotAllowedParty'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
 components:
   securitySchemes:
     bearerAuth:
@@ -1602,6 +1825,22 @@ components:
             $ref: '#/components/schemas/ErrorResult'
           example:
             error: Invalid phone number
+    NotAllowedParty:
+      description: The party is not the one of the caller, the caller does not act as it should, or the instance does not allow to edit parties.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResult'
+          example:
+            error: You are not allowed to access this resource
+    InvalidPartyChanges:
+      description: A telephone has no valid number, or a country is not a code of two letters.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResult'
+          example:
+            error: Invalid country code
     UpstreamNotFound:
       description: The server behind does not know the resource; the body is the one it sends.
       content:
