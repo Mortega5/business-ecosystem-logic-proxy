@@ -1,4 +1,4 @@
-import { BadRequestException, Controller, Get, Module } from '@nestjs/common';
+import { BadRequestException, Controller, Get, Module, ServiceUnavailableException } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import express from 'express';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -27,6 +27,11 @@ class ErrorsController {
     @Get('http')
     http(): never {
         throw new BadRequestException('Bad filter');
+    }
+
+    @Get('unavailable')
+    unavailable(): never {
+        throw new ServiceUnavailableException({ status: 'error', details: { mongodb: { status: 'down' } } });
     }
 
     @Get('unexpected')
@@ -73,6 +78,13 @@ describe('error filter', () => {
 
     it('keeps the status of a client-side HTTP exception', async () => {
         expect(await get('/errors/http')).toEqual({ status: 400, body: { error: 'Bad filter' } });
+    });
+
+    it('keeps the body an HTTP exception of 5xx was thrown with, as a failing health check does', async () => {
+        expect(await get('/errors/unavailable')).toEqual({
+            status: 503,
+            body: { status: 'error', details: { mongodb: { status: 'down' } } }
+        });
     });
 
     it('hides the details of an unexpected error', async () => {
