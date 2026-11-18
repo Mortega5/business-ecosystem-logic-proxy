@@ -91,6 +91,7 @@
   },
   "scripts": {
     "lint": "oxlint --type-aware .",
+    "lint:src": "oxlint --type-aware src",
     "test:unit": "vitest run --passWithNoTests",
     "typecheck": "tsc --noEmit",
     "build": "nest build",
