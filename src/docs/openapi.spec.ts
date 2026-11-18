@@ -17,6 +17,7 @@ import { LegacyAuthBridge } from '../legacy/legacy-auth.bridge';
 import { MongoConnectionService } from '../persistence/mongo-connection.service';
 import { DocumentModule } from '../tmf/document/document.module';
 import { RevenueModule } from '../tmf/revenue/revenue.module';
+import { SearchModule } from '../tmf/search/search.module';
 import { fakeLogin, LOGGED_IN } from '../testing/fake-login';
 import { FakeUpstream } from '../testing/fake-upstream';
 
@@ -46,6 +47,7 @@ const mongo = { ping: vi.fn<(timeoutMs: number) => Promise<boolean>>() };
             useValue: {
                 app: { shutdownDelayMs: 0 },
                 health: { mongoPingTimeoutMs: 500 },
+                http: { bodyLimit: '1kb' },
                 auth: { propagateToken: true, allowLocalEori: false, roles: { admin: 'admin', customer: 'Buyer', seller: 'Seller', orgAdmin: 'orgAdmin' } },
                 upstream: (name: string) => ({ baseUrl: `http://127.0.0.1:${tmforum.port}/${name}`, timeoutMs: 300 })
             }
@@ -142,17 +144,47 @@ describe('responses against docs/openapi.yaml', () => {
         status: string;
         url?: string;
         headers?: Record<string, string>;
+        body?: string;
         arrange: () => void;
     }
 
+    interface ProxiedOptions {
+        method?: string;
+        headers?: Record<string, string>;
+        body?: string;
+        /** The request that is not valid: another url, or another body. */
+        invalid?: { url?: string; body?: string };
+        /** A body over the limit, when the route takes one. */
+        tooLarge?: boolean;
+    }
+
     // What every proxied route of the portal answers, as documented
-    const proxied = (path: string, url: string, body: string): Case[] => [
-        { method: 'get', path, status: '200', url, headers: LOGGED_IN, arrange: () => tmforum.answer((res) => tmforum.json(res, 200, body)) },
-        { method: 'get', path, status: '400', url: url.replace(/[^/]+$/, 'a%20b'), headers: LOGGED_IN, arrange: () => undefined },
-        { method: 'get', path, status: '401', url, arrange: () => undefined },
-        { method: 'get', path, status: '404', url, headers: LOGGED_IN, arrange: () => tmforum.answer((res) => tmforum.json(res, 404, '{"error":"Not found"}')) },
-        { method: 'get', path, status: '504', url, headers: LOGGED_IN, arrange: () => tmforum.answer((res) => void setTimeout(() => res.end(), 800)) }
-    ];
+    const proxied = (path: string, url: string, answer: string, options: ProxiedOptions = {}): Case[] => {
+        const method = options.method ?? 'get';
+        const headers = { ...LOGGED_IN, ...options.headers };
+        const base = { method, path, url, ...(options.body === undefined ? {} : { body: options.body }) };
+        return [
+            { ...base, status: '200', headers, arrange: () => tmforum.answer((res) => tmforum.json(res, 200, answer)) },
+            ...(options.invalid === undefined
+                ? []
+                : [
+                      {
+                          ...base,
+                          status: '400',
+                          url: options.invalid.url ?? url,
+                          ...(options.invalid.body === undefined ? {} : { body: options.invalid.body }),
+                          headers,
+                          arrange: () => undefined
+                      }
+                  ]),
+            ...(options.tooLarge === true
+                ? [{ ...base, status: '413', body: JSON.stringify({ filler: 'x'.repeat(2000) }), headers, arrange: () => undefined }]
+                : []),
+            { ...base, status: '401', ...(options.headers === undefined ? {} : { headers: options.headers }), arrange: () => undefined },
+            { ...base, status: '404', headers, arrange: () => tmforum.answer((res) => tmforum.json(res, 404, '{"error":"Not found"}')) },
+            { ...base, status: '504', headers, arrange: () => tmforum.answer((res) => void setTimeout(() => res.end(), 800)) }
+        ];
+    };
 
     const cases: Case[] = [
         { method: 'get', path: '/health/live', status: '200', arrange: () => mongo.ping.mockResolvedValue(false) },
@@ -161,19 +193,31 @@ describe('responses against docs/openapi.yaml', () => {
         ...proxied(
             '/document/documentSpecification/{id}',
             `/document/documentSpecification/${encodeURIComponent('urn:ngsi-ld:document-specification:7a1c0f3e')}`,
-            '{"id":"urn:ngsi-ld:document-specification:7a1c0f3e","name":"Terms"}'
+            '{"id":"urn:ngsi-ld:document-specification:7a1c0f3e","name":"Terms"}',
+            { invalid: { url: '/document/documentSpecification/a%20b' } }
         ),
         ...proxied(
             '/revenue/dashboard/{id}',
             `/revenue/dashboard/${encodeURIComponent('urn:ngsi-ld:organization:a195013a')}`,
-            '[{"label":"Subscription","text":null,"link":null,"items":null}]'
+            '[{"label":"Subscription","text":null,"link":null,"items":null}]',
+            { invalid: { url: '/revenue/dashboard/a%20b' } }
+        ),
+        ...proxied('/search-bck/api/searchOrganizations', '/search-bck/api/searchOrganizations?page=0&size=100', '{"content":[]}', {
+            method: 'post',
+            headers: { 'content-type': 'application/json' },
+            body: '{"categories":["Cloud"]}',
+            invalid: { body: 'not json' },
+            tooLarge: true
+        }),
+        ...['categories', 'countries', 'complianceLevels'].flatMap((name) =>
+            proxied(`/search-bck/api/${name}`, `/search-bck/api/${name}`, '["Cloud","Data"]')
         )
     ];
 
     beforeAll(async () => {
         await tmforum.start();
 
-        @Module({ imports: [DependenciesStub, LoggerModule.forRoot({ pinoHttp: { level: 'silent' } }), HealthModule, AuthModule, DocumentModule, RevenueModule] })
+        @Module({ imports: [DependenciesStub, LoggerModule.forRoot({ pinoHttp: { level: 'silent' } }), HealthModule, AuthModule, DocumentModule, RevenueModule, SearchModule] })
         class Contract {}
 
         app = await createApp(express(), Contract);
@@ -204,11 +248,15 @@ describe('responses against docs/openapi.yaml', () => {
         expect(cases.map((c) => `${c.method} ${c.path} ${c.status}`).sort()).toEqual(documented);
     });
 
-    it.each(cases)('$method $path answers $status as documented', async ({ method, path, status, arrange, url: target, headers }) => {
+    it.each(cases)('$method $path answers $status as documented', async ({ method, path, status, arrange, url: target, headers, body: requestBody }) => {
         arrange();
         const response = document.paths[path]?.[method]?.responses[status];
 
-        const res = await fetch(`${url}${target ?? path}`, { method: method.toUpperCase(), ...(headers === undefined ? {} : { headers }) });
+        const res = await fetch(`${url}${target ?? path}`, {
+            method: method.toUpperCase(),
+            ...(headers === undefined ? {} : { headers }),
+            ...(requestBody === undefined ? {} : { body: requestBody })
+        });
         const body: unknown = await res.json();
 
         expect(res.status).toBe(Number(status));

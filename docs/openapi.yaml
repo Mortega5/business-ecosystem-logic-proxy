@@ -15,6 +15,8 @@ tags:
     description: The TMForum document API, as far as the portal uses it.
   - name: revenue
     description: The revenue sharing service, as far as the portal uses it.
+  - name: search
+    description: The organisation search, as far as the portal uses it.
 paths:
   /health/live:
     get:
@@ -171,6 +173,172 @@ paths:
                   items: null
         '400':
           $ref: '#/components/responses/InvalidId'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+  /search-bck/api/searchOrganizations:
+    post:
+      tags: [search]
+      operationId: searchOrganizations
+      summary: Search organisations
+      description: |
+        Searches the organisations with the filters of the body, which goes to the search service as it came, a page at
+        a time. The user is identified by the bearer token or the session cookie. Any other method or path under
+        `/search-bck` answers 404.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - name: page
+          in: query
+          required: false
+          description: Page number, starting at 0.
+          schema:
+            type: integer
+            minimum: 0
+        - name: size
+          in: query
+          required: false
+          description: Number of organisations per page.
+          schema:
+            type: integer
+            minimum: 1
+      requestBody:
+        required: true
+        description: The filters, a JSON object; its shape is the search service's.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+            example:
+              categories: [Cloud]
+              countries: [ES]
+      responses:
+        '200':
+          description: The page of organisations, as the search service answers it.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                content: []
+        '400':
+          description: The body is not a JSON object or array.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: Invalid body
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '413':
+          description: The body is bigger than `http.bodyLimit`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: request entity too large
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+  /search-bck/api/categories:
+    get:
+      tags: [search]
+      operationId: getSearchCategories
+      summary: Categories to filter organisations by
+      description: The values of the filter, as the search service answers them (a list, or an object that holds it).
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      responses:
+        '200':
+          description: The values.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: array
+                    items: {}
+                  - type: object
+                    additionalProperties: true
+              example: [Cloud, Data]
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+  /search-bck/api/countries:
+    get:
+      tags: [search]
+      operationId: getSearchCountries
+      summary: Countries to filter organisations by
+      description: The values of the filter, as the search service answers them (a list, or an object that holds it).
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      responses:
+        '200':
+          description: The values.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: array
+                    items: {}
+                  - type: object
+                    additionalProperties: true
+              example: [Cloud, Data]
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+  /search-bck/api/complianceLevels:
+    get:
+      tags: [search]
+      operationId: getSearchComplianceLevels
+      summary: Compliance levels to filter organisations by
+      description: The values of the filter, as the search service answers them (a list, or an object that holds it).
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      responses:
+        '200':
+          description: The values.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: array
+                    items: {}
+                  - type: object
+                    additionalProperties: true
+              example: [Cloud, Data]
         '401':
           $ref: '#/components/responses/NotAuthenticated'
         '404':

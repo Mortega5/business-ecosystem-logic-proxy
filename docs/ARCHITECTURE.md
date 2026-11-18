@@ -72,14 +72,22 @@ Take [`src/tmf/document/`](../src/tmf/document/) as the model.
 
    `NotFoundError` and not `NotFoundException`: the latter is what hands a request to the legacy application. This
    route exists only while the legacy application does; without it Nest's own 404 is enough, and these routes are removed.
-4. **Say who may call it.** Nothing means private. `@Public()` opens it, `@RequireFeature('quotes')` ties it to a
+4. **If a route takes a body,** apply `RawTextMiddleware` to the controller in its module (`consumer.apply(RawTextMiddleware)
+   .forRoutes(...)`, see `search.module.ts`): it reads the body as text up to `http.bodyLimit` and answers 413 beyond it.
+   Check it with a pipe such as `JsonBodyPipe` and hand it to `forward` explicitly (`{ upstream, path, body }`); the proxy
+   never sends a body the controller did not name. A route that takes none needs nothing.
+
+   The text is forwarded as it came only when the controller does not look into it. When it reads or changes a field
+   to decide something, it forwards `JSON.stringify` of what it validated and never the original text: the proxy and
+   the upstream could read the same text differently (duplicate keys, for instance) and the check would be bypassed.
+5. **Say who may call it.** Nothing means private. `@Public()` opens it, `@RequireFeature('quotes')` ties it to a
    feature.
-5. **Register the module** in `AppModule` and **document the routes** in `docs/openapi.yaml`; the test in
+6. **Register the module** in `AppModule` and **document the routes** in `docs/openapi.yaml`; the test in
    `src/docs/openapi.spec.ts` fails until every route and every documented answer has a case.
-6. **Test it.** A controller spec with `FakeUpstream` and `fakeLogin` (see `document.controller.spec.ts`): the happy
+7. **Test it.** A controller spec with `FakeUpstream` and `fakeLogin` (see `document.controller.spec.ts`): the happy
    path, 401, a refused id, every route that must be closed. Dot-segment ids must be sent with `http.request`, because
    `fetch` normalises them.
-7. **Compare with v11** by adding scenarios to the differential harness (local, see its README). What v12 does
+8. **Compare with v11** by adding scenarios to the differential harness (local, see its README). What v12 does
    differently on purpose is listed as expected differences in the scenario.
 
 ## When the legacy application goes away
