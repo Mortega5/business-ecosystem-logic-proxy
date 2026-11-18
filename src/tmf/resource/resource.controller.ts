@@ -14,7 +14,7 @@ import { TmfProxy } from '../tmf-proxy';
 const RESOURCE_SPECIFICATIONS: SpecificationApi = {
     upstream: 'tmforum.resource',
     collection: 'resourceSpecification',
-    productSpecificationField: 'resourceSpecification.id',
+    dependents: { upstream: 'tmforum.catalog', path: '/productSpecification', field: 'resourceSpecification.id', noun: 'product specs' },
     noun: 'Resource spec',
     messages: {
         list: 'You are not authorized to list the resource specs',
@@ -22,7 +22,7 @@ const RESOURCE_SPECIFICATIONS: SpecificationApi = {
         create: 'Unauthorized to create non-owned/non-seller resource specs',
         update: 'Unauthorized to update non-owned/non-seller resource specs',
         missing: 'The required resource does not exist',
-        retireInUse: 'Cannot retire a resource spec without retiring all product specs linked with it'
+        retireInUse: () => 'Cannot retire a resource spec without retiring all product specs linked with it'
     }
 };
 

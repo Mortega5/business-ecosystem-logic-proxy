@@ -14,7 +14,7 @@ import { TmfProxy } from '../tmf-proxy';
 const SERVICE_SPECIFICATIONS: SpecificationApi = {
     upstream: 'tmforum.service',
     collection: 'serviceSpecification',
-    productSpecificationField: 'serviceSpecification.id',
+    dependents: { upstream: 'tmforum.catalog', path: '/productSpecification', field: 'serviceSpecification.id', noun: 'product specs' },
     noun: 'Service spec',
     messages: {
         list: 'You are not authorized to list the service specs',
@@ -22,7 +22,7 @@ const SERVICE_SPECIFICATIONS: SpecificationApi = {
         create: 'Unauthorized to create non-owned/non-seller service specs',
         update: 'Unauthorized to update non-owned/non-seller services',
         missing: 'The required service does not exist',
-        retireInUse: 'Cannot retire a service spec without retiring all service specs linked with it'
+        retireInUse: () => 'Cannot retire a service spec without retiring all service specs linked with it'
     }
 };
 

@@ -2,33 +2,46 @@ import type { Request, Response } from 'express';
 import { BadGatewayError, DomainError, ForbiddenError, NotFoundError } from '../../common/domain-error';
 import { AppConfigService } from '../../config/app-config.service';
 import type { UpstreamName } from '../../config/upstream-names';
+import type { UpstreamResponse } from '../../http-client/upstream-client';
 import { OwnedResources } from '../owned-resources';
 import { callerParty, isOwnedOnlyBy, isRecord, isRelatedAs } from '../related-party';
 import { SellerParties } from '../seller-parties';
-import { TmfProxy } from '../tmf-proxy';
+import { TmfProxy, type ProxyTarget } from '../tmf-proxy';
 import type { UpstreamUser } from '../upstream-headers';
 import { isInUse, isRetired, isValidStatusTransition, sameRelatedParties, validateNameAndDescription } from './specification-rules';
 
-/** What differs between the APIs whose specifications a seller owns: where they are, how the catalog names them, and what v11 said. */
+/** What differs between the APIs whose specifications a seller owns: where they are, what still uses them, and what v11 said. */
 export interface SpecificationApi {
     upstream: UpstreamName;
     /** The collection of the API, `resourceSpecification`. */
     collection: string;
-    /** The field of a product specification that names the specification, to know what still uses it. */
-    productSpecificationField: string;
     /** What it is called in a refusal about its name or description, such as `Resource spec`. */
     noun: string;
+    /** Whether it is read only by its owner, whatever its state; what has the deployment of a product in it is. */
+    privateReads?: boolean;
+    /** What still uses a specification, which has to be retired before it; nothing when it can be retired at once. */
+    dependents?: {
+        upstream: UpstreamName;
+        path: string;
+        /** The field that names the specification in what uses it. */
+        field: string;
+        /** What they are called, such as `product specs`. */
+        noun: string;
+    };
     messages: {
         list: string;
         read: string;
         create: string;
         update: string;
         missing: string;
-        retireInUse: string;
+        retireInUse: (inUse: Record<string, unknown>[]) => string;
     };
 }
 
-const PRODUCT_SPECIFICATIONS_PAGE = 100;
+/** Takes back what was done before a step that failed; what it returns, when there is something, is what it could not take back. */
+export type Undo = () => Promise<string | undefined>;
+
+const PAGE = 100;
 const MAX_PAGES = 50;
 
 // What anybody may read; a specification in any other state, a draft, is for its owner
@@ -44,7 +57,7 @@ const parseObject = (body: string): Record<string, unknown> => {
     return parsed;
 };
 
-const parseJson = (text: string): unknown => {
+export const parseJson = (text: string): unknown => {
     try {
         return JSON.parse(text);
     } catch {
@@ -54,19 +67,43 @@ const parseJson = (text: string): unknown => {
 
 /**
  * The specifications of an API where a seller owns them: the list is the caller's own, one is read by anybody once it is not a
- * draft, it is created and changed only by a seller who owns it, and a retirement, by a change or a delete, waits until every
- * product specification that uses it is retired.
+ * draft, it is created and changed only by a seller who owns it, and a retirement, by a change or a delete, waits until what uses
+ * it is retired. An API that does more than keep them extends this and takes the steps it needs; a step that comes after another
+ * that made something elsewhere takes it back when it fails.
  */
 export class Specifications {
     constructor(
-        private readonly proxy: TmfProxy,
+        protected readonly proxy: TmfProxy,
         private readonly owned: OwnedResources,
-        private readonly config: AppConfigService,
-        private readonly sellers: SellerParties,
-        private readonly api: SpecificationApi
+        protected readonly config: AppConfigService,
+        protected readonly sellers: SellerParties,
+        protected readonly api: SpecificationApi
     ) {}
 
-    private path(id: string): string {
+    /** Further checks of what a seller sends, on a create and on a change. */
+    protected validate(_specification: Record<string, unknown>): void {
+        // None by default
+    }
+
+    /** Before a create is sent: it may change the specification, and give what undoes what it made if the create fails. */
+    protected beforeCreate(_req: Request, _specification: Record<string, unknown>): Promise<Undo | undefined> {
+        return Promise.resolve(undefined);
+    }
+
+    /** Before a change is sent: the changes that go on, and what is done once the change has been made. */
+    protected prepareUpdate(
+        _current: Record<string, unknown>,
+        changes: Record<string, unknown>
+    ): { changes: Record<string, unknown>; after?: (req: Request) => Promise<void> } {
+        return { changes };
+    }
+
+    /** Before a specification is retired: it may give what undoes what it made if the retirement fails. */
+    protected beforeRetire(_req: Request, _current: Record<string, unknown>): Promise<Undo | undefined> {
+        return Promise.resolve(undefined);
+    }
+
+    protected path(id: string): string {
         return `/${this.api.collection}/${encodeURIComponent(id)}`;
     }
 
@@ -74,7 +111,7 @@ export class Specifications {
         return new BadGatewayError(`The ${this.api.noun.toLowerCase()} could not be read`);
     }
 
-    private isSeller(req: Request): boolean {
+    protected isSeller(req: Request): boolean {
         const seller = this.config.auth.roles.seller.toLowerCase();
         return ((req as Request & { user?: UpstreamUser }).user?.roles ?? []).some((role) => role.name.toLowerCase() === seller);
     }
@@ -89,15 +126,23 @@ export class Specifications {
         this.proxy.reply(res, response, forEverybody ? {} : { 'cache-control': 'private, no-store' });
     }
 
-    create(req: Request, res: Response, body: string): Promise<void> {
+    async create(req: Request, res: Response, body: string): Promise<void> {
         const { id: _id, href: _href, ...specification } = parseObject(body);
         if (!this.isSeller(req) || !isOwnedOnlyBy(specification, callerParty(req, this.api.messages.create), this.config.auth.roles.seller)) {
             throw new ForbiddenError(this.api.messages.create);
         }
         validateNameAndDescription(specification, this.api.noun, true);
+        this.validate(specification);
+        const undo = await this.beforeCreate(req, specification);
         const [seller] = specification['relatedParty'] as Record<string, unknown>[];
         specification['relatedParty'] = this.sellers.of(seller as Record<string, unknown>, (req as Request & { user: UpstreamUser }).user);
-        return this.proxy.forward(req, res, { upstream: this.api.upstream, path: `/${this.api.collection}`, body: JSON.stringify(specification) });
+        const response = await this.sendOrUndo(
+            req,
+            { upstream: this.api.upstream, path: `/${this.api.collection}`, body: JSON.stringify(specification), contentType: 'application/json' },
+            undo,
+            `The ${this.api.noun.toLowerCase()} could not be created`
+        );
+        this.proxy.reply(res, response);
     }
 
     async update(req: Request, res: Response, id: string, body: string): Promise<void> {
@@ -116,7 +161,13 @@ export class Specifications {
             }
         }
         validateNameAndDescription(changes, this.api.noun, false);
-        await this.proxy.forward(req, res, { upstream: this.api.upstream, path: this.path(id), body: JSON.stringify(changes) });
+        this.validate(changes);
+        const { changes: sent, after } = this.prepareUpdate(current, changes);
+        const response = await this.proxy.send(req, { upstream: this.api.upstream, path: this.path(id), body: JSON.stringify(sent), contentType: 'application/json' });
+        if (response.status < 400) {
+            await after?.(req);
+        }
+        this.proxy.reply(res, response);
     }
 
     /** A delete retires the specification, which stays in the catalog. */
@@ -126,16 +177,38 @@ export class Specifications {
             throw new DomainError('The resource is already retired', 409);
         }
         await this.assertNotInUse(req, id);
-        await this.proxy.forward(req, res, {
-            upstream: this.api.upstream,
-            path: this.path(id),
-            method: 'PATCH',
-            body: JSON.stringify({ lifecycleStatus: 'Retired' }),
-            contentType: 'application/json'
-        });
+        const undo = await this.beforeRetire(req, current);
+        const response = await this.sendOrUndo(
+            req,
+            { upstream: this.api.upstream, path: this.path(id), method: 'PATCH', body: JSON.stringify({ lifecycleStatus: 'Retired' }), contentType: 'application/json' },
+            undo,
+            `The ${this.api.noun.toLowerCase()} could not be retired`
+        );
+        this.proxy.reply(res, response);
     }
 
-    /** Whether anybody may have it, or only its owner, which is a thing a cache in between must not repeat to the others. */
+    /** Sends a step, and when it fails takes back what the steps before it made; if that cannot be done the client is told what is left. */
+    private async sendOrUndo(req: Request, target: ProxyTarget, undo: Undo | undefined, failure: string): Promise<UpstreamResponse> {
+        let response: UpstreamResponse;
+        try {
+            response = await this.proxy.send(req, target);
+        } catch (error) {
+            await this.undone(undo, failure);
+            throw error;
+        }
+        if (response.status >= 400) {
+            await this.undone(undo, failure);
+        }
+        return response;
+    }
+
+    private async undone(undo: Undo | undefined, failure: string): Promise<void> {
+        const left = await undo?.();
+        if (left !== undefined) {
+            throw new BadGatewayError(`${failure} and ${left}`);
+        }
+    }
+
     private assertReadable(req: Request, body: string): boolean {
         const specification = parseJson(body);
         if (!isRecord(specification)) {
@@ -143,7 +216,7 @@ export class Specifications {
         }
         const status = specification['lifecycleStatus'];
         const partyId = (req as Request & { user?: UpstreamUser }).user?.partyId;
-        if (typeof status === 'string' && PUBLIC_STATUSES.includes(status.toLowerCase())) {
+        if (this.api.privateReads !== true && typeof status === 'string' && PUBLIC_STATUSES.includes(status.toLowerCase())) {
             return true;
         }
         if (typeof partyId === 'string' && isRelatedAs(specification, partyId, this.config.auth.roles.seller)) {
@@ -153,7 +226,7 @@ export class Specifications {
     }
 
     /** The specification as the API has it, for a seller who owns it. */
-    private async owner(req: Request, id: string): Promise<Record<string, unknown>> {
+    protected async owner(req: Request, id: string): Promise<Record<string, unknown>> {
         const partyId = callerParty(req, this.api.messages.update);
         if (!this.isSeller(req)) {
             throw new ForbiddenError(this.api.messages.update);
@@ -173,20 +246,25 @@ export class Specifications {
     }
 
     private async assertNotInUse(req: Request, id: string): Promise<void> {
+        const { dependents } = this.api;
+        if (dependents === undefined) {
+            return;
+        }
         for (let page = 0; page < MAX_PAGES; page += 1) {
-            const search = `?${this.api.productSpecificationField}=${encodeURIComponent(id)}&fields=lifecycleStatus&limit=${PRODUCT_SPECIFICATIONS_PAGE}&offset=${page * PRODUCT_SPECIFICATIONS_PAGE}`;
-            const response = await this.proxy.send(req, { upstream: 'tmforum.catalog', path: '/productSpecification', method: 'GET', search });
-            const specifications = parseJson(response.body);
-            if (response.status >= 400 || !Array.isArray(specifications)) {
-                throw new BadGatewayError(`The product specs of the ${this.api.noun.toLowerCase()} could not be read`);
+            const search = `?${dependents.field}=${encodeURIComponent(id)}&fields=lifecycleStatus&limit=${PAGE}&offset=${page * PAGE}`;
+            const response = await this.proxy.send(req, { upstream: dependents.upstream, path: dependents.path, method: 'GET', search });
+            const found = parseJson(response.body);
+            if (response.status >= 400 || !Array.isArray(found)) {
+                throw new BadGatewayError(`The ${dependents.noun} of the ${this.api.noun.toLowerCase()} could not be read`);
             }
-            if (specifications.some(isInUse)) {
-                throw new DomainError(this.api.messages.retireInUse, 409);
+            const inUse = (found as unknown[]).filter(isInUse) as Record<string, unknown>[];
+            if (inUse.length > 0) {
+                throw new DomainError(this.api.messages.retireInUse(inUse), 409);
             }
-            if (specifications.length < PRODUCT_SPECIFICATIONS_PAGE) {
+            if (found.length < PAGE) {
                 return;
             }
         }
-        throw new BadGatewayError(`The product specs of the ${this.api.noun.toLowerCase()} could not be read`);
+        throw new BadGatewayError(`The ${dependents.noun} of the ${this.api.noun.toLowerCase()} could not be read`);
     }
 }
