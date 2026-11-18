@@ -27,6 +27,8 @@ tags:
     description: The billing accounts of the caller, as far as the portal uses them.
   - name: party
     description: The organisations and individuals, as far as the portal uses them.
+  - name: resource
+    description: The resource specifications, as far as the portal uses them.
 paths:
   /health/live:
     get:
@@ -1711,6 +1713,232 @@ paths:
           $ref: '#/components/responses/PayloadTooLarge'
         '504':
           $ref: '#/components/responses/UpstreamUnreachable'
+  /resource/resourceSpecification:
+    get:
+      tags: [resource]
+      operationId: listResourceSpecifications
+      summary: List of the resource specifications of the caller
+      description: |
+        The specifications the caller is related to as a seller: the proxy adds the party of the caller (or the organisation they
+        act for) and its role to the query, last, whatever the portal sent.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - name: filters
+          in: query
+          required: false
+          description: |
+            Any filter of the catalog (`limit`, `offset`, `sort`, `lifecycleStatus`, a field of the resource, `name*`...), each once.
+            A name is a field, a value never holds `&` or `;`, and `q` is refused. Whatever the client sends about `relatedParty`
+            is dropped.
+          style: form
+          explode: true
+          schema:
+            type: object
+            additionalProperties:
+              type: string
+      responses:
+        '200':
+          description: The specifications, as the resource catalog answers them.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
+              example: []
+        '400':
+          $ref: '#/components/responses/InvalidQuery'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+    post:
+      tags: [resource]
+      operationId: createResourceSpecification
+      summary: Create a resource specification
+      description: |
+        Only a seller, and the related parties of the body have to be the caller (or the organisation they act for) as the seller
+        and nobody else. The name is mandatory, up to 100 characters, and the description up to 100.000.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: The specification created, as the resource catalog answers it.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                id: urn:ngsi-ld:resource-specification:1
+        '400':
+          $ref: '#/components/responses/InvalidBody'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/NotSpecificationSeller'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '422':
+          $ref: '#/components/responses/InvalidSpecification'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+  /resource/resourceSpecification/{id}:
+    get:
+      tags: [resource]
+      operationId: getResourceSpecification
+      summary: A resource specification
+      description: |
+        A specification that is launched, retired or obsolete is given to anybody, as the details of a product show its resources;
+        a draft (active, or with no status) only to a seller who owns it. It is asked for with the identity of the caller when there
+        is one. The query is not sent on. Any other method or path under `/resource` answers 404.
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: The specification, as the resource catalog answers it.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                id: urn:ngsi-ld:resource-specification:1
+        '400':
+          $ref: '#/components/responses/InvalidId'
+        '403':
+          description: The specification is a draft and the caller is not a seller who owns it.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: Unauthorized to read a resource spec that is not launched
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '502':
+          $ref: '#/components/responses/BadGateway'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+    patch:
+      tags: [resource]
+      operationId: updateResourceSpecification
+      summary: Change a resource specification
+      description: |
+        The specification is read first and only a seller who owns it may change it. The related parties cannot be changed, the
+        lifecycle has to follow its order (active, launched, retired, obsolete), and a specification is retired only when every
+        product specification that uses it is retired or obsolete. The name and the description are checked as in the creation.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ResourceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: The specification changed, as the resource catalog answers it.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                id: urn:ngsi-ld:resource-specification:1
+        '400':
+          $ref: '#/components/responses/InvalidIdOrBody'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/NotSpecificationSeller'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '409':
+          $ref: '#/components/responses/SpecificationConflict'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '422':
+          $ref: '#/components/responses/InvalidSpecification'
+        '502':
+          $ref: '#/components/responses/BadGateway'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+    delete:
+      tags: [resource]
+      operationId: retireResourceSpecification
+      summary: Retire a resource specification
+      description: |
+        A delete does not remove the specification, it retires it. The same ones that may change it may retire it, and it waits
+        until every product specification that uses it is retired or obsolete, as a change of the status does.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: The specification retired, as the resource catalog answers it.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                id: urn:ngsi-ld:resource-specification:1
+        '400':
+          $ref: '#/components/responses/InvalidId'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/NotSpecificationSeller'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '409':
+          $ref: '#/components/responses/SpecificationConflict'
+        '502':
+          $ref: '#/components/responses/BadGateway'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
 components:
   securitySchemes:
     bearerAuth:
@@ -1841,6 +2069,38 @@ components:
             $ref: '#/components/schemas/ErrorResult'
           example:
             error: Invalid country code
+    NotSpecificationSeller:
+      description: The caller is not a seller, or the specification is not theirs, or the body names somebody else as an owner.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResult'
+          example:
+            error: Unauthorized to update non-owned/non-seller resource specs
+    InvalidSpecification:
+      description: The name is missing, empty or too long, or the description is too long.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResult'
+          example:
+            error: Resource spec name is mandatory
+    SpecificationConflict:
+      description: The related parties would change, the specification is retired already, or a product specification that is not retired uses it.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResult'
+          example:
+            error: Cannot retire a resource spec without retiring all product specs linked with it
+    BadGateway:
+      description: What a server behind answered cannot be used, so the proxy cannot check the change.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResult'
+          example:
+            error: The resource spec could not be read
     UpstreamNotFound:
       description: The server behind does not know the resource; the body is the one it sends.
       content:

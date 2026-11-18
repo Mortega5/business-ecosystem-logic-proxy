@@ -17,13 +17,14 @@ import { LegacyAuthBridge } from '../legacy/legacy-auth.bridge';
 import { MongoConnectionService } from '../persistence/mongo-connection.service';
 import { AccountModule } from '../tmf/account/account.module';
 import { DocumentModule } from '../tmf/document/document.module';
+import { ResourceModule } from '../tmf/resource/resource.module';
 import { RevenueModule } from '../tmf/revenue/revenue.module';
 import { InventoryModule } from '../tmf/inventory/inventory.module';
 import { InvoicingModule } from '../tmf/invoicing/invoicing.module';
 import { PartyModule } from '../tmf/party/party.module';
 import { QuoteModule } from '../tmf/quote/quote.module';
 import { SearchModule } from '../tmf/search/search.module';
-import { AS_ORGANISATION, fakeLogin, LOGGED_IN } from '../testing/fake-login';
+import { AS_ORGANISATION, AS_SELLER, fakeLogin, LOGGED_IN } from '../testing/fake-login';
 import { FakeUpstream } from '../testing/fake-upstream';
 
 interface ResponseObject {
@@ -368,6 +369,42 @@ describe('responses against docs/openapi.yaml', () => {
         ];
     };
 
+    // The resource specifications: the list of the seller, one that is launched open to anybody, and the writes of a seller who owns it
+    const resourceCases = (): Case[] => {
+        const base = '/resource/resourceSpecification';
+        const owned = '{"id":"r-1","lifecycleStatus":"Active","relatedParty":[{"id":"p-shop","role":"Seller"}]}';
+        const launched = '{"id":"r-1","lifecycleStatus":"Launched","relatedParty":[{"id":"p-shop","role":"Seller"}]}';
+        const notMine = '{"id":"r-1","lifecycleStatus":"Active","relatedParty":[{"id":"p-other","role":"Seller"}]}';
+        const mine = { ...json, ...AS_SELLER };
+        const withoutLogin = (cases: Case[]): Case[] => cases.filter((c) => c.status !== '401');
+        return [
+            ...proxied(base, `${base}?limit=6&offset=0`, '[]', { invalid: { url: `${base}?q=x` } }),
+            ...withoutLogin(proxied(`${base}/{id}`, `${base}/r-1`, launched, { invalid: { url: `${base}/a%20b` } })),
+            refused('get', `${base}/{id}`, '403', `${base}/r-1`, undefined, owned),
+            refused('get', `${base}/{id}`, '502', `${base}/r-1`, undefined, 'not json'),
+            ...proxied(base, base, owned, { method: 'post', headers: mine, body: '{"name":"Dataset","relatedParty":[{"id":"p-shop","role":"Seller"}]}', invalid: { body: 'not json' }, tooLarge: true }),
+            refused('post', base, '403', base, '{"name":"Dataset","relatedParty":[{"id":"p-other","role":"Seller"}]}', '{}', AS_SELLER),
+            refused('post', base, '422', base, '{"relatedParty":[{"id":"p-shop","role":"Seller"}]}', '{}', AS_SELLER),
+            ...proxied(`${base}/{id}`, `${base}/r-1`, owned, { method: 'patch', headers: mine, body: '{"name":"Changed"}', invalid: { url: `${base}/a%20b` }, tooLarge: true }),
+            refused('patch', `${base}/{id}`, '403', `${base}/r-1`, '{"name":"Changed"}', notMine, AS_SELLER),
+            refused('patch', `${base}/{id}`, '409', `${base}/r-1`, '{"relatedParty":[]}', owned, AS_SELLER),
+            refused('patch', `${base}/{id}`, '422', `${base}/r-1`, '{"name":""}', owned, AS_SELLER),
+            refused('patch', `${base}/{id}`, '502', `${base}/r-1`, '{"name":"Changed"}', 'not json', AS_SELLER),
+            ...proxied(`${base}/{id}`, `${base}/r-1`, owned, { method: 'delete', headers: AS_SELLER, invalid: { url: `${base}/a%20b` } }).filter((c) => c.status !== '200'),
+            {
+                method: 'delete',
+                path: `${base}/{id}`,
+                status: '200',
+                url: `${base}/r-1`,
+                headers: AS_SELLER,
+                arrange: () => tmforum.answer((res) => tmforum.json(res, 200, tmforum.seen?.url?.includes('/productSpecification') === true ? '[]' : owned))
+            },
+            refused('delete', `${base}/{id}`, '403', `${base}/r-1`, undefined, notMine, AS_SELLER),
+            refused('delete', `${base}/{id}`, '409', `${base}/r-1`, undefined, '{"id":"r-1","lifecycleStatus":"Retired","relatedParty":[{"id":"p-shop","role":"Seller"}]}', AS_SELLER),
+            refused('delete', `${base}/{id}`, '502', `${base}/r-1`, undefined, 'not json', AS_SELLER)
+        ];
+    };
+
     const cases: Case[] = [
         { method: 'get', path: '/health/live', status: '200', arrange: () => mongo.ping.mockResolvedValue(false) },
         { method: 'get', path: '/health/ready', status: '200', arrange: () => mongo.ping.mockResolvedValue(true) },
@@ -406,13 +443,14 @@ describe('responses against docs/openapi.yaml', () => {
         ...quoteCases(),
         ...inventoryCases(),
         ...accountCases(),
-        ...partyCases()
+        ...partyCases(),
+        ...resourceCases()
     ];
 
     beforeAll(async () => {
         await tmforum.start();
 
-        @Module({ imports: [DependenciesStub, LoggerModule.forRoot({ pinoHttp: { level: 'silent' } }), HealthModule, AuthModule, DocumentModule, RevenueModule, SearchModule, InvoicingModule, QuoteModule, InventoryModule, AccountModule, PartyModule] })
+        @Module({ imports: [DependenciesStub, LoggerModule.forRoot({ pinoHttp: { level: 'silent' } }), HealthModule, AuthModule, DocumentModule, RevenueModule, SearchModule, InvoicingModule, QuoteModule, InventoryModule, AccountModule, PartyModule, ResourceModule] })
         class Contract {}
 
         app = await createApp(express(), Contract);

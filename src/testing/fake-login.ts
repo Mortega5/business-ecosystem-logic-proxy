@@ -15,6 +15,7 @@ const USERS: Record<string, object> = {
         roles: [{ name: 'orgAdmin' }],
         accessToken: 'acme'
     },
+    seller: { id: 'u-sam', username: 'sam', email: 'sam@example.org', partyId: 'p-shop', roles: [{ name: 'Seller' }], accessToken: 'seller' },
     // A member of the same organisation with no role to manage it
     member: {
         id: 'org-acme',
@@ -28,7 +29,7 @@ const USERS: Record<string, object> = {
     }
 };
 
-/** Stands for the legacy authentication: the tokens `Bearer ana`, `Bearer root`, `Bearer acme` and `Bearer member` are users, anything else is nobody. */
+/** Stands for the legacy authentication: the tokens `Bearer ana`, `Bearer root`, `Bearer acme` and `Bearer member` and `Bearer seller` are users, anything else is nobody. */
 export const fakeLogin: LegacyMiddleware = (req: IncomingMessage & { user?: object }, _res, next) => {
     const token = /^Bearer (\w+)$/.exec(req.headers.authorization ?? '')?.[1];
     const user = token === undefined ? undefined : USERS[token];
@@ -42,3 +43,4 @@ export const LOGGED_IN = { authorization: 'Bearer ana' };
 export const AS_ADMIN = { authorization: 'Bearer root' };
 export const AS_ORGANISATION = { authorization: 'Bearer acme' };
 export const AS_MEMBER = { authorization: 'Bearer member' };
+export const AS_SELLER = { authorization: 'Bearer seller' };
