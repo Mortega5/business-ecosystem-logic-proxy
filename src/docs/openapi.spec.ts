@@ -23,6 +23,7 @@ import { InventoryModule } from '../tmf/inventory/inventory.module';
 import { InvoicingModule } from '../tmf/invoicing/invoicing.module';
 import { PartyModule } from '../tmf/party/party.module';
 import { QuoteModule } from '../tmf/quote/quote.module';
+import { ServiceModule } from '../tmf/service/service.module';
 import { SearchModule } from '../tmf/search/search.module';
 import { AS_ORGANISATION, AS_SELLER, fakeLogin, LOGGED_IN } from '../testing/fake-login';
 import { FakeUpstream } from '../testing/fake-upstream';
@@ -369,9 +370,8 @@ describe('responses against docs/openapi.yaml', () => {
         ];
     };
 
-    // The resource specifications: the list of the seller, one that is launched open to anybody, and the writes of a seller who owns it
-    const resourceCases = (): Case[] => {
-        const base = '/resource/resourceSpecification';
+    // The specifications of the resource and service catalogs: the list of the seller, one that is launched open to anybody, and the writes of a seller who owns it
+    const specificationCases = (base: string): Case[] => {
         const owned = '{"id":"r-1","lifecycleStatus":"Active","relatedParty":[{"id":"p-shop","role":"Seller"}]}';
         const launched = '{"id":"r-1","lifecycleStatus":"Launched","relatedParty":[{"id":"p-shop","role":"Seller"}]}';
         const notMine = '{"id":"r-1","lifecycleStatus":"Active","relatedParty":[{"id":"p-other","role":"Seller"}]}';
@@ -444,13 +444,14 @@ describe('responses against docs/openapi.yaml', () => {
         ...inventoryCases(),
         ...accountCases(),
         ...partyCases(),
-        ...resourceCases()
+        ...specificationCases('/resource/resourceSpecification'),
+        ...specificationCases('/service/serviceSpecification')
     ];
 
     beforeAll(async () => {
         await tmforum.start();
 
-        @Module({ imports: [DependenciesStub, LoggerModule.forRoot({ pinoHttp: { level: 'silent' } }), HealthModule, AuthModule, DocumentModule, RevenueModule, SearchModule, InvoicingModule, QuoteModule, InventoryModule, AccountModule, PartyModule, ResourceModule] })
+        @Module({ imports: [DependenciesStub, LoggerModule.forRoot({ pinoHttp: { level: 'silent' } }), HealthModule, AuthModule, DocumentModule, RevenueModule, SearchModule, InvoicingModule, QuoteModule, InventoryModule, AccountModule, PartyModule, ResourceModule, ServiceModule] })
         class Contract {}
 
         app = await createApp(express(), Contract);

@@ -1,7 +1,8 @@
 import { Module } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import express from 'express';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { createRequire } from 'node:module';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthModule } from '../../auth/auth.module';
 import { createApp } from '../../bootstrap';
 import { AppConfigModule } from '../../config/app-config.module';
@@ -11,6 +12,7 @@ import { AS_SELLER, fakeLogin, LOGGED_IN } from '../../testing/fake-login';
 import { FakeUpstream } from '../../testing/fake-upstream';
 import { ResourceModule } from './resource.module';
 
+const nodeRequire = createRequire(__filename);
 const upstream = new FakeUpstream();
 
 @Module({ imports: [AppConfigModule, LoggingModule, AuthModule, ResourceModule] })
@@ -125,8 +127,15 @@ describe('GET /resource/resourceSpecification/:id', () => {
         expect(upstream.seen?.headers).toMatchObject({ 'x-party-id': 'p-ana' });
     });
 
-    it('is given to its owner while it is a draft', async () => {
-        expect((await read(AS_SELLER)).status).toBe(200);
+    it('is given to its owner while it is a draft, and a cache in between does not keep it for others', async () => {
+        const res = await read(AS_SELLER);
+        expect(res.status).toBe(200);
+        expect(res.headers.get('cache-control')).toBe('private, no-store');
+    });
+
+    it('leaves the cache alone when anybody may have it', async () => {
+        current = { status: 200, body: spec({ lifecycleStatus: 'Launched' }) };
+        expect((await read()).headers.get('cache-control')).toBeNull();
     });
 
     it.each([
@@ -183,7 +192,34 @@ describe('POST /resource/resourceSpecification', () => {
         const res = await post('{"name":"Dataset","name":"Other","relatedParty":[{"id":"p-shop","role":"Seller"}]}');
 
         expect(res.status).toBe(200);
-        expect(seen).toEqual([{ method: 'POST', url: SPEC_API, body: '{"name":"Other","relatedParty":[{"id":"p-shop","role":"Seller"}]}' }]);
+        expect(seen).toEqual([{ method: 'POST', url: SPEC_API, body: '{"name":"Other","relatedParty":[{"id":"p-shop","href":"p-shop","name":"u-sam","role":"Seller","@referredType":"Individual"}]}' }]);
+    });
+
+    it('drops the id and the href, so a specification of somebody else cannot be written over', async () => {
+        await post('{"id":"r-victim","href":"r-victim","name":"Dataset","relatedParty":[{"id":"p-shop","role":"Seller"}]}');
+        expect(seen).toEqual([{ method: 'POST', url: SPEC_API, body: '{"name":"Dataset","relatedParty":[{"id":"p-shop","href":"p-shop","name":"u-sam","role":"Seller","@referredType":"Individual"}]}' }]);
+    });
+
+    it('names the seller as v11 did, and the operator of the marketplace after them when there is one', async () => {
+        const { operator } = nodeRequire('../../../lib/operator') as { operator: { getOperatorId: () => string | undefined } };
+        const legacyConfig = nodeRequire('../../../config') as { operatorId: string; roles: { sellerOperator: string } };
+        const previous = legacyConfig.operatorId;
+        legacyConfig.operatorId = 'did:elsi:VATES-1';
+        const operatorId = vi.spyOn(operator, 'getOperatorId').mockReturnValue('urn:ngsi-ld:organization:op');
+        try {
+            await post('{"name":"Dataset","relatedParty":[{"id":"p-shop","role":"Seller","href":"https://evil.example","name":"Somebody"}]}');
+        } finally {
+            operatorId.mockRestore();
+            legacyConfig.operatorId = previous;
+        }
+
+        expect(JSON.parse(seen[0]?.body ?? '')).toEqual({
+            name: 'Dataset',
+            relatedParty: [
+                { id: 'p-shop', href: 'p-shop', name: 'u-sam', role: 'Seller', '@referredType': 'Individual' },
+                { id: 'urn:ngsi-ld:organization:op', href: 'urn:ngsi-ld:organization:op', name: 'did:elsi:VATES-1', role: legacyConfig.roles.sellerOperator, '@referredType': 'Organization' }
+            ]
+        });
     });
 
     it.each([
@@ -262,7 +298,7 @@ describe('PATCH /resource/resourceSpecification/:id', () => {
     it('refuses a user who is not a seller, and tells nothing about the specification', async () => {
         const res = await patch('{"lifecycleStatus":"Retired","relatedParty":[]}', { ...LOGGED_IN, ...JSON_HEADERS });
         expect(res.status).toBe(403);
-        expect(methods()).toEqual(['GET']);
+        expect(seen).toEqual([]);
     });
 
     it.each([
@@ -354,6 +390,15 @@ describe('PATCH /resource/resourceSpecification/:id', () => {
             expect(methods()).toEqual(['GET', 'GET', 'GET']);
         });
 
+        it('does not retire a specification when there are more product specifications than it looks at', async () => {
+            current = { status: 200, body: spec({ lifecycleStatus: 'Launched' }) };
+            const retired = JSON.stringify(Array.from({ length: 100 }, () => ({ lifecycleStatus: 'Retired' })));
+            productSpecs = () => ({ status: 200, body: retired });
+
+            expect((await patch('{"lifecycleStatus":"Retired"}')).status).toBe(502);
+            expect(methods()).not.toContain('PATCH');
+        });
+
         it.each([
             ['an error', { status: 500, body: '{}' }],
             ['something that is not a list', { status: 200, body: '{"a":1}' }]
@@ -406,8 +451,8 @@ describe('DELETE /resource/resourceSpecification/:id', () => {
         expect(methods()).toEqual(['GET', 'GET']);
     });
 
-    it('refuses a specification that is retired already', async () => {
-        current = { status: 200, body: spec({ lifecycleStatus: 'Retired' }) };
+    it.each(['Retired', 'Obsolete'])('refuses a specification that is %s already, so it is not taken back', async (status) => {
+        current = { status: 200, body: spec({ lifecycleStatus: status }) };
         const res = await remove();
 
         expect(res.status).toBe(409);
@@ -420,7 +465,7 @@ describe('DELETE /resource/resourceSpecification/:id', () => {
         expect((await remove()).status).toBe(403);
         current = { status: 200, body: spec() };
         expect((await remove(LOGGED_IN)).status).toBe(403);
-        expect(methods()).toEqual(['GET', 'GET']);
+        expect(methods()).toEqual(['GET']);
     });
 
     it('passes on a 404', async () => {
