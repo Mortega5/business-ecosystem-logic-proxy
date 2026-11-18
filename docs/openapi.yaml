@@ -23,6 +23,8 @@ tags:
     description: The quote management service, as far as the portal uses it.
   - name: inventory
     description: The product, service and resource inventories, as far as the portal uses them.
+  - name: account
+    description: The billing accounts of the caller, as far as the portal uses them.
 paths:
   /health/live:
     get:
@@ -1299,6 +1301,193 @@ paths:
           $ref: '#/components/responses/UpstreamNotFound'
         '504':
           $ref: '#/components/responses/UpstreamUnreachable'
+  /account/billingAccount:
+    get:
+      tags: [account]
+      operationId: listBillingAccounts
+      summary: List of the billing accounts of the caller
+      description: |
+        The billing accounts the caller is related to as their owner (the seller role): the proxy adds the party of the caller
+        (or the organisation they act for) and its role to the query, last, whatever the portal sent.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - name: filters
+          in: query
+          required: false
+          description: |
+            Any filter of the accounts (`limit`, `offset`, `fields`, a field of the resource...), each once. A name is a field,
+            a value never holds `&` or `;`, and `q` is refused. Whatever the client sends about `relatedParty` is dropped.
+          style: form
+          explode: true
+          schema:
+            type: object
+            additionalProperties:
+              type: string
+      responses:
+        '200':
+          description: The accounts, as the account API answers them.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
+              example: []
+        '400':
+          $ref: '#/components/responses/InvalidQuery'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+    post:
+      tags: [account]
+      operationId: createBillingAccount
+      summary: Create a billing account
+      description: |
+        The caller (or the organisation they act for) must be among the related parties of the account as its owner, the
+        seller role. The contacts are checked: a list of contacts with a list of media each, and a valid number, in the
+        international format, in every telephone.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              properties:
+                relatedParty:
+                  type: array
+                  items:
+                    type: object
+                    additionalProperties: true
+      responses:
+        '200':
+          description: The account created, as the account API answers it.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                id: urn:ngsi-ld:billing-account:1
+        '400':
+          description: The body is not a JSON object, it has no `relatedParty` or a contact is not well formed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: Invalid body
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/NotAccountOwner'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '422':
+          $ref: '#/components/responses/InvalidPhoneNumber'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+  /account/billingAccount/{id}:
+    get:
+      tags: [account]
+      operationId: getBillingAccount
+      summary: A billing account of the caller
+      description: |
+        One account, given only when the caller (or the organisation they act for) is related to it as its owner; the query
+        is not sent on. Any other method or path under `/account`, a delete included, answers 404.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: The account, as the account API answers it.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                id: urn:ngsi-ld:billing-account:1
+        '400':
+          $ref: '#/components/responses/InvalidId'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/NotAccountOwner'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+    patch:
+      tags: [account]
+      operationId: updateBillingAccount
+      summary: Change a billing account
+      description: |
+        The account is read first and only its owner may change it. When the body names the related parties, the caller must
+        still be among them as the owner: an account cannot be handed to somebody else. The contacts are checked as in the
+        creation. An answer of the account API to the read that is not a success is the answer to this call.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ResourceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: The account changed, as the account API answers it.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                id: urn:ngsi-ld:billing-account:1
+        '400':
+          $ref: '#/components/responses/InvalidIdOrBody'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/NotAccountOwner'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '422':
+          $ref: '#/components/responses/InvalidPhoneNumber'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
 components:
   securitySchemes:
     bearerAuth:
@@ -1397,6 +1586,22 @@ components:
             $ref: '#/components/schemas/ErrorResult'
           example:
             error: You need to be authenticated to perform this request
+    NotAccountOwner:
+      description: The caller is not the owner of the account, or names somebody else as the owner.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResult'
+          example:
+            error: The user making the request is not the specified owner
+    InvalidPhoneNumber:
+      description: A telephone of the contacts has no valid number.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResult'
+          example:
+            error: Invalid phone number
     UpstreamNotFound:
       description: The server behind does not know the resource; the body is the one it sends.
       content:

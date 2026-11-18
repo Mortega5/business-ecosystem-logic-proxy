@@ -15,6 +15,7 @@ import { AppModule } from '../app.module';
 import { HealthModule } from '../health/health.module';
 import { LegacyAuthBridge } from '../legacy/legacy-auth.bridge';
 import { MongoConnectionService } from '../persistence/mongo-connection.service';
+import { AccountModule } from '../tmf/account/account.module';
 import { DocumentModule } from '../tmf/document/document.module';
 import { RevenueModule } from '../tmf/revenue/revenue.module';
 import { InventoryModule } from '../tmf/inventory/inventory.module';
@@ -287,6 +288,47 @@ describe('responses against docs/openapi.yaml', () => {
             }
         ]);
 
+    // The billing accounts: the list of the caller and one account, given to its owner; a write reads the account first
+    const accountCases = (): Case[] => {
+        const mine = '{"id":"x-1","relatedParty":[{"id":"p-ana","role":"Seller"}]}';
+        const notMine = '{"id":"x-1","relatedParty":[{"id":"p-other","role":"Seller"}]}';
+        const json = { 'content-type': 'application/json' };
+        const owner = '{"relatedParty":[{"id":"p-ana","role":"Seller"}]}';
+        const badPhone = '{"contact":[{"contactMedium":[{"mediumType":"TelephoneNumber","characteristic":{"phoneNumber":"12"}}]}]}';
+        const refused = (method: string, path: string, status: string, target: string, body: string | undefined, upstreamAnswer: string): Case => ({
+            method,
+            path,
+            status,
+            url: target,
+            headers: { ...LOGGED_IN, ...(body === undefined ? {} : json) },
+            ...(body === undefined ? {} : { body }),
+            arrange: () => tmforum.answer((res) => tmforum.json(res, 200, upstreamAnswer))
+        });
+        return [
+            ...proxied('/account/billingAccount', '/account/billingAccount?limit=5', '[]', { invalid: { url: '/account/billingAccount?q=x' } }),
+            ...proxied('/account/billingAccount/{id}', '/account/billingAccount/x-1', mine, { invalid: { url: '/account/billingAccount/a%20b' } }),
+            refused('get', '/account/billingAccount/{id}', '403', '/account/billingAccount/x-1', undefined, notMine),
+            ...proxied('/account/billingAccount', '/account/billingAccount', '{"id":"x-1"}', {
+                method: 'post',
+                headers: json,
+                body: owner,
+                invalid: { body: 'not json' },
+                tooLarge: true
+            }),
+            refused('post', '/account/billingAccount', '403', '/account/billingAccount', '{"relatedParty":[{"id":"p-other","role":"Seller"}]}', '{}'),
+            refused('post', '/account/billingAccount', '422', '/account/billingAccount', `{"relatedParty":[{"id":"p-ana","role":"Seller"}],${badPhone.slice(1)}`, '{}'),
+            ...proxied('/account/billingAccount/{id}', '/account/billingAccount/x-1', mine, {
+                method: 'patch',
+                headers: json,
+                body: '{"state":"Active"}',
+                invalid: { url: '/account/billingAccount/a%20b' },
+                tooLarge: true
+            }),
+            refused('patch', '/account/billingAccount/{id}', '403', '/account/billingAccount/x-1', '{"state":"Active"}', notMine),
+            refused('patch', '/account/billingAccount/{id}', '422', '/account/billingAccount/x-1', badPhone, mine)
+        ];
+    };
+
     const cases: Case[] = [
         { method: 'get', path: '/health/live', status: '200', arrange: () => mongo.ping.mockResolvedValue(false) },
         { method: 'get', path: '/health/ready', status: '200', arrange: () => mongo.ping.mockResolvedValue(true) },
@@ -323,13 +365,14 @@ describe('responses against docs/openapi.yaml', () => {
             }
         ),
         ...quoteCases(),
-        ...inventoryCases()
+        ...inventoryCases(),
+        ...accountCases()
     ];
 
     beforeAll(async () => {
         await tmforum.start();
 
-        @Module({ imports: [DependenciesStub, LoggerModule.forRoot({ pinoHttp: { level: 'silent' } }), HealthModule, AuthModule, DocumentModule, RevenueModule, SearchModule, InvoicingModule, QuoteModule, InventoryModule] })
+        @Module({ imports: [DependenciesStub, LoggerModule.forRoot({ pinoHttp: { level: 'silent' } }), HealthModule, AuthModule, DocumentModule, RevenueModule, SearchModule, InvoicingModule, QuoteModule, InventoryModule, AccountModule] })
         class Contract {}
 
         app = await createApp(express(), Contract);
