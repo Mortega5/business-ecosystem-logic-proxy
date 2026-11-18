@@ -1,6 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
+/** `continue`: the chain ran to the end; `answered`: a middleware replied to the request itself. */
+export type BridgeOutcome = 'continue' | 'answered';
+
 export type LegacyMiddleware = (req: IncomingMessage, res: ServerResponse, next: (error?: unknown) => void) => unknown;
 
 /**
@@ -19,8 +22,8 @@ export class LegacyAuthBridge {
         return this.pipeline !== undefined;
     }
 
-    /** Resolves when the whole chain called next; a middleware that answers the request itself leaves it unresolved. */
-    run(req: IncomingMessage, res: ServerResponse): Promise<'continue' | 'answered'> {
+    /** Runs the chain in order; a middleware that replies without calling next ends it as `answered`. */
+    run(req: IncomingMessage, res: ServerResponse): Promise<BridgeOutcome> {
         const pipeline = this.pipeline;
         if (pipeline === undefined) {
             return Promise.reject(new Error('The legacy authentication chain is not attached'));
