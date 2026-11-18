@@ -52,6 +52,9 @@ tendering:
   enabled: true
   devButtonsOpenClose: false
 
+party:
+  editEnabled: true
+
 dsp:
   enabled: false
 

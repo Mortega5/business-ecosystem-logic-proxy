@@ -42,6 +42,7 @@ const SWITCHES: [string, string][] = [
     ['dsp.enabled', 'BAE_LP_DSP_ENABLED'],
     ['quotes.enabled', 'BAE_LP_QUOTE_ENABLED'],
     ['tendering.enabled', 'BAE_LP_TENDERING_ENABLED'],
+    ['party.editEnabled', 'BAE_LP_EDIT_PARTY'],
     ['launchValidation.enabled', 'BAE_LP_LAUNCH_VALIDATION_ENABLED'],
     ['tendering.devButtonsOpenClose', 'BAE_LP_TENDER_DEV_BUTTON_ENABLED']
 ];

@@ -144,6 +144,7 @@ export const ConfigSchema = z.object({
         }),
     quotes: z.object({ enabled: booleanLike, api: z.string().min(1) }),
     tendering: z.object({ enabled: booleanLike, devButtonsOpenClose: booleanLike }),
+    party: z.object({ editEnabled: booleanLike }),
     dsp: z
         .object({ enabled: booleanLike, contractDefinitionSchema: z.url().optional() })
         .refine((dsp) => !dsp.enabled || dsp.contractDefinitionSchema !== undefined, {

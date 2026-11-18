@@ -45,6 +45,10 @@ export class AppConfigService {
         return this.value.tendering;
     }
 
+    get party(): AppConfig['party'] {
+        return this.value.party;
+    }
+
     get dsp(): AppConfig['dsp'] {
         return this.value.dsp;
     }

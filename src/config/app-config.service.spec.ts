@@ -28,6 +28,7 @@ const VALUE: AppConfig = {
     purchase: { enabled: true, paymentProvider: 'none' },
     quotes: { enabled: true, api: '/quote/quoteManagement' },
     tendering: { enabled: true, devButtonsOpenClose: false },
+    party: { editEnabled: true },
     dsp: { enabled: false },
     launchValidation: { enabled: false },
     dataSpace: { enabled: false },
