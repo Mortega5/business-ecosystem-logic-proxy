@@ -33,6 +33,8 @@ tags:
     description: The service specifications, as far as the portal uses them.
   - name: charging
     description: The charging backend, as far as the portal uses it.
+  - name: software
+    description: The software specifications and their support packages, as far as the portal uses them.
 paths:
   /health/live:
     get:
@@ -2335,6 +2337,423 @@ paths:
           $ref: '#/components/responses/InvalidUpload'
         '504':
           $ref: '#/components/responses/UpstreamUnreachable'
+  /software/resourceSpecification:
+    get:
+      tags: [software]
+      operationId: listSoftwareSpecifications
+      summary: List of the software specifications of the caller
+      description: |
+        The specifications the caller is related to as a seller: the proxy adds the party of the caller (or the organisation they
+        act for) and its role to the query, last, whatever the portal sent.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - name: filters
+          in: query
+          required: false
+          description: |
+            Any filter of the API (`limit`, `offset`, `sort`, `lifecycleStatus`, `@type`, a field of the resource, `name*`...), each once.
+            A name is a field, a value never holds `&` or `;`, and `q` is refused. Whatever the client sends about `relatedParty`
+            is dropped.
+          style: form
+          explode: true
+          schema:
+            type: object
+            additionalProperties:
+              type: string
+      responses:
+        '200':
+          description: The specifications, as the software API answers them.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
+              example: []
+        '400':
+          $ref: '#/components/responses/InvalidQuery'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+    post:
+      tags: [software]
+      operationId: createSoftwareSpecification
+      summary: Create a software specification
+      description: |
+        Only a seller, and the related parties of the body have to be the caller as the seller and nobody else. `id` and `href` of the body are
+        dropped. A specification of software (`@type` `SoftwareSpecification`) gets a support package, a resource that is made with it, from the
+        global specification of the support packages, which is created the first time. The deployment characteristics go in the package and not
+        in the specification. When the specification cannot be created the package is removed, and when that cannot be done the answer says
+        which package is left. The deployment definition has a type and properties, and a chart of helm has no `releaseName` or `namespace`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: The specification created, as the software API answers it.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                id: urn:ngsi-ld:resource-specification:1
+        '400':
+          $ref: '#/components/responses/InvalidBody'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/NotSpecificationSeller'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '422':
+          $ref: '#/components/responses/InvalidSpecification'
+        '502':
+          $ref: '#/components/responses/BadGateway'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+  /software/resourceSpecification/{id}:
+    get:
+      tags: [software]
+      operationId: getSoftwareSpecification
+      summary: A software specification
+      description: |
+        A specification that is launched, retired or obsolete is given to anybody; a draft (active, or with no status) only to a seller who owns it.
+        It is asked for with the identity of the caller when there is one. The query is not sent on. Any other method or path under `/software`
+        answers 404.
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: The specification, as the software API answers it.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                id: urn:ngsi-ld:resource-specification:1
+        '400':
+          $ref: '#/components/responses/InvalidId'
+        '403':
+          description: The specification is a draft and the caller is not a seller who owns it.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: Unauthorized to read a resource spec that is not launched
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '502':
+          $ref: '#/components/responses/BadGateway'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+    patch:
+      tags: [software]
+      operationId: updateSoftwareSpecification
+      summary: Change a software specification
+      description: |
+        The specification is read first and only a seller who owns it may change it. The related parties cannot be changed, the lifecycle has to
+        follow its order, and a specification is retired only when every resource made from it is retired or obsolete. The deployment
+        characteristics are saved in the support package; when that cannot be done the answer says that the specification was changed and they
+        were not.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ResourceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: The specification changed, as the software API answers it.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                id: urn:ngsi-ld:resource-specification:1
+        '400':
+          $ref: '#/components/responses/InvalidIdOrBody'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/NotSpecificationSeller'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '409':
+          $ref: '#/components/responses/SpecificationConflict'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '422':
+          $ref: '#/components/responses/InvalidSpecification'
+        '502':
+          $ref: '#/components/responses/BadGateway'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+    delete:
+      tags: [software]
+      operationId: retireSoftwareSpecification
+      summary: Retire a software specification
+      description: |
+        A delete does not remove the specification, it retires it, and it suspends its support package first. When the specification cannot be
+        retired the package is made available again, and when that cannot be done the answer says which package is left. It waits until every
+        resource made from the specification is retired or obsolete, and one that is retired or obsolete is not retired again.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: The specification retired, as the software API answers it.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                id: urn:ngsi-ld:resource-specification:1
+        '400':
+          $ref: '#/components/responses/InvalidId'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/NotSpecificationSeller'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '409':
+          $ref: '#/components/responses/SpecificationConflict'
+        '502':
+          $ref: '#/components/responses/BadGateway'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+  /software/resource:
+    get:
+      tags: [software]
+      operationId: listSoftwareSupportPackages
+      summary: List of the support packages of the caller
+      description: |
+        The packages the caller is related to as a seller, which are the ones that have the deployment of a product: the proxy adds the party of
+        the caller (or the organisation they act for) and its role to the query, last, whatever the portal sent.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - name: filters
+          in: query
+          required: false
+          description: |
+            Any filter of the API (`limit`, `offset`, `sort`, `lifecycleStatus`, `@type`, a field of the resource, `name*`...), each once.
+            A name is a field, a value never holds `&` or `;`, and `q` is refused. Whatever the client sends about `relatedParty`
+            is dropped.
+          style: form
+          explode: true
+          schema:
+            type: object
+            additionalProperties:
+              type: string
+      responses:
+        '200':
+          description: The packages, as the software API answers them.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
+              example: []
+        '400':
+          $ref: '#/components/responses/InvalidQuery'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+    post:
+      tags: [software]
+      operationId: createSoftwareSupportPackage
+      summary: Create a support package
+      description: |
+        Only a seller, with the related parties as for a specification. The deployment definition is checked as for a specification.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: The package created, as the software API answers it.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                id: urn:ngsi-ld:resource:1
+        '400':
+          $ref: '#/components/responses/InvalidBody'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/NotSpecificationSeller'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '422':
+          $ref: '#/components/responses/InvalidSpecification'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+  /software/resource/{id}:
+    get:
+      tags: [software]
+      operationId: getSoftwareSupportPackage
+      summary: A support package
+      description: |
+        Only the seller who owns it, whatever state it says, and the answer is not for a cache. The query is not sent on.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: The package, as the software API answers it.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                id: urn:ngsi-ld:resource:1
+        '400':
+          $ref: '#/components/responses/InvalidId'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          description: The caller is not a seller who owns the package.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: Unauthorized to read a resource spec that is not launched
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '502':
+          $ref: '#/components/responses/BadGateway'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+    patch:
+      tags: [software]
+      operationId: updateSoftwareSupportPackage
+      summary: Change a support package
+      description: |
+        The package is read first and only a seller who owns it may change it, with the rules of the change of a specification. There is no
+        delete: a package is retired with its specification.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ResourceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: The package changed, as the software API answers it.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                id: urn:ngsi-ld:resource:1
+        '400':
+          $ref: '#/components/responses/InvalidIdOrBody'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/NotSpecificationSeller'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '409':
+          $ref: '#/components/responses/SpecificationConflict'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '422':
+          $ref: '#/components/responses/InvalidSpecification'
+        '502':
+          $ref: '#/components/responses/BadGateway'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
 components:
   securitySchemes:
     bearerAuth:
@@ -2474,7 +2893,7 @@ components:
           example:
             error: Unauthorized to update non-owned/non-seller resource specs
     InvalidSpecification:
-      description: The name is missing, empty or too long, or the description is too long.
+      description: The name is missing, empty or too long, or the description is too long, or the deployment definition of a software specification is not valid.
       content:
         application/json:
           schema:

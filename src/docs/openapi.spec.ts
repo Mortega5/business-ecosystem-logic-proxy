@@ -18,6 +18,7 @@ import { MongoConnectionService } from '../persistence/mongo-connection.service'
 import { AccountModule } from '../tmf/account/account.module';
 import { DocumentModule } from '../tmf/document/document.module';
 import { ChargingModule } from '../tmf/charging/charging.module';
+import { SoftwareModule } from '../tmf/software/software.module';
 import { ResourceModule } from '../tmf/resource/resource.module';
 import { RevenueModule } from '../tmf/revenue/revenue.module';
 import { InventoryModule } from '../tmf/inventory/inventory.module';
@@ -372,7 +373,8 @@ describe('responses against docs/openapi.yaml', () => {
     };
 
     // The specifications of the resource and service catalogs: the list of the seller, one that is launched open to anybody, and the writes of a seller who owns it
-    const specificationCases = (base: string): Case[] => {
+    const specificationCases = (base: string, options: { dependents?: string; privateRead?: boolean; retire?: boolean } = {}): Case[] => {
+        const { dependents = '/productSpecification', privateRead = false, retire = true } = options;
         const owned = '{"id":"r-1","lifecycleStatus":"Active","relatedParty":[{"id":"p-shop","role":"Seller"}]}';
         const launched = '{"id":"r-1","lifecycleStatus":"Launched","relatedParty":[{"id":"p-shop","role":"Seller"}]}';
         const notMine = '{"id":"r-1","lifecycleStatus":"Active","relatedParty":[{"id":"p-other","role":"Seller"}]}';
@@ -380,7 +382,9 @@ describe('responses against docs/openapi.yaml', () => {
         const withoutLogin = (cases: Case[]): Case[] => cases.filter((c) => c.status !== '401');
         return [
             ...proxied(base, `${base}?limit=6&offset=0`, '[]', { invalid: { url: `${base}?q=x` } }),
-            ...withoutLogin(proxied(`${base}/{id}`, `${base}/r-1`, launched, { invalid: { url: `${base}/a%20b` } })),
+            ...(privateRead
+                ? proxied(`${base}/{id}`, `${base}/r-1`, owned, { headers: AS_SELLER, invalid: { url: `${base}/a%20b` } })
+                : withoutLogin(proxied(`${base}/{id}`, `${base}/r-1`, launched, { invalid: { url: `${base}/a%20b` } }))),
             refused('get', `${base}/{id}`, '403', `${base}/r-1`, undefined, owned),
             refused('get', `${base}/{id}`, '502', `${base}/r-1`, undefined, 'not json'),
             ...proxied(base, base, owned, { method: 'post', headers: mine, body: '{"name":"Dataset","relatedParty":[{"id":"p-shop","role":"Seller"}]}', invalid: { body: 'not json' }, tooLarge: true }),
@@ -391,18 +395,22 @@ describe('responses against docs/openapi.yaml', () => {
             refused('patch', `${base}/{id}`, '409', `${base}/r-1`, '{"relatedParty":[]}', owned, AS_SELLER),
             refused('patch', `${base}/{id}`, '422', `${base}/r-1`, '{"name":""}', owned, AS_SELLER),
             refused('patch', `${base}/{id}`, '502', `${base}/r-1`, '{"name":"Changed"}', 'not json', AS_SELLER),
-            ...proxied(`${base}/{id}`, `${base}/r-1`, owned, { method: 'delete', headers: AS_SELLER, invalid: { url: `${base}/a%20b` } }).filter((c) => c.status !== '200'),
-            {
-                method: 'delete',
-                path: `${base}/{id}`,
-                status: '200',
-                url: `${base}/r-1`,
-                headers: AS_SELLER,
-                arrange: () => tmforum.answer((res) => tmforum.json(res, 200, tmforum.seen?.url?.includes('/productSpecification') === true ? '[]' : owned))
-            },
-            refused('delete', `${base}/{id}`, '403', `${base}/r-1`, undefined, notMine, AS_SELLER),
-            refused('delete', `${base}/{id}`, '409', `${base}/r-1`, undefined, '{"id":"r-1","lifecycleStatus":"Retired","relatedParty":[{"id":"p-shop","role":"Seller"}]}', AS_SELLER),
-            refused('delete', `${base}/{id}`, '502', `${base}/r-1`, undefined, 'not json', AS_SELLER)
+            ...(retire
+                ? [
+                      ...proxied(`${base}/{id}`, `${base}/r-1`, owned, { method: 'delete', headers: AS_SELLER, invalid: { url: `${base}/a%20b` } }).filter((c) => c.status !== '200'),
+                      {
+                          method: 'delete',
+                          path: `${base}/{id}`,
+                          status: '200',
+                          url: `${base}/r-1`,
+                          headers: AS_SELLER,
+                          arrange: () => tmforum.answer((res) => tmforum.json(res, 200, tmforum.seen?.url?.includes(dependents) === true ? '[]' : owned))
+                      },
+                      refused('delete', `${base}/{id}`, '403', `${base}/r-1`, undefined, notMine, AS_SELLER),
+                      refused('delete', `${base}/{id}`, '409', `${base}/r-1`, undefined, '{"id":"r-1","lifecycleStatus":"Retired","relatedParty":[{"id":"p-shop","role":"Seller"}]}', AS_SELLER),
+                      refused('delete', `${base}/{id}`, '502', `${base}/r-1`, undefined, 'not json', AS_SELLER)
+                  ]
+                : [])
         ];
     };
 
@@ -466,13 +474,17 @@ describe('responses against docs/openapi.yaml', () => {
         ...partyCases(),
         ...specificationCases('/resource/resourceSpecification'),
         ...specificationCases('/service/serviceSpecification'),
+        ...specificationCases('/software/resourceSpecification', { dependents: '/resource?' }),
+        // A software specification also makes its support package, and says so when it cannot
+        refused('post', '/software/resourceSpecification', '502', '/software/resourceSpecification', '{"@type":"SoftwareSpecification","name":"App","relatedParty":[{"id":"p-shop","role":"Seller"}]}', 'not json', AS_SELLER),
+        ...specificationCases('/software/resource', { privateRead: true, retire: false }),
         ...chargingCases()
     ];
 
     beforeAll(async () => {
         await tmforum.start();
 
-        @Module({ imports: [DependenciesStub, LoggerModule.forRoot({ pinoHttp: { level: 'silent' } }), HealthModule, AuthModule, DocumentModule, RevenueModule, SearchModule, InvoicingModule, QuoteModule, InventoryModule, AccountModule, PartyModule, ResourceModule, ServiceModule, ChargingModule] })
+        @Module({ imports: [DependenciesStub, LoggerModule.forRoot({ pinoHttp: { level: 'silent' } }), HealthModule, AuthModule, DocumentModule, RevenueModule, SearchModule, InvoicingModule, QuoteModule, InventoryModule, AccountModule, PartyModule, ResourceModule, ServiceModule, ChargingModule, SoftwareModule] })
         class Contract {}
 
         app = await createApp(express(), Contract);
