@@ -87,6 +87,9 @@ Take [`src/tmf/document/`](../src/tmf/document/) as the model.
 5. **Say who may call it.** Nothing means private. `@Public()` opens it, `@RequireFeature('quotes')` ties it to a
    feature, on the controller or on a route; the one of a route wins. A route that names a party in its path as `:userId` uses `OwnPartyGuard`, which lets in only that party (the
    individual's, or the organisation's when acting for one) and administrators.
+   Resources that belong to the parties related to them (the inventories) use `OwnedResources`: `list` sends on the filters of
+   the client, drops the ones about the related party and ends the query with the party of the caller and its role, and
+   `read` gives a resource only to a party related to it as a customer. See `src/tmf/inventory/`.
 6. **Register the module** in `AppModule` and **document the routes** in `docs/openapi.yaml`; the test in
    `src/docs/openapi.spec.ts` fails until every route and every documented answer has a case.
 7. **Test it.** A controller spec with `FakeUpstream` and `fakeLogin` (see `document.controller.spec.ts`): the happy

@@ -21,6 +21,8 @@ tags:
     description: The invoicing API, as far as the portal uses it.
   - name: quote
     description: The quote management service, as far as the portal uses it.
+  - name: inventory
+    description: The product, service and resource inventories, as far as the portal uses them.
 paths:
   /health/live:
     get:
@@ -1030,6 +1032,273 @@ paths:
           $ref: '#/components/responses/PayloadTooLarge'
         '504':
           $ref: '#/components/responses/UpstreamUnreachable'
+  /inventory/product:
+    get:
+      tags: [inventory]
+      operationId: listProductInventory
+      summary: List of the products the caller is related to
+      description: |
+        The products the caller is related to as a customer: the proxy adds the party of the caller (or the organisation they
+        act for) and its role to the query, last, whatever the portal sent.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - name: filters
+          in: query
+          required: false
+          description: |
+            Any filter of the inventory (`limit`, `offset`, `sort`, a field of the resource, `name*`...), each once. A name is
+            a field, a value never holds `&` or `;`, and `q` is refused. Whatever the client sends about `relatedParty` is
+            dropped.
+          style: form
+          explode: true
+          schema:
+            type: object
+            additionalProperties:
+              type: string
+      responses:
+        '200':
+          description: The products, as the inventory answers them.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
+              example: []
+        '400':
+          $ref: '#/components/responses/InvalidQuery'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+  /inventory/product/{id}:
+    get:
+      tags: [inventory]
+      operationId: getProductInventory
+      summary: A product the caller is related to
+      description: |
+        One product, given only when the caller (or the organisation they act for) is related to it as a customer; the
+        query is not sent on. Any other method or path under `/inventory` answers 404, a write included.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: The product, as the inventory answers it.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                id: urn:ngsi-ld:product:1
+        '400':
+          $ref: '#/components/responses/InvalidId'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          description: The caller is not related to the product as a customer.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: You are not authorized to retrieve the specified product from the inventory
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+  /serviceInventory/service:
+    get:
+      tags: [inventory]
+      operationId: listServiceInventory
+      summary: List of the services the caller is related to
+      description: |
+        The services the caller is related to as a customer: the proxy adds the party of the caller (or the organisation they
+        act for) and its role to the query, last, whatever the portal sent.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - name: filters
+          in: query
+          required: false
+          description: |
+            Any filter of the inventory (`limit`, `offset`, `sort`, a field of the resource, `name*`...), each once. A name is
+            a field, a value never holds `&` or `;`, and `q` is refused. Whatever the client sends about `relatedParty` is
+            dropped.
+          style: form
+          explode: true
+          schema:
+            type: object
+            additionalProperties:
+              type: string
+      responses:
+        '200':
+          description: The services, as the inventory answers them.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
+              example: []
+        '400':
+          $ref: '#/components/responses/InvalidQuery'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+  /serviceInventory/service/{id}:
+    get:
+      tags: [inventory]
+      operationId: getServiceInventory
+      summary: A service the caller is related to
+      description: |
+        One service, given only when the caller (or the organisation they act for) is related to it as a customer; the
+        query is not sent on. Any other method or path under `/serviceInventory` answers 404, a write included.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: The service, as the inventory answers it.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                id: urn:ngsi-ld:service:1
+        '400':
+          $ref: '#/components/responses/InvalidId'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          description: The caller is not related to the service as a customer.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: You are not authorized to retrieve the specified service from the inventory
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+  /resourceInventory/resource:
+    get:
+      tags: [inventory]
+      operationId: listResourceInventory
+      summary: List of the resources the caller is related to
+      description: |
+        The resources the caller is related to as a customer: the proxy adds the party of the caller (or the organisation they
+        act for) and its role to the query, last, whatever the portal sent.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - name: filters
+          in: query
+          required: false
+          description: |
+            Any filter of the inventory (`limit`, `offset`, `sort`, a field of the resource, `name*`...), each once. A name is
+            a field, a value never holds `&` or `;`, and `q` is refused. Whatever the client sends about `relatedParty` is
+            dropped.
+          style: form
+          explode: true
+          schema:
+            type: object
+            additionalProperties:
+              type: string
+      responses:
+        '200':
+          description: The resources, as the inventory answers them.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
+              example: []
+        '400':
+          $ref: '#/components/responses/InvalidQuery'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+  /resourceInventory/resource/{id}:
+    get:
+      tags: [inventory]
+      operationId: getResourceInventory
+      summary: A resource the caller is related to
+      description: |
+        One resource, given only when the caller (or the organisation they act for) is related to it as a customer; the
+        query is not sent on. Any other method or path under `/resourceInventory` answers 404, a write included.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: The resource, as the inventory answers it.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                id: urn:ngsi-ld:resource:1
+        '400':
+          $ref: '#/components/responses/InvalidId'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          description: The caller is not related to the resource as a customer.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: You are not authorized to retrieve the specified resource from the inventory
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
 components:
   securitySchemes:
     bearerAuth:
@@ -1072,6 +1341,14 @@ components:
             $ref: '#/components/schemas/ErrorResult'
           example:
             error: Invalid id
+    InvalidQuery:
+      description: A name or a value of the query is not valid.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResult'
+          example:
+            error: Invalid query
     InvalidBody:
       description: The body is not a JSON object or array.
       content:

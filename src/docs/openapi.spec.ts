@@ -17,6 +17,7 @@ import { LegacyAuthBridge } from '../legacy/legacy-auth.bridge';
 import { MongoConnectionService } from '../persistence/mongo-connection.service';
 import { DocumentModule } from '../tmf/document/document.module';
 import { RevenueModule } from '../tmf/revenue/revenue.module';
+import { InventoryModule } from '../tmf/inventory/inventory.module';
 import { InvoicingModule } from '../tmf/invoicing/invoicing.module';
 import { QuoteModule } from '../tmf/quote/quote.module';
 import { SearchModule } from '../tmf/search/search.module';
@@ -271,6 +272,21 @@ describe('responses against docs/openapi.yaml', () => {
         }
     ];
 
+    // The three inventories: a list of the caller and one resource, given when the caller is related to it
+    const inventoryCases = (): Case[] =>
+        ['inventory/product', 'serviceInventory/service', 'resourceInventory/resource'].flatMap((path) => [
+            ...proxied(`/${path}`, `/${path}?limit=5&offset=0`, '[]', { invalid: { url: `/${path}?q=x` } }),
+            ...proxied(`/${path}/{id}`, `/${path}/x-1`, '{"id":"x-1","relatedParty":[{"id":"p-ana","role":"Buyer"}]}', { invalid: { url: `/${path}/a%20b` } }),
+            {
+                method: 'get',
+                path: `/${path}/{id}`,
+                status: '403',
+                url: `/${path}/x-1`,
+                headers: LOGGED_IN,
+                arrange: () => tmforum.answer((res) => tmforum.json(res, 200, '{"id":"x-1","relatedParty":[]}'))
+            }
+        ]);
+
     const cases: Case[] = [
         { method: 'get', path: '/health/live', status: '200', arrange: () => mongo.ping.mockResolvedValue(false) },
         { method: 'get', path: '/health/ready', status: '200', arrange: () => mongo.ping.mockResolvedValue(true) },
@@ -306,13 +322,14 @@ describe('responses against docs/openapi.yaml', () => {
                 page: { contentType: 'text/html', body: '<html><body><h1>Invoice</h1></body></html>' }
             }
         ),
-        ...quoteCases()
+        ...quoteCases(),
+        ...inventoryCases()
     ];
 
     beforeAll(async () => {
         await tmforum.start();
 
-        @Module({ imports: [DependenciesStub, LoggerModule.forRoot({ pinoHttp: { level: 'silent' } }), HealthModule, AuthModule, DocumentModule, RevenueModule, SearchModule, InvoicingModule, QuoteModule] })
+        @Module({ imports: [DependenciesStub, LoggerModule.forRoot({ pinoHttp: { level: 'silent' } }), HealthModule, AuthModule, DocumentModule, RevenueModule, SearchModule, InvoicingModule, QuoteModule, InventoryModule] })
         class Contract {}
 
         app = await createApp(express(), Contract);
