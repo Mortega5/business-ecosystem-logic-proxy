@@ -336,5 +336,5 @@ the legacy application, so a lone `PORT` also drops the default path of the API.
   in production.
 - **CORS.** Every origin is allowed until `http.cors.origins` says otherwise. The legacy application answers with its own
   `*` on the routes it serves.
-- **Request body.** `http.bodyLimit` is `2mb`; the routes of the legacy application accept bodies of up to 50 MB.
+- **Request body.** `http.bodyLimit` is `5mb`, enough for the file of the portal (up to 3 MB) as base64 in the body of an upload; the routes of the legacy application accept bodies of up to 50 MB.
 - **Rate limiting** is not applied by the proxy.

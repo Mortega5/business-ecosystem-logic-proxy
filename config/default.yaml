@@ -7,7 +7,7 @@ app:
 
 http:
   trustedProxies: []
-  bodyLimit: 2mb
+  bodyLimit: 5mb
   uploadLimit: 50mb
   cors:
     origins: ["*"]

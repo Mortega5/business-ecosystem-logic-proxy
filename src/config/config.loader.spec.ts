@@ -291,7 +291,7 @@ describe('request size configuration', () => {
     const load = (env: NodeJS.ProcessEnv) => loadStaticConfig({ defaultsPath: DEFAULTS_PATH, env });
 
     it('has a limit for a body and a larger one for an upload', () => {
-        expect(load({}).http).toMatchObject({ bodyLimit: '2mb', uploadLimit: '50mb' });
+        expect(load({}).http).toMatchObject({ bodyLimit: '5mb', uploadLimit: '50mb' });
         expect(load({ BAE_HTTP__UPLOAD_LIMIT: '100mb' }).http.uploadLimit).toBe('100mb');
     });
 
