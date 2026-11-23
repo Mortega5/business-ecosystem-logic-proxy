@@ -81,6 +81,16 @@ export class AppConfigService {
         return this.value.health;
     }
 
+    /** Whether the upstream has a host, so that it can be called. */
+    hasUpstream(name: UpstreamName): boolean {
+        try {
+            resolveUpstream(this.value.upstreams, name);
+            return true;
+        } catch {
+            return false;
+        }
+    }
+
     /** The URL and timeout of an upstream; throws when its host is not configured. */
     upstream(name: UpstreamName): ResolvedUpstream {
         return resolveUpstream(this.value.upstreams, name);

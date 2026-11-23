@@ -192,6 +192,16 @@ describe('legacy endpoint variables', () => {
         });
     });
 
+    it('turns the address of the contact form notification into an upstream', () => {
+        expect(legacyEnvToObject({ BAE_LP_CONTACT_US_NOTIFICATION_URL: 'https://mail.example.org:8443/notify/contact' }).values).toEqual({
+            upstreams: { contactUs: { host: 'mail.example.org', port: '8443', scheme: 'https', path: '/notify/contact' } }
+        });
+        expect(legacyEnvToObject({ BAE_LP_CONTACT_US_NOTIFICATION_URL: 'http://mail/' }).values).toEqual({
+            upstreams: { contactUs: { host: 'mail', scheme: 'http', path: '' } }
+        });
+        expect(legacyEnvToObject({}).values).toEqual({});
+    });
+
     it('configures the standalone upstreams', () => {
         const { values } = legacyEnvToObject(endpoint('CHARGING', { HOST: 'charging.svc.cluster.local', PORT: '8006' }));
         expect(values).toEqual({ upstreams: { charging: { host: 'charging.svc.cluster.local', port: '8006', path: '' } } });

@@ -146,6 +146,25 @@ const endpointRules: LegacyRule[] = [
     }))
 ];
 
+// The legacy application notifies the contact form at one URL; here it is an upstream like the others
+const contactUsRule: LegacyRule = {
+    key: 'upstreams.contactUs',
+    variables: ['BAE_LP_CONTACT_US_NOTIFICATION_URL'],
+    build: (env) => {
+        const value = env.BAE_LP_CONTACT_US_NOTIFICATION_URL;
+        if (!present(value)) {
+            return undefined;
+        }
+        const url = new URL(value);
+        return {
+            host: url.hostname,
+            ...(url.port === '' ? {} : { port: url.port }),
+            scheme: url.protocol === 'https:' ? 'https' : 'http',
+            path: url.pathname === '/' ? '' : url.pathname
+        };
+    }
+};
+
 const RULES: LegacyRule[] = [
     { key: 'app.port', variables: ['BAE_LP_PORT', 'BAE_LP_HTTPS_PORT'], build: buildPort },
     {
@@ -166,6 +185,7 @@ const RULES: LegacyRule[] = [
     { key: 'search.enabled', variables: ['BAE_LP_SEARCH_URL'], build: (env) => (present(env.BAE_LP_SEARCH_URL) ? 'true' : undefined) },
     ...switchRules,
     ...valueRules,
+    contactUsRule,
     ...endpointRules
 ];
 
