@@ -189,6 +189,8 @@ Variables of the legacy application that also configure the Nest application:
 | `BAE_LP_HTTPS_CERT`, `BAE_LP_HTTPS_KEY`, `BAE_LP_HTTPS_CA` | `app.https.certFile`, `app.https.keyFile`, `app.https.caFile` | |
 | `BAE_LP_HTTPS_PORT` | `app.port` | Used while HTTPS is enabled; `443` when it is not set |
 | `BAE_LP_MONGO_SERVER`, `BAE_LP_MONGO_PORT`, `BAE_LP_MONGO_DB`, `BAE_LP_MONGO_USER`, `BAE_LP_MONGO_PASS` | `mongo.uri` | `mongodb://[user:password@]server:port/db`. Parts that are not set take the values of the legacy application: server `mongo`, port `27017`, database `belp`. Credentials are used only when both a user and a password are set, and are percent-encoded |
+| `BAE_LP_CONTACT_US_NOTIFICATION_URL` | `upstreams.contactUs` | Where the contact form is notified, as one URL (host, port, scheme and path are taken from it, the query is not); without it the form is notified to the charging backend. Also `BAE_UPSTREAMS__CONTACT_US__HOST` and the like |
+| `BAE_GIT_HASH` | | Not configuration: the commit of the build, shown by `GET /version` |
 | `BAE_LP_PURCHASE_ENABLED`, `BAE_LP_DATASPACE_ENABLED`, `BAE_LP_CATALOG_MANAGEMENT_ENABLED`, `BAE_LP_DSP_ENABLED`, `BAE_LP_QUOTE_ENABLED`, `BAE_LP_TENDERING_ENABLED`, `BAE_LP_LAUNCH_VALIDATION_ENABLED` | `http.uploadLimit` | size | `50mb` | Largest file upload (multipart body) a route accepts; a bigger one is refused with 413 |
 | `http.cors.origins` | list of origins or `"*"` | `["*"]` | Origins that may call the API from a browser; `*` is what the legacy application did |
 | `http.cors.exposeRedirect` | boolean | `false` | Exposes `X-Redirect-URL` to the browser |
