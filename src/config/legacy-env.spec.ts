@@ -125,6 +125,17 @@ describe('feature variables', () => {
         });
     });
 
+    it('moves the settings of the default catalog and of the related party schema into the catalog section', () => {
+        const { values } = legacyEnvToObject({
+            BAE_LP_DEFAULT_CATALOG_ID: 'urn:ngsi-ld:catalog:1',
+            BAE_LP_DEFAULT_CATALOG_NAME: 'platform',
+            BAE_LP_PARTY_LOCATION: 'https://schemas.example.org/party.json'
+        });
+        expect(values).toEqual({
+            catalog: { defaultCatalogId: 'urn:ngsi-ld:catalog:1', defaultCatalogName: 'platform', partyLocation: 'https://schemas.example.org/party.json' }
+        });
+    });
+
     it('reads a blank payment provider as none', () => {
         expect(legacyEnvToObject({ BAE_LP_PAYMENT_PROVIDER: '  ' }).values).toEqual({ purchase: { paymentProvider: 'none' } });
     });

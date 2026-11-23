@@ -303,6 +303,26 @@ describe('request size configuration', () => {
         expect(() => load({ BAE_LIMITS__READ_ALL__MAX_PAGES: 'many' })).toThrow('limits.readAll.maxPages');
     });
 
+    it('makes sure of the platform at start-up unless it is turned off, with the records and the categories of v11 by default', () => {
+        const { catalog } = load({});
+
+        expect(catalog.bootstrap).toEqual({ enabled: true, retryDelayMs: 5000, records: { defaultCatalog: 'default', supportPackageSpec: 'global' } });
+        expect(catalog.defaultCatalogId).toBe('');
+        expect(catalog.defaultCatalogName).toBe('default');
+        expect(catalog.systemCategories.map((category) => category.key)).toEqual(['dataset', 'api', 'blueprint']);
+        expect(load({ BAE_CATALOG__BOOTSTRAP__ENABLED: 'false' }).catalog.bootstrap.enabled).toBe(false);
+        expect(load({ BAE_CATALOG__BOOTSTRAP__ENABLED: 'true' }).catalog.bootstrap.enabled).toBe(true);
+    });
+
+    it('lets each of its settings be set, and refuses the ones that are not valid', () => {
+        const set = load({ BAE_CATALOG__BOOTSTRAP__RETRY_DELAY_MS: '250', BAE_CATALOG__BOOTSTRAP__RECORDS__DEFAULT_CATALOG: 'main', BAE_CATALOG__BOOTSTRAP__RECORDS__SUPPORT_PACKAGE_SPEC: 'spec' }).catalog.bootstrap;
+
+        expect(set).toMatchObject({ retryDelayMs: 250, records: { defaultCatalog: 'main', supportPackageSpec: 'spec' } });
+        expect(() => load({ BAE_CATALOG__BOOTSTRAP__RETRY_DELAY_MS: '0' })).toThrow('catalog.bootstrap.retryDelayMs');
+        expect(() => load({ BAE_CATALOG__BOOTSTRAP__RECORDS__DEFAULT_CATALOG: '' })).toThrow('catalog.bootstrap.records.defaultCatalog');
+        expect(() => load({ BAE_CATALOG__PARTY_LOCATION: 'not a url' })).toThrow('catalog.partyLocation');
+    });
+
     it('refuses an upload limit that is not a size', () => {
         expect(() => load({ BAE_HTTP__UPLOAD_LIMIT: 'big' })).toThrow('http.uploadLimit');
         expect(() => load({ BAE_HTTP__UPLOAD_LIMIT: '50' })).toThrow('http.uploadLimit');

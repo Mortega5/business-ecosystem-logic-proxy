@@ -25,8 +25,12 @@ export class InMemoryPlatformRecords extends PlatformRecords {
         return Promise.resolve();
     }
 
+    // One record, as `deleteOne` does: before the ids are unique there can be several with the same one
     remove(collection: PlatformCollection, id: string): Promise<void> {
-        this.records[collection] = this.records[collection].filter((record) => record.id !== id);
+        const index = this.records[collection].findIndex((record) => record.id === id);
+        if (index >= 0) {
+            this.records[collection].splice(index, 1);
+        }
         return Promise.resolve();
     }
 

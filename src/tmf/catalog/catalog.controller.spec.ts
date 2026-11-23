@@ -1,11 +1,12 @@
 import { Module } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import express from 'express';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthModule } from '../../auth/auth.module';
 import { createApp } from '../../bootstrap';
 import { AppConfigModule } from '../../config/app-config.module';
 import { LegacyAuthBridge } from '../../legacy/legacy-auth.bridge';
+import { LegacyOperator } from '../../legacy/legacy-operator';
 import { LoggingModule } from '../../logging/logging.module';
 import { AS_ADMIN, fakeLogin, LOGGED_IN } from '../../testing/fake-login';
 import { FakeUpstream } from '../../testing/fake-upstream';
@@ -134,6 +135,24 @@ describe('POST /catalog/category', () => {
         expect(sent['id']).toBeUndefined();
         expect(Number.isNaN(Date.parse((sent['validFor'] as { startDateTime: string }).startDateTime))).toBe(false);
         expect(bodyOf(sentTo('PATCH', '/catalog/cat-default'))['category']).toEqual([{ id: 'c-1', name: 'Data' }, { id: 'c-new', href: 'c-new', name: 'New' }]);
+    });
+
+    it('is owned by the operator of the marketplace when there is one, with the schema of the related party', async () => {
+        const operator = [{ id: 'urn:ngsi-ld:organization:op', role: 'Seller' }, { id: 'urn:ngsi-ld:organization:op', role: 'SellerOperator' }];
+        vi.spyOn(app.get(LegacyOperator), 'owner').mockReturnValue(operator);
+
+        await post({ name: 'New', relatedParty: [{ id: 'p-forged', role: 'Seller' }] });
+
+        const sent = bodyOf(sentTo('POST', '/category'));
+        expect(sent['relatedParty']).toEqual(operator);
+        expect(typeof sent['@schemaLocation']).toBe('string');
+        vi.restoreAllMocks();
+    });
+
+    it('keeps what the client sent about its owners when the marketplace has no operator', async () => {
+        await post({ name: 'New', relatedParty: [{ id: 'p-1', role: 'Seller' }] });
+
+        expect(bodyOf(sentTo('POST', '/category'))['relatedParty']).toEqual([{ id: 'p-1', role: 'Seller' }]);
     });
 
     it('makes a category below another, which has to exist, and does not list it in the default catalog', async () => {
