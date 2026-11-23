@@ -155,6 +155,9 @@ export const ConfigSchema = z.object({
     // just initialised, and the product carries a compliance credential. The credential brings its own certificate and no trusted root is
     // set yet, so by default one that is signed by any certificate is taken, with a warning; with the flag off it is refused
     launchValidation: z.object({ enabled: booleanLike, allowUntrustedCertificates: booleanLike }),
+    // With it on, the lists of offerings that ask for a keyword or a category go through the search engine of the marketplace, which pages
+    // and sorts them and gives their ids; with it off the lists go to the catalog API as they are asked, and a keyword is not looked at
+    search: z.object({ enabled: booleanLike }),
     dataSpace: z.object({ enabled: booleanLike }),
     catalogManagement: z.object({ enabled: booleanLike }),
     catalog: z.object({
@@ -188,6 +191,9 @@ export const ConfigSchema = z.object({
         descriptionLength: z.coerce.number().int().positive(),
         // The ids of price plans that one query to the catalog asks for
         plansPerQuery: z.coerce.number().int().positive(),
+        // The directory of providers keeps the organisations that have launched offerings for this long, and asks for this many of them in a query
+        providersPerQuery: z.coerce.number().int().positive(),
+        providerCacheMs: z.coerce.number().int().positive(),
         // When the proxy reads everything that a collection has: the items of a page, and how many pages at most
         readAll: z.object({ pageSize: z.coerce.number().int().positive(), maxPages: z.coerce.number().int().positive() })
     }),

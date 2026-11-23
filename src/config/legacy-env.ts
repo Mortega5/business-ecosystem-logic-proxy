@@ -162,6 +162,8 @@ const RULES: LegacyRule[] = [
         build: buildMongoUri
     },
     paymentProviderRule,
+    // The legacy application searches when it has the address of the engine
+    { key: 'search.enabled', variables: ['BAE_LP_SEARCH_URL'], build: (env) => (present(env.BAE_LP_SEARCH_URL) ? 'true' : undefined) },
     ...switchRules,
     ...valueRules,
     ...endpointRules

@@ -31,6 +31,7 @@ const VALUE: AppConfig = {
     party: { editEnabled: true },
     dsp: { enabled: false },
     launchValidation: { enabled: false, allowUntrustedCertificates: true },
+    search: { enabled: false },
     dataSpace: { enabled: false },
     catalogManagement: { enabled: true },
     catalog: {
@@ -43,7 +44,7 @@ const VALUE: AppConfig = {
         bootstrap: { enabled: true, retryDelayMs: 5000, records: { defaultCatalog: 'default', supportPackageSpec: 'global' } },
         systemCategories: [{ key: 'dataset', name: 'Dataset', description: 'Datasets' }]
     },
-    limits: { orderItems: 50, noteLength: 10000, notesPerRequest: 20, nameLength: 100, descriptionLength: 100000, plansPerQuery: 20, readAll: { pageSize: 100, maxPages: 100 } },
+    limits: { orderItems: 50, noteLength: 10000, notesPerRequest: 20, nameLength: 100, descriptionLength: 100000, plansPerQuery: 20, providersPerQuery: 50, providerCacheMs: 300000, readAll: { pageSize: 100, maxPages: 100 } },
     health: { mongoPingTimeoutMs: 1000 },
     upstreams: {
         timeoutMs: 5000,

@@ -57,6 +57,10 @@ export class AppConfigService {
         return this.value.launchValidation;
     }
 
+    get search(): AppConfig['search'] {
+        return this.value.search;
+    }
+
     get dataSpace(): AppConfig['dataSpace'] {
         return this.value.dataSpace;
     }

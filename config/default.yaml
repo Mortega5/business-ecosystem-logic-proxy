@@ -62,6 +62,9 @@ launchValidation:
   enabled: false
   allowUntrustedCertificates: true
 
+search:
+  enabled: false
+
 dataSpace:
   enabled: false
 
@@ -101,6 +104,8 @@ limits:
   nameLength: 100
   descriptionLength: 100000
   plansPerQuery: 20
+  providersPerQuery: 50
+  providerCacheMs: 300000
   readAll:
     pageSize: 100
     maxPages: 100
