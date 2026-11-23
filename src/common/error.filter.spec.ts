@@ -1,11 +1,11 @@
-import { BadRequestException, Controller, Get, Module, ServiceUnavailableException } from '@nestjs/common';
+import { BadRequestException, Controller, Get, Logger, Module, ServiceUnavailableException } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import express from 'express';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createApp } from '../bootstrap';
 import { AppConfigModule } from '../config/app-config.module';
 import { LoggingModule } from '../logging/logging.module';
-import { DomainError, NotFoundError, BadGatewayError } from './domain-error';
+import { DomainError, ForbiddenError, NotFoundError, BadGatewayError } from './domain-error';
 
 @Controller('errors')
 class ErrorsController {
@@ -22,6 +22,11 @@ class ErrorsController {
     @Get('upstream')
     upstream(): never {
         throw new BadGatewayError('The catalog could not be reached');
+    }
+
+    @Get('forbidden')
+    forbidden(): never {
+        throw new ForbiddenError('You are not the owner');
     }
 
     @Get('http')
@@ -86,6 +91,20 @@ describe('error filter', () => {
             status: 502,
             body: { error: 'The catalog could not be reached' }
         });
+    });
+
+    it('writes down what failed at a third party and who was refused, with the reason and no token', async () => {
+        const warn = vi.spyOn(Logger.prototype, 'warn');
+        const log = vi.spyOn(Logger.prototype, 'log');
+        await get('/errors/upstream?access_token=secret');
+        await get('/errors/forbidden');
+        await get('/errors/missing');
+        expect(warn).toHaveBeenCalledWith('GET /errors/upstream?access_token=%5BRedacted%5D answered 502: The catalog could not be reached');
+        expect(log).toHaveBeenCalledWith('GET /errors/forbidden answered 403: You are not the owner');
+        expect(warn).toHaveBeenCalledTimes(1);
+        expect(log).toHaveBeenCalledTimes(1);
+        warn.mockRestore();
+        log.mockRestore();
     });
 
     it('keeps the status of a client-side HTTP exception', async () => {

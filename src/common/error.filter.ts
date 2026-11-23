@@ -1,5 +1,6 @@
 import { Catch, HttpException, Logger, type ArgumentsHost, type ExceptionFilter } from '@nestjs/common';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
+import { sanitizeUrl } from '../logging/pino-options';
 import { DomainError } from './domain-error';
 
 // What the body parser throws (an `http-errors` error): a 4xx that is meant to be told to the client
@@ -20,6 +21,16 @@ const UNEXPECTED = 'Unexpected error. The error has been notified to the adminis
 export class ErrorFilter implements ExceptionFilter {
     private readonly logger = new Logger(ErrorFilter.name);
 
+    /** What a third party or the proxy itself failed at is a warning with its reason; a refusal to a user who is not allowed is a notice. */
+    private logRefusal(error: DomainError, req: Request): void {
+        const what = `${req.method} ${sanitizeUrl(req.originalUrl)} answered ${error.status}: ${error.message}`;
+        if (error.status >= 500) {
+            this.logger.warn(what);
+        } else if (error.status === 401 || error.status === 403) {
+            this.logger.log(what);
+        }
+    }
+
     catch(exception: unknown, host: ArgumentsHost): void {
         const res = host.switchToHttp().getResponse<Response>();
         if (res.headersSent) {
@@ -28,6 +39,7 @@ export class ErrorFilter implements ExceptionFilter {
         }
 
         if (exception instanceof DomainError) {
+            this.logRefusal(exception, host.switchToHttp().getRequest<Request>());
             res.status(exception.status).json({ error: exception.message });
             return;
         }

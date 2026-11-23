@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { BadGatewayError, DomainError, ForbiddenError, NotFoundError } from '../../common/domain-error';
 import { AppConfigService } from '../../config/app-config.service';
@@ -70,6 +71,8 @@ export const parseJson = (text: string): unknown => {
  * that made something elsewhere takes it back when it fails.
  */
 export class Specifications {
+    private readonly logger = new Logger(Specifications.name);
+
     constructor(
         protected readonly proxy: TmfProxy,
         private readonly owned: OwnedResources,
@@ -207,7 +210,11 @@ export class Specifications {
     }
 
     private async undone(undo: Undo | undefined, failure: string): Promise<void> {
-        const left = await undo?.();
+        if (undo === undefined) {
+            return;
+        }
+        const left = await undo();
+        this.logger.warn(left === undefined ? `${failure}: what had been made before was taken back` : `${failure}: what had been made before could not be taken back (${left})`);
         if (left !== undefined) {
             throw new BadGatewayError(`${failure} and ${left}`);
         }
