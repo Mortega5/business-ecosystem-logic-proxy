@@ -60,6 +60,7 @@ dsp:
 
 launchValidation:
   enabled: false
+  allowUntrustedCertificates: true
 
 dataSpace:
   enabled: false

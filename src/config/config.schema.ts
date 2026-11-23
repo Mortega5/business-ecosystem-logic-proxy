@@ -151,7 +151,10 @@ export const ConfigSchema = z.object({
             path: ['contractDefinitionSchema'],
             message: 'is required when dsp.enabled is true'
         }),
-    launchValidation: z.object({ enabled: booleanLike }),
+    // With it on, an offering is launched only when its product has an image, its seller is an organisation with a country that is not
+    // just initialised, and the product carries a compliance credential. The credential brings its own certificate and no trusted root is
+    // set yet, so by default one that is signed by any certificate is taken, with a warning; with the flag off it is refused
+    launchValidation: z.object({ enabled: booleanLike, allowUntrustedCertificates: booleanLike }),
     dataSpace: z.object({ enabled: booleanLike }),
     catalogManagement: z.object({ enabled: booleanLike }),
     catalog: z.object({

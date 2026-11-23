@@ -44,6 +44,7 @@ const SWITCHES: [string, string][] = [
     ['tendering.enabled', 'BAE_LP_TENDERING_ENABLED'],
     ['party.editEnabled', 'BAE_LP_EDIT_PARTY'],
     ['launchValidation.enabled', 'BAE_LP_LAUNCH_VALIDATION_ENABLED'],
+    ['launchValidation.allowUntrustedCertificates', 'BAE_LP_LAUNCH_VALIDATION_ALLOW_UNTRUSTED_CERTIFICATES'],
     ['tendering.devButtonsOpenClose', 'BAE_LP_TENDER_DEV_BUTTON_ENABLED']
 ];
 

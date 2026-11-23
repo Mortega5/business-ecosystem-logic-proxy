@@ -30,7 +30,7 @@ const VALUE: AppConfig = {
     tendering: { enabled: true, devButtonsOpenClose: false },
     party: { editEnabled: true },
     dsp: { enabled: false },
-    launchValidation: { enabled: false },
+    launchValidation: { enabled: false, allowUntrustedCertificates: true },
     dataSpace: { enabled: false },
     catalogManagement: { enabled: true },
     catalog: {
