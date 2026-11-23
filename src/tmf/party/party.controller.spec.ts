@@ -12,6 +12,7 @@ import { AS_MEMBER, AS_ORGANISATION, fakeLogin, LOGGED_IN } from '../../testing/
 import { FakeUpstream } from '../../testing/fake-upstream';
 import { PartyModule } from './party.module';
 
+const { operator } = createRequire(__filename)('../../../lib/operator') as { operator: { getOperatorId: () => string | undefined } };
 const { partyClient } = createRequire(__filename)('../../../lib/party') as { partyClient: { clearPartyCache: (id: string) => void } };
 
 const upstream = new FakeUpstream();
@@ -93,8 +94,7 @@ describe('GET /party/organization, the list', () => {
     });
 
     it.each([
-        ['the directory of providers', 'lifecycleStatus=Launched&offset=0&limit=12'],
-        ['a keyword', 'keyword=cloud'],
+        ['a status that is not the directory', 'lifecycleStatus=Retired'],
         ['a sort', 'sort=name'],
         ['a filter that is not one of the portal', 'organizationIdentification.identificationId=x'],
         ['the raw query', 'q=a'],
@@ -107,6 +107,155 @@ describe('GET /party/organization, the list', () => {
         expect(res.status).toBe(400);
         expect(await res.json()).toEqual({ error: 'Invalid query' });
         expect(upstream.seen).toBeUndefined();
+    });
+});
+
+describe('the directory of providers', () => {
+    interface Asked {
+        method: string | undefined;
+        path: string;
+        search: URLSearchParams;
+    }
+    let asked: Asked[];
+    let engine: string;
+    let offersFail: boolean;
+    const SELLER = (id: string) => ({ id, role: 'Seller' });
+    const BUYER = { id: 'p-ana', role: 'Buyer' };
+    const OFFERS = [
+        { id: 'o-1', relatedParty: [SELLER('org-b')] },
+        { id: 'o-2', relatedParty: [SELLER('org-a')] },
+        { id: 'o-3', relatedParty: [SELLER('org-a')] },
+        { id: 'o-4', relatedParty: [SELLER('org-c')] },
+        { id: 'o-5', relatedParty: [SELLER('org-d'), BUYER] },
+        { id: 'o-6', relatedParty: [SELLER('p-someone')] }
+    ];
+    const ORGANISATIONS = [
+        { id: 'org-a', tradingName: 'Alpha', href: 'org-a' },
+        { id: 'org-b', tradingName: 'Zeta', href: 'org-b' },
+        { id: 'org-c', tradingName: 'Mid', href: 'org-c' },
+        { id: 'org-d', tradingName: 'Delta', href: 'org-d' },
+        { id: 'org-x', tradingName: 'Nobody', href: 'org-x' }
+    ];
+    const names = async (res: Response): Promise<string[]> => ((await res.json()) as { tradingName: string }[]).map((one) => one.tradingName);
+    const offerQueries = () => asked.filter((request) => request.path === `${BASE.replace('/party/v4', '/productCatalogManagement/v4')}/productOffering`);
+
+    // Each test has a proxy of its own, as what it keeps is what the tests look at
+    let fresh = '';
+    const get = (path: string, init: { headers?: Record<string, string> } = {}) => call(path, { ...init, base: fresh });
+
+    beforeEach(async () => {
+        fresh = await serve();
+        asked = [];
+        engine = '[]';
+        offersFail = false;
+        upstream.answer((res) => {
+            const request = upstream.seen;
+            const target = new URL(`http://x${request?.url ?? ''}`);
+            asked.push({ method: request?.method, path: target.pathname, search: target.searchParams });
+            if (target.pathname.startsWith('/api/searchOrganizations')) {
+                upstream.json(res, 200, engine);
+            } else if (target.pathname.endsWith('/productOffering')) {
+                const honoured = target.searchParams.get('relatedParty.role*') !== null;
+                upstream.json(res, offersFail ? 500 : 200, JSON.stringify(offersFail ? {} : OFFERS.filter((offer) => !honoured || !offer.relatedParty.some((party) => party.role === 'Buyer'))));
+            } else if (target.pathname.endsWith('/organization')) {
+                const ids = target.searchParams.get('id')?.split(',');
+                upstream.json(res, 200, JSON.stringify(ORGANISATIONS.filter((organisation) => ids === undefined || ids.includes(organisation.id))));
+            } else {
+                upstream.json(res, 404, '{}');
+            }
+        });
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
+
+    it('is the sellers of the launched offerings that anybody reads, sorted by name and cut into pages that are full', async () => {
+        const first = await get('/party/organization?lifecycleStatus=Launched&offset=0&limit=2&sort=tradingName');
+        expect(first.status).toBe(200);
+        expect(first.headers.get('x-total-count')).toBe('3');
+        expect(await names(first)).toEqual(['Alpha', 'Mid']);
+        const second = await get('/party/organization?lifecycleStatus=Launched&offset=2&limit=2');
+        expect(await names(second)).toEqual(['Zeta']);
+        expect(second.headers.get('x-total-count')).toBe('3');
+        expect(await names(await get('/party/organization?lifecycleStatus=Launched&offset=0&limit=2&sort=-tradingName'))).toEqual(['Zeta', 'Mid']);
+        const beyond = await get('/party/organization?lifecycleStatus=launched&offset=6&limit=2');
+        expect(await beyond.json()).toEqual([]);
+        expect(beyond.headers.get('x-total-count')).toBe('3');
+    });
+
+    it('asks for what the portal asked of each organisation, and for the offerings that anybody may read', async () => {
+        await get('/party/organization?lifecycleStatus=Launched&offset=0&limit=2&fields=id,tradingName');
+        const [offers] = offerQueries();
+        expect(Object.fromEntries(offers?.search ?? [])).toMatchObject({ lifecycleStatus: 'Launched', fields: 'relatedParty', 'relatedParty.role*': '^(?!Buyer$).*$' });
+        const page = asked.filter((request) => request.path.endsWith('/organization')).at(-1);
+        expect(page?.search.get('id')).toBe('org-a,org-c');
+        expect(page?.search.get('fields')).toBe('id,tradingName');
+    });
+
+    it('is read once for a while, whoever asks', async () => {
+        await get('/party/organization?lifecycleStatus=Launched&limit=2');
+        await get('/party/organization?lifecycleStatus=Launched&limit=2&offset=2', { headers: LOGGED_IN });
+        expect(offerQueries()).toHaveLength(1);
+    });
+
+    it('leaves out the operator of the marketplace', async () => {
+        vi.spyOn(operator, 'getOperatorId').mockReturnValue('org-a');
+        const res = await get('/party/organization?lifecycleStatus=Launched&limit=10');
+        expect(await names(res)).toEqual(['Mid', 'Zeta']);
+        expect(res.headers.get('x-total-count')).toBe('2');
+    });
+
+    it('is not kept when it could not be read, and the client is told', async () => {
+        offersFail = true;
+        expect((await get('/party/organization?lifecycleStatus=Launched&limit=2')).status).toBe(502);
+        offersFail = false;
+        expect((await get('/party/organization?lifecycleStatus=Launched&limit=2')).status).toBe(200);
+    });
+
+    it('does not take a keyword without a search engine, which would look like an answer that it is not', async () => {
+        const res = await get('/party/organization?lifecycleStatus=Launched&keyword=cloud&limit=2');
+        expect(res.status).toBe(501);
+        expect(((await res.json()) as { error: string }).error).toBe('The search is not available');
+        expect(asked).toEqual([]);
+    });
+
+    describe('with a search engine', () => {
+        let withEngine: string;
+
+        afterAll(() => {
+            delete process.env['BAE_SEARCH__ENABLED'];
+        });
+
+        beforeAll(async () => {
+            withEngine = await serve({ BAE_SEARCH__ENABLED: 'true', BAE_UPSTREAMS__SEARCH__HOST: '127.0.0.1', BAE_UPSTREAMS__SEARCH__PORT: String(upstream.port) });
+        });
+
+        it('is what the engine finds, in its order, paged by the engine', async () => {
+            engine = JSON.stringify([{ id: 'org-b' }, { id: 'org-a' }]);
+            const res = await call('/party/organization?lifecycleStatus=Launched&keyword=cloud%20x&offset=2&limit=2&fields=id,tradingName', { base: withEngine });
+            expect(await names(res)).toEqual(['Zeta', 'Alpha']);
+            const searched = asked.find((request) => request.path.startsWith('/api/searchOrganizations'));
+            expect(searched).toMatchObject({ method: 'POST', path: '/api/searchOrganizations/cloud%20x' });
+            expect(Object.fromEntries(searched?.search ?? [])).toEqual({ page: '1', size: '2', considerAllOrgs: 'false' });
+            const page = asked.filter((request) => request.path.endsWith('/organization')).at(-1);
+            expect(page?.search.get('id')).toBe('org-b,org-a');
+            expect(page?.search.get('fields')).toBe('id,tradingName');
+            expect(offerQueries()).toEqual([]);
+        });
+
+        it('does not take a keyword that would leave the path of the engine', async () => {
+            const res = await call('/party/organization?keyword=a%2Fb&limit=2', { base: withEngine });
+            expect(res.status).toBe(400);
+            expect(asked).toEqual([]);
+        });
+
+        it('is what the engine finds for the launched ones too, and is empty when it finds nothing', async () => {
+            const res = await call('/party/organization?lifecycleStatus=Launched&limit=2', { base: withEngine });
+            expect(await res.json()).toEqual([]);
+            expect(res.headers.get('x-total-count')).toBe('0');
+            expect(asked.map((request) => request.path)).toEqual(['/api/searchOrganizations']);
+        });
     });
 });
 

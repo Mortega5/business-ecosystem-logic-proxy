@@ -11,17 +11,21 @@ import { isRecord } from '../related-party';
 import { ResourceIdPipe } from '../resource-id.pipe';
 import { TmfProxy } from '../tmf-proxy';
 import type { UpstreamUser } from '../upstream-headers';
+import { ProviderDirectory } from './provider-directory';
 import { parsePartyChanges, validateOrganizationChanges } from './party-changes';
 
 const NOT_ALLOWED = 'You are not allowed to access this resource';
 
 // What an individual shows depends on who asks, so a cache in between must not give it to somebody else
 
-// What the portal asks of the list of organisations; the directory of providers (`lifecycleStatus`, `keyword`) is not served yet
+// What the portal asks of the list of organisations; with `lifecycleStatus` or `keyword` it is the directory of providers
 const LIST_FILTERS: Record<string, RegExp> = {
     fields: /^[A-Za-z0-9_.@,-]{1,200}$/,
     offset: /^\d{1,9}$/,
-    limit: /^\d{1,9}$/
+    limit: /^\d{1,9}$/,
+    lifecycleStatus: /^launched$/i,
+    keyword: /^[^&;#]{1,200}$/,
+    sort: /^-?tradingName$/
 };
 
 // What anybody who is logged in may know of another individual: the name that the portal shows
@@ -39,7 +43,8 @@ export class PartyController {
     constructor(
         private readonly proxy: TmfProxy,
         private readonly config: AppConfigService,
-        private readonly cache: LegacyPartyCache
+        private readonly cache: LegacyPartyCache,
+        private readonly directory: ProviderDirectory
     ) {}
 
     private user(req: Request): UpstreamUser {
@@ -60,6 +65,9 @@ export class PartyController {
                 throw new DomainError('Invalid query', 400);
             }
             params.append(name, value);
+        }
+        if (ProviderDirectory.isDirectoryQuery(params)) {
+            return this.directory.list(req, res, params);
         }
         const search = params.size === 0 ? '' : `?${params.toString()}`;
         return this.proxy.forward(req, res, { upstream: 'tmforum.party', path: '/organization', search });
