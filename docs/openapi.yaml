@@ -3983,6 +3983,196 @@ paths:
           $ref: '#/components/responses/BadGateway'
         '504':
           $ref: '#/components/responses/UpstreamUnreachable'
+  /catalog/productOfferingPrice:
+    get:
+      tags: [catalog]
+      operationId: listProductOfferingPrices
+      summary: List of the prices
+      description: |
+        Open to anybody. Only the filters of the portal are sent on: `limit`, `offset`, `id` (up to a hundred identifiers separated by
+        commas), `usageSpecId` and `bundledPopRelationship.id`; any other is refused.
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - name: filters
+          in: query
+          required: false
+          description: '`limit`, `offset`, `id`, `usageSpecId` and `bundledPopRelationship.id`, each once.'
+          style: form
+          explode: true
+          schema:
+            type: object
+            additionalProperties:
+              type: string
+      responses:
+        '200':
+          description: The prices, as the catalog API answers them.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
+              example: []
+        '400':
+          $ref: '#/components/responses/InvalidQuery'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+    post:
+      tags: [catalog]
+      operationId: createProductOfferingPrice
+      summary: Create a price
+      description: |
+        Only a seller, who is its seller whatever the body says about it; the buyer is kept when the body names one, and the operator
+        is added. `id` and `href` are dropped and `validFor` starts now when it is missing. A discount is a percentage from 0 to 100 or a fixed amount that is not negative, a
+        unit of measure has an amount of at least one, and a price is between 0,01 and 1.000.000.000 with the decimals of its ISO 4217
+        currency.
+
+        A price plan (a bundle) holds components that exist, that are not bundles or constraints and that use nothing that its
+        constraint forbids; it points at one constraint at most, and then it applies to no characteristic itself. A constraint
+        cannot name a compliance characteristic.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '201':
+          description: The price created, as the catalog API answers it.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                id: urn:ngsi-ld:product-offering-price:1
+        '400':
+          $ref: '#/components/responses/InvalidBody'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          description: The price or what it is made of is not valid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '502':
+          $ref: '#/components/responses/BadGateway'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+  /catalog/productOfferingPrice/{id}:
+    get:
+      tags: [catalog]
+      operationId: getProductOfferingPrice
+      summary: A price
+      description: |
+        Open to anybody.
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: The price, as the catalog API answers it.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                id: urn:ngsi-ld:product-offering-price:1
+        '400':
+          $ref: '#/components/responses/InvalidId'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+    patch:
+      tags: [catalog]
+      operationId: updateProductOfferingPrice
+      summary: Change a price
+      description: |
+        Only the seller who owns it. The related parties cannot be changed, a plan cannot become a component or the other way round,
+        and the lifecycle has to follow its order. The amounts keep their rules. A plan that changes what it holds or points at is
+        checked as when it is made; a component that changes what it applies to cannot use what the constraint of a plan that holds
+        it forbids, and a constraint cannot forbid what the components of the plans that point at it use.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ResourceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: The price changed, as the catalog API answers it.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                id: urn:ngsi-ld:product-offering-price:1
+        '400':
+          $ref: '#/components/responses/InvalidIdOrBody'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '409':
+          description: The related parties change.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+        '422':
+          description: The price or what it is made of is not valid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '502':
+          $ref: '#/components/responses/BadGateway'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
 components:
   securitySchemes:
     bearerAuth:
