@@ -21,7 +21,7 @@ class Root {}
 
 // The legacy application answers whatever of /catalog is not here
 const legacy = express();
-legacy.get('/catalog/productOffering', (_req, res) => {
+legacy.get('/catalog/catalog', (_req, res) => {
     res.json({ from: 'legacy' });
 });
 
@@ -266,7 +266,7 @@ describe('what the portal does not use, and what is not here yet', () => {
     });
 
     it('leaves the rest of the catalog API to the legacy application', async () => {
-        const res = await call('/catalog/productOffering', { headers: admin() });
+        const res = await call('/catalog/catalog', { headers: admin() });
 
         expect(await res.json()).toEqual({ from: 'legacy' });
         expect(seen).toEqual([]);

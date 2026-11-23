@@ -10,6 +10,8 @@ import { callerParty, isRecord, isRelatedAs } from '../related-party';
 import { isResourceId } from '../resource-id.pipe';
 import { isRetired, isValidStatusTransition, sameRelatedParties, validateNameAndDescription } from '../specification/specification-rules';
 import { parseJson } from '../specification/specifications';
+import type { UpstreamResponse } from '../../http-client/upstream-client';
+import { MarketplaceSearch } from '../marketplace-search';
 import { TmfProxy } from '../tmf-proxy';
 import type { UpstreamUser } from '../upstream-headers';
 import { LaunchRequirements } from './launch-requirements';
@@ -22,6 +24,28 @@ const FIXED_FIELDS = ['isBundle', 'productSpecification', 'bundledProductOfferin
 // More than this many bundled offerings or categories is not an offering that anybody makes by hand
 const MAX_BUNDLED = 50;
 const MAX_CATEGORIES = 30;
+
+const ID = /^[A-Za-z0-9:._-]{1,200}$/;
+const IDS = /^[A-Za-z0-9:._-]{1,200}(,[A-Za-z0-9:._-]{1,200}){0,99}$/;
+
+// What anybody may ask of the list of offerings, with what each filter may be; a category may also be one of the filters of the search engine
+const LIST_FILTERS: Record<string, RegExp> = {
+    limit: /^\d{1,6}$/,
+    offset: /^\d{1,9}$/,
+    sort: /^-?[A-Za-z][A-Za-z0-9_.]{0,60}$/,
+    lifecycleStatus: /^[A-Za-z]{1,20}(,[A-Za-z]{1,20}){0,5}$/,
+    isBundle: /^(true|false)$/,
+    'category.id': /^[^&;#=]{1,500}$/,
+    'name*': /^[^&;#]{1,300}$/,
+    keyword: /^[^&;#]{1,200}$/,
+    'relatedParty.id': ID,
+    'relatedParty.role': /^[A-Za-z]{1,30}$/,
+    // Whatever the client says about who the offerings are for, the proxy says it itself
+    'relatedParty.role*': /^.{1,200}$/,
+    'productOfferingPrice.id': IDS,
+    'productSpecification.id': ID,
+    id: IDS
+};
 
 const statusOf = (value: unknown): string => (typeof value === 'string' ? value.toLowerCase() : '');
 
@@ -49,7 +73,8 @@ export class Offerings {
         private readonly operator: LegacyOperator,
         private readonly parties: OfferingParties,
         private readonly charging: ChargingAssets,
-        private readonly launch: LaunchRequirements
+        private readonly launch: LaunchRequirements,
+        private readonly search: MarketplaceSearch
     ) {}
 
     private get roles(): { seller: string; customer: string } {
@@ -88,6 +113,113 @@ export class Offerings {
     private isBuyerOrSeller(req: Request, offering: Json): boolean {
         const partyId = (req as Request & { user?: UpstreamUser }).user?.partyId;
         return typeof partyId === 'string' && (isRelatedAs(offering, partyId, this.roles.customer) || isRelatedAs(offering, partyId, this.roles.seller));
+    }
+
+    // ---- List
+
+    /**
+     * The offerings that the caller may read, as the catalog API pages them. The ones made for a buyer are for the buyer and the
+     * seller only: unless the caller asks for the offerings of their own, the query leaves out the ones that name a buyer. A keyword
+     * or a category goes to the search engine first, which pages and sorts and gives the ids, when the marketplace has one (a keyword without one is refused). On the
+     * route of a catalog, the categories of the catalog are what the offerings have to be in.
+     */
+    async list(req: Request, res: Response, catalogId?: string): Promise<void> {
+        const asked = this.listFilters(req);
+        if (asked.has('keyword') && !this.search.enabled) {
+            // A list that ignored the keyword would look like its answer
+            throw new DomainError('The search is not available', 501);
+        }
+        const categories = catalogId === undefined ? undefined : await this.categoriesOfCatalog(req, catalogId);
+        if (categories?.length === 0) {
+            // A catalog with no categories has no offerings; v11 listed all of them
+            this.proxy.reply(res, this.emptyList(), PRIVATE);
+            return;
+        }
+        const partyId = (req as Request & { user?: UpstreamUser }).user?.partyId;
+        const own = partyId !== undefined && asked.get('relatedParty.id') === partyId;
+        const params = new URLSearchParams();
+        let order: string[] | undefined;
+        const keyword = asked.get('keyword');
+        if (this.search.enabled && (keyword !== undefined || asked.has('category.id'))) {
+            order = await this.search.offerings(req, {
+                keyword: asked.get('keyword'),
+                categories: asked.get('category.id'),
+                sort: asked.get('sort'),
+                offset: asked.get('offset'),
+                limit: asked.get('limit'),
+                organizationId: asked.get('relatedParty.id')
+            });
+            if (order.length === 0) {
+                this.proxy.reply(res, this.emptyList(), own ? PRIVATE : {});
+                return;
+            }
+            params.set('id', order.join(','));
+            params.set('limit', asked.get('limit') ?? String(order.length));
+        } else {
+            for (const [name, value] of asked) {
+                if (name !== 'relatedParty.role*') {
+                    params.set(name, value);
+                }
+            }
+            this.assertCategoryIds(params.get('category.id'));
+        }
+        if (categories !== undefined) {
+            params.set('category', categories.join(','));
+        }
+        if (!own) {
+            params.set('relatedParty.role*', `^(?!${this.roles.customer}$).*$`);
+        }
+        const response = await this.proxy.send(req, { upstream: 'tmforum.catalog', path: '/productOffering', method: 'GET', search: `?${params.toString()}` });
+        this.proxy.reply(res, response.status >= 400 ? response : this.listed(req, response, order), own ? PRIVATE : {});
+    }
+
+    /** The page as the API gave it, in the order of the search engine when there was one, and with no offering that the caller may not read. */
+    private listed(req: Request, response: UpstreamResponse, order: string[] | undefined): UpstreamResponse {
+        const found = parseJson(response.body);
+        if (!Array.isArray(found)) {
+            throw new BadGatewayError('The offerings could not be read');
+        }
+        let offerings = (found as unknown[]).filter(isRecord);
+        // The query leaves out what is for a buyer, but the roles of the offerings are kept as they were written: this is what the filter cannot see
+        const readable = offerings.filter((offering) => !this.hasBuyer(offering) || this.isBuyerOrSeller(req, offering));
+        if (readable.length < offerings.length) {
+            this.logger.warn(`${offerings.length - readable.length} offerings for a buyer came in a list of offerings and were left out`);
+        }
+        offerings = readable;
+        if (order !== undefined) {
+            const place = new Map(order.map((id, index) => [id, index]));
+            offerings = offerings.toSorted((a, b) => (place.get(String(a['id'])) ?? 0) - (place.get(String(b['id'])) ?? 0));
+        }
+        return readable.length === found.length && order === undefined ? response : { ...response, body: JSON.stringify(offerings) };
+    }
+
+    private emptyList(): UpstreamResponse {
+        return { status: 200, headers: new Headers({ 'content-type': 'application/json', 'x-total-count': '0' }), body: '[]' };
+    }
+
+    private listFilters(req: Request): Map<string, string> {
+        const asked = new Map<string, string>();
+        for (const [name, value] of Object.entries(req.query)) {
+            const allowed = Object.hasOwn(LIST_FILTERS, name) ? LIST_FILTERS[name] : undefined;
+            if (allowed === undefined || typeof value !== 'string' || !allowed.test(value)) {
+                throw new DomainError('Invalid query', 400);
+            }
+            asked.set(name, value);
+        }
+        return asked;
+    }
+
+    /** Without a search engine a category is the id of one. */
+    private assertCategoryIds(categories: string | null): void {
+        if (categories !== null && categories.split(',').some((id) => !isResourceId(id))) {
+            throw new DomainError('Invalid query', 400);
+        }
+    }
+
+    private async categoriesOfCatalog(req: Request, catalogId: string): Promise<string[]> {
+        const catalog = await this.getRecord(req, `/catalog/${encodeURIComponent(catalogId)}`, new DomainError('The attached catalog cannot be read or does not exist', 422), 'The catalog could not be read');
+        const categories = Array.isArray(catalog['category']) ? (catalog['category'] as unknown[]) : [];
+        return categories.flatMap((category) => (isRecord(category) && typeof category['id'] === 'string' && isResourceId(category['id']) ? [category['id']] : []));
     }
 
     // ---- Create

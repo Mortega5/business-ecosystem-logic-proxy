@@ -79,6 +79,18 @@ export class CatalogController {
     }
 
     @OptionalAuth()
+    @Get('productOffering')
+    listOfferings(@Req() req: Request, @Res() res: Response): Promise<void> {
+        return this.offerings.list(req, res);
+    }
+
+    @OptionalAuth()
+    @Get('catalog/:catalogId/productOffering')
+    listOfferingsInCatalog(@Param('catalogId', ResourceIdPipe) catalogId: string, @Req() req: Request, @Res() res: Response): Promise<void> {
+        return this.offerings.list(req, res, catalogId);
+    }
+
+    @OptionalAuth()
     @Get('productOffering/:id')
     readOffering(@Param('id', ResourceIdPipe) id: string, @Req() req: Request, @Res() res: Response): Promise<void> {
         return this.offerings.read(req, res, id);
