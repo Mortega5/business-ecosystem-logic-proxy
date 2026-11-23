@@ -16,6 +16,7 @@ import { HealthModule } from '../health/health.module';
 import { LegacyAuthBridge } from '../legacy/legacy-auth.bridge';
 import { MongoConnectionService } from '../persistence/mongo-connection.service';
 import { AccountModule } from '../tmf/account/account.module';
+import { BillingModule } from '../tmf/billing/billing.module';
 import { DocumentModule } from '../tmf/document/document.module';
 import { ChargingModule } from '../tmf/charging/charging.module';
 import { SoftwareModule } from '../tmf/software/software.module';
@@ -347,6 +348,31 @@ describe('responses against docs/openapi.yaml', () => {
             }),
             refused('patch', '/account/billingAccount/{id}', '403', '/account/billingAccount/x-1', '{"state":"Active"}', notMine),
             refused('patch', '/account/billingAccount/{id}', '422', '/account/billingAccount/x-1', badPhone, mine)
+        ];
+    };
+
+    // The bills: the list of the caller in a role, a bill and its name for a party of it, and the rates applied to it
+    const billingCases = (): Case[] => {
+        const mine = '{"id":"b-1","relatedParty":[{"id":"p-ana","role":"Buyer"}]}';
+        const notMine = '{"id":"b-1","relatedParty":[{"id":"p-other","role":"Buyer"}]}';
+        return [
+            ...proxied('/billing/customerBill', '/billing/customerBill?limit=5&relatedParty.role=Seller', '[]', { invalid: { url: '/billing/customerBill?q=x' } }),
+            refused('get', '/billing/customerBill', '403', '/billing/customerBill?relatedParty.role=Admin', undefined, '[]'),
+            ...proxied('/billing/customerBill/{id}', '/billing/customerBill/b-1', mine, { invalid: { url: '/billing/customerBill/a%20b' } }),
+            refused('get', '/billing/customerBill/{id}', '403', '/billing/customerBill/b-1', undefined, notMine),
+            ...proxied('/billing/customerBill/{id}', '/billing/customerBill/b-1', mine, {
+                method: 'patch',
+                headers: json,
+                body: '{"billNo":"March"}',
+                invalid: { url: '/billing/customerBill/a%20b' },
+                tooLarge: true
+            }),
+            refused('patch', '/billing/customerBill/{id}', '403', '/billing/customerBill/b-1', '{"billNo":"March"}', notMine),
+            // The bill is read first and then its rates, so the upstream answers the bill to the first and the list to the second
+            ...proxied('/billing/appliedCustomerBillingRate', '/billing/appliedCustomerBillingRate?bill.id=b-1', mine, { invalid: { url: '/billing/appliedCustomerBillingRate' } }).map((c) =>
+                c.status === '200' ? { ...c, arrange: () => tmforum.answer((res) => tmforum.json(res, 200, res.req.url?.includes('/customerBill/') === true ? mine : '[]')) } : c
+            ),
+            refused('get', '/billing/appliedCustomerBillingRate', '403', '/billing/appliedCustomerBillingRate?bill.id=b-1', undefined, notMine)
         ];
     };
 
@@ -790,6 +816,7 @@ describe('responses against docs/openapi.yaml', () => {
         ...quoteCases(),
         ...inventoryCases(),
         ...accountCases(),
+        ...billingCases(),
         ...partyCases(),
         ...specificationCases('/resource/resourceSpecification'),
         ...specificationCases('/service/serviceSpecification'),
@@ -809,7 +836,7 @@ describe('responses against docs/openapi.yaml', () => {
     beforeAll(async () => {
         await tmforum.start();
 
-        @Module({ imports: [DependenciesStub, FakeFeaturesModule, LoggerModule.forRoot({ pinoHttp: { level: 'silent' } }), HealthModule, AuthModule, DocumentModule, RevenueModule, SearchModule, InvoicingModule, QuoteModule, InventoryModule, AccountModule, PartyModule, ResourceModule, ServiceModule, ChargingModule, SoftwareModule, UsageModule, OrderingModule, CatalogModule] })
+        @Module({ imports: [DependenciesStub, FakeFeaturesModule, LoggerModule.forRoot({ pinoHttp: { level: 'silent' } }), HealthModule, AuthModule, DocumentModule, RevenueModule, SearchModule, InvoicingModule, QuoteModule, InventoryModule, AccountModule, BillingModule, PartyModule, ResourceModule, ServiceModule, ChargingModule, SoftwareModule, UsageModule, OrderingModule, CatalogModule] })
         class Contract {}
 
         app = await createApp(express(), Contract);

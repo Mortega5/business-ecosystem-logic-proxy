@@ -25,6 +25,8 @@ tags:
     description: The product, service and resource inventories, as far as the portal uses them.
   - name: account
     description: The billing accounts of the caller, as far as the portal uses them.
+  - name: billing
+    description: The bills of the caller and the rates applied to them, as far as the portal uses them.
   - name: party
     description: The organisations and individuals, as far as the portal uses them.
   - name: resource
@@ -1502,6 +1504,191 @@ paths:
           $ref: '#/components/responses/PayloadTooLarge'
         '422':
           $ref: '#/components/responses/InvalidPhoneNumber'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+  /billing/customerBill:
+    get:
+      tags: [billing]
+      operationId: listCustomerBills
+      summary: List of the bills of the caller
+      description: |
+        The bills the caller (or the organisation they act for) is related to in the role they ask for with
+        `relatedParty.role`: the customer by default, or the seller. Any other role answers 403. The proxy adds the party of
+        the caller and the role to the query, last, whatever the portal sent about `relatedParty`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - name: filters
+          in: query
+          required: false
+          description: |
+            `relatedParty.role` (`Buyer` or `Seller`) and any filter of the bills (`limit`, `offset`, `state`, a field of the
+            resource...), each once. A name is a field, a value never holds `&` or `;`, and `q` is refused.
+          style: form
+          explode: true
+          schema:
+            type: object
+            additionalProperties:
+              type: string
+      responses:
+        '200':
+          description: The bills, as the customer bill API answers them.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
+              example: []
+        '400':
+          $ref: '#/components/responses/InvalidQuery'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/NotBillParty'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+  /billing/customerBill/{id}:
+    get:
+      tags: [billing]
+      operationId: getCustomerBill
+      summary: A bill of the caller
+      description: |
+        One bill, given only to a party of it, as its customer or as its seller; the query is not sent on. Any other method
+        or path under `/billing` answers 404.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: The bill, as the customer bill API answers it.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                id: urn:ngsi-ld:customer-bill:1
+        '400':
+          $ref: '#/components/responses/InvalidId'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/NotBillParty'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+    patch:
+      tags: [billing]
+      operationId: renameCustomerBill
+      summary: Change the name of a bill
+      description: |
+        The only change allowed is the `billNo` (a text of up to `limits.nameLength` characters, and nothing else in the
+        body). The bill is read first and must have the caller as a party; an answer of the customer bill API to the read
+        that is not a success is the answer to this call.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ResourceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [billNo]
+              properties:
+                billNo:
+                  type: string
+              additionalProperties: false
+      responses:
+        '200':
+          description: The bill changed, as the customer bill API answers it.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                id: urn:ngsi-ld:customer-bill:1
+        '400':
+          $ref: '#/components/responses/InvalidIdOrBody'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/NotBillParty'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+  /billing/appliedCustomerBillingRate:
+    get:
+      tags: [billing]
+      operationId: listAppliedCustomerBillingRates
+      summary: The rates applied to a bill
+      description: |
+        The rates of one bill, given to a party of that bill. `bill.id` is required; `limit` and `offset` are the only other
+        filters, and anything else answers 400.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - name: bill.id
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: The rates, as the customer bill API answers them.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
+              example: []
+        '400':
+          $ref: '#/components/responses/InvalidQuery'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/NotBillParty'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
         '504':
           $ref: '#/components/responses/UpstreamUnreachable'
   /party/organization:
@@ -4445,6 +4632,14 @@ components:
             $ref: '#/components/schemas/ErrorResult'
           example:
             error: The user making the request is not the specified owner
+    NotBillParty:
+      description: The caller is not a party of the bill, or asks for the bills in a role that is not theirs to ask for.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResult'
+          example:
+            error: You are not authorized to access the specified bill
     InvalidPhoneNumber:
       description: A telephone of the contacts has no valid number.
       content:
