@@ -8,6 +8,7 @@ import { JsonObjectBodyPipe } from '../json-body.pipe';
 import { ResourceIdPipe } from '../resource-id.pipe';
 import { Categories } from './categories';
 import { Catalogs } from './catalogs';
+import { OfferingPrices } from './offering-prices';
 import { Offerings } from './offerings';
 import { ProductSpecifications } from './product-specifications';
 
@@ -23,7 +24,8 @@ export class CatalogController {
         private readonly categories: Categories,
         private readonly catalogs: Catalogs,
         private readonly offerings: Offerings,
-        private readonly products: ProductSpecifications
+        private readonly products: ProductSpecifications,
+        private readonly prices: OfferingPrices
     ) {}
 
     @OptionalAuth()
@@ -127,5 +129,27 @@ export class CatalogController {
     @Delete('productSpecification/:id')
     retireProduct(@Param('id', ResourceIdPipe) id: string, @Req() req: Request, @Res() res: Response): Promise<void> {
         return this.products.retire(req, res, id);
+    }
+
+    @OptionalAuth()
+    @Get('productOfferingPrice')
+    listPrices(@Req() req: Request, @Res() res: Response): Promise<void> {
+        return this.prices.list(req, res);
+    }
+
+    @OptionalAuth()
+    @Get('productOfferingPrice/:id')
+    readPrice(@Param('id', ResourceIdPipe) id: string, @Req() req: Request, @Res() res: Response): Promise<void> {
+        return this.prices.read(req, res, id);
+    }
+
+    @Post('productOfferingPrice')
+    createPrice(@Body(JsonObjectBodyPipe) body: string, @Req() req: Request, @Res() res: Response): Promise<void> {
+        return this.prices.create(req, res, body);
+    }
+
+    @Patch('productOfferingPrice/:id')
+    updatePrice(@Param('id', ResourceIdPipe) id: string, @Body(JsonObjectBodyPipe) body: string, @Req() req: Request, @Res() res: Response): Promise<void> {
+        return this.prices.update(req, res, id, body);
     }
 }
