@@ -8,12 +8,13 @@ import { AppConfigModule } from '../../config/app-config.module';
 import { LegacyAuthBridge } from '../../legacy/legacy-auth.bridge';
 import { LoggingModule } from '../../logging/logging.module';
 import { AS_SELLER, fakeLogin, LOGGED_IN } from '../../testing/fake-login';
+import { FakeFeaturesModule } from '../../testing/fake-features';
 import { FakeUpstream } from '../../testing/fake-upstream';
 import { CatalogModule } from './catalog.module';
 
 const upstream = new FakeUpstream();
 
-@Module({ imports: [AppConfigModule, LoggingModule, AuthModule, CatalogModule] })
+@Module({ imports: [AppConfigModule, LoggingModule, AuthModule, FakeFeaturesModule, CatalogModule] })
 class Root {}
 
 // The legacy application answers the list of catalogs, which is not here yet

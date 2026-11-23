@@ -8,17 +8,18 @@ import { JsonObjectBodyPipe } from '../json-body.pipe';
 import { ResourceIdPipe } from '../resource-id.pipe';
 import { Categories } from './categories';
 import { Catalogs } from './catalogs';
+import { Offerings } from './offerings';
 
 /**
  * The catalog API, as far as it has been moved here: the categories, which anybody reads and an administrator changes, and the
- * catalogs, which a seller makes, changes and retires. What is not here yet (the list of catalogs, the offerings, the product
- * specifications) is answered by the legacy application, and what is here and is not a route of the portal (the delete of a
+ * catalogs and the offerings, which a seller makes, changes and retires. What is not here yet (the lists of catalogs and offerings, the
+ * product specifications and the prices) is answered by the legacy application, and what is here and is not a route of the portal (the delete of a
  * category, above all) is closed, so it cannot reach it.
  */
 @UseInterceptors(BodyTextInterceptor)
 @Controller('catalog')
 export class CatalogController {
-    constructor(private readonly categories: Categories, private readonly catalogs: Catalogs) {}
+    constructor(private readonly categories: Categories, private readonly catalogs: Catalogs, private readonly offerings: Offerings) {}
 
     @OptionalAuth()
     @Get('category')
@@ -68,5 +69,31 @@ export class CatalogController {
     @Delete('catalog/:id')
     retireCatalog(@Param('id', ResourceIdPipe) id: string, @Req() req: Request, @Res() res: Response): Promise<void> {
         return this.catalogs.retire(req, res, id);
+    }
+
+    @OptionalAuth()
+    @Get('productOffering/:id')
+    readOffering(@Param('id', ResourceIdPipe) id: string, @Req() req: Request, @Res() res: Response): Promise<void> {
+        return this.offerings.read(req, res, id);
+    }
+
+    @Post('productOffering')
+    createOffering(@Body(JsonObjectBodyPipe) body: string, @Req() req: Request, @Res() res: Response): Promise<void> {
+        return this.offerings.create(req, res, body);
+    }
+
+    @Post('catalog/:catalogId/productOffering')
+    createOfferingInCatalog(@Param('catalogId', ResourceIdPipe) catalogId: string, @Body(JsonObjectBodyPipe) body: string, @Req() req: Request, @Res() res: Response): Promise<void> {
+        return this.offerings.create(req, res, body, catalogId);
+    }
+
+    @Patch('productOffering/:id')
+    updateOffering(@Param('id', ResourceIdPipe) id: string, @Body(JsonObjectBodyPipe) body: string, @Req() req: Request, @Res() res: Response): Promise<void> {
+        return this.offerings.update(req, res, id, body);
+    }
+
+    @Delete('productOffering/:id')
+    retireOffering(@Param('id', ResourceIdPipe) id: string, @Req() req: Request, @Res() res: Response): Promise<void> {
+        return this.offerings.retire(req, res, id);
     }
 }

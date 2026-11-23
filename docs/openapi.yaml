@@ -3303,6 +3303,434 @@ paths:
           $ref: '#/components/responses/BadGateway'
         '504':
           $ref: '#/components/responses/UpstreamUnreachable'
+  /catalog/catalog:
+    post:
+      tags: [catalog]
+      operationId: createCatalog
+      summary: Create a catalog
+      description: |
+        A seller makes a catalog of their own: the related parties are the caller as the seller, the name is mandatory, has no `<>%'"|` and is not taken by another catalog, and `validFor` is set to now when it is missing. A root category of the catalog is made with it, with the same name, and is the one that the offerings of the catalog carry. When the catalog cannot be made the category is retired again; when that cannot be done either the answer says that the category was made. `id` and `href` are dropped. The list of catalogs is answered by the legacy application.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '201':
+          description: The catalog created, as the catalog API answers it.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                id: urn:ngsi-ld:catalog:1
+        '400':
+          $ref: '#/components/responses/InvalidBody'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: The name of the catalog is taken.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+        '422':
+          description: The name or the description is not valid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '502':
+          $ref: '#/components/responses/BadGateway'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+  /catalog/catalog/{id}:
+    get:
+      tags: [catalog]
+      operationId: getCatalog
+      summary: A catalog
+      description: |
+        Open to anybody once the catalog is launched, retired or obsolete; a catalog in any other state is read only by its owner.
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: The catalog, as the catalog API answers it.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                id: urn:ngsi-ld:catalog:1
+        '400':
+          $ref: '#/components/responses/InvalidId'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+    patch:
+      tags: [catalog]
+      operationId: updateCatalog
+      summary: Change a catalog
+      description: |
+        Only the seller who owns it. The related parties and the categories cannot be changed and the lifecycle has to follow its order; a new name is checked as in a creation. A catalog is retired or made obsolete only when all its offerings are retired or obsolete.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ResourceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: The catalog changed, as the catalog API answers it.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                id: urn:ngsi-ld:catalog:1
+        '400':
+          $ref: '#/components/responses/InvalidIdOrBody'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '409':
+          description: The related parties or the categories change, the name is taken, or the offerings of the catalog are not retired.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+        '422':
+          description: The name or the description is not valid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '502':
+          $ref: '#/components/responses/BadGateway'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+    delete:
+      tags: [catalog]
+      operationId: retireCatalog
+      summary: Retire a catalog
+      description: |
+        Only the seller who owns it. A delete retires the catalog, which stays in the API, and waits until its offerings are retired or obsolete.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: The catalog retired, as the catalog API answers it.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                id: urn:ngsi-ld:catalog:1
+        '400':
+          $ref: '#/components/responses/InvalidId'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '409':
+          description: The catalog is retired already, or its offerings are not retired.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+        '502':
+          $ref: '#/components/responses/BadGateway'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+  /catalog/productOffering:
+    post:
+      tags: [catalog]
+      operationId: createProductOffering
+      summary: Create an offering
+      description: |
+        Only a seller, for a product of their own that is active or launched, or for a bundle of at least two offerings of their own. The related parties are the caller as the seller, the buyer when the body names one, and the operator; what the body says about the seller is not looked at. Each category has to exist, and the root category of the catalog of another seller is refused. The charging backend checks the offering before it is made and is told after: when it cannot be told the offering is retired and the answer says so. When it is launched at once the requirements of the marketplace apply, if it asks for them. `id` and `href` are dropped.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '201':
+          description: The offering created, as the catalog API answers it.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                id: urn:ngsi-ld:product-offering:1
+        '400':
+          $ref: '#/components/responses/InvalidBody'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          description: The offering or what it is made of is not valid, or the charging backend refuses it.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '502':
+          $ref: '#/components/responses/BadGateway'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+  /catalog/catalog/{catalogId}/productOffering:
+    post:
+      tags: [catalog]
+      operationId: createProductOfferingInCatalog
+      summary: Create an offering in a catalog
+      description: |
+        Only a seller, for a product of their own that is active or launched, or for a bundle of at least two offerings of their own. The related parties are the caller as the seller, the buyer when the body names one, and the operator; what the body says about the seller is not looked at. Each category has to exist, and the root category of the catalog of another seller is refused. The charging backend checks the offering before it is made and is told after: when it cannot be told the offering is retired and the answer says so. When it is launched at once the requirements of the marketplace apply, if it asks for them. `id` and `href` are dropped.
+        
+        The catalog has to be one of the caller and active or launched, and its category is added to the offering.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - name: catalogId
+          in: path
+          required: true
+          description: 'Identifier of the catalog: letters, digits and the marks : . _ -, up to 200 characters.'
+          schema:
+            type: string
+            pattern: '^(?!\.+$)[A-Za-z0-9:._-]{1,200}$'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '201':
+          description: The offering created, as the catalog API answers it.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                id: urn:ngsi-ld:product-offering:1
+        '400':
+          $ref: '#/components/responses/InvalidIdOrBody'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '422':
+          description: The offering or what it is made of is not valid, or the charging backend refuses it.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '502':
+          $ref: '#/components/responses/BadGateway'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+  /catalog/productOffering/{id}:
+    get:
+      tags: [catalog]
+      operationId: getProductOffering
+      summary: An offering
+      description: |
+        Open to anybody, except an offering made for a buyer: only the buyer and the seller see it, and to anybody else it does not exist. The list of offerings is answered by the legacy application.
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: The offering, as the catalog API answers it.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                id: urn:ngsi-ld:product-offering:1
+        '400':
+          $ref: '#/components/responses/InvalidId'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+    patch:
+      tags: [catalog]
+      operationId: updateProductOffering
+      summary: Change an offering
+      description: |
+        Only the seller who owns it. The related parties, the product and the bundle cannot be changed, and the lifecycle has to follow its order. To launch it the product (or each offering of the bundle) has to be launched, and the requirements of the marketplace apply, if it asks for them. The categories of the catalog of the offering stay whatever the body says. The charging backend is told afterwards; when it cannot be told the answer says that the offering was changed.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ResourceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: The offering changed, as the catalog API answers it.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                id: urn:ngsi-ld:product-offering:1
+        '400':
+          $ref: '#/components/responses/InvalidIdOrBody'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '409':
+          description: The related parties change.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+        '422':
+          description: The offering is not valid, or the charging backend refuses it.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '502':
+          $ref: '#/components/responses/BadGateway'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+    delete:
+      tags: [catalog]
+      operationId: retireProductOffering
+      summary: Retire an offering
+      description: |
+        Only the seller who owns it. A delete retires the offering, which stays in the API, and the charging backend is told.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: The offering retired, as the catalog API answers it.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                id: urn:ngsi-ld:product-offering:1
+        '400':
+          $ref: '#/components/responses/InvalidId'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '409':
+          description: The offering is retired already.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+        '502':
+          $ref: '#/components/responses/BadGateway'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
 components:
   securitySchemes:
     bearerAuth:

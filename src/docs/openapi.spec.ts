@@ -19,6 +19,7 @@ import { AccountModule } from '../tmf/account/account.module';
 import { DocumentModule } from '../tmf/document/document.module';
 import { ChargingModule } from '../tmf/charging/charging.module';
 import { SoftwareModule } from '../tmf/software/software.module';
+import { FakeFeaturesModule } from '../testing/fake-features';
 import { CatalogModule } from '../tmf/catalog/catalog.module';
 import { OrderingModule } from '../tmf/ordering/ordering.module';
 import { UsageModule } from '../tmf/usage/usage.module';
@@ -516,6 +517,124 @@ describe('responses against docs/openapi.yaml', () => {
         ];
     };
 
+    // The catalogs and the offerings of the catalog API: what a seller makes, changes and retires, and what anybody reads
+    const catalogAndOfferingCases = (): Case[] => {
+        const catalogs = '/catalog/catalog';
+        const offerings = '/catalog/productOffering';
+        const seller = '{"id":"p-shop","role":"Seller"}';
+        const other = '{"id":"p-other","role":"Seller"}';
+        const mine = { ...json, ...AS_SELLER };
+        const catalog = (extra = ''): string => `{"id":"cat-1","lifecycleStatus":"Active","relatedParty":[${seller}],"category":[{"id":"c-1"}]${extra}}`;
+        const offering = (extra = ''): string => `{"id":"o-1","lifecycleStatus":"Active","productSpecification":{"id":"ps-1"},"relatedParty":[${seller}]${extra}}`;
+        const product = `{"id":"ps-1","lifecycleStatus":"Launched","relatedParty":[${seller}]}`;
+        const category = `{"id":"c-1","href":"c-1","name":"Mine","isRoot":true,"relatedParty":[${seller}]}`;
+        // The catalog API with everything in its place, so that what is asked for is made
+        const marketplace = (): void =>
+            tmforum.answer((res) => {
+                const method = tmforum.seen?.method;
+                const path = (tmforum.seen?.url ?? '').replace(/^\/[^/]+/, '');
+                const send = (status: number, body: string): void => tmforum.json(res, status, body);
+                if (path.startsWith('/charging') || path.includes('offeringJob')) {
+                    send(200, '{}');
+                } else if (path.startsWith('/individual') || path.startsWith('/organization')) {
+                    send(200, '{"id":"p-ana"}');
+                } else if (path.startsWith('/category')) {
+                    send(method === 'POST' ? 201 : 200, category);
+                } else if (path.startsWith('/productSpecification')) {
+                    send(200, product);
+                } else if (path.startsWith('/productOffering?')) {
+                    send(200, '[]');
+                } else if (path.startsWith('/productOffering/')) {
+                    send(200, offering());
+                } else if (path.startsWith('/productOffering')) {
+                    send(201, offering());
+                } else if (path.startsWith('/catalog?')) {
+                    send(200, '[]');
+                } else if (path.startsWith('/catalog/')) {
+                    send(200, catalog());
+                } else {
+                    send(201, catalog());
+                }
+            });
+        // What the proxied helper makes, without the 200 (which needs the whole catalog API) and without what the route does not answer
+        const around = (path: string, url: string, options: ProxiedOptions, without: string[] = []): Case[] =>
+            proxied(path, url, '{}', options).filter((c) => c.status !== '200' && !without.includes(c.status));
+        const ok = (status: string, method: string, path: string, url: string, body?: string, headers: Record<string, string> = mine): Case => ({
+            method,
+            path,
+            status,
+            url,
+            headers,
+            ...(body === undefined ? {} : { body }),
+            arrange: marketplace
+        });
+        const reads = (path: string, url: string, invalid: string): Case[] => around(path, url, { invalid: { url: invalid } }, ['401']);
+        const newCatalog = '{"name":"Mine","relatedParty":[' + seller + ']}';
+        const newOffering = '{"name":"Offer","productSpecification":{"id":"ps-1"}}';
+        const catalogId = `${catalogs}/{id}`;
+        const offeringId = `${offerings}/{id}`;
+        const inCatalog = `${catalogs}/{catalogId}/productOffering`;
+        const inCatalogUrl = `${catalogs}/cat-1/productOffering`;
+        const writes = (path: string, url: string, body: string, bad: string, without: string[] = []): Case[] =>
+            around(path, url, { method: path === catalogs || path === offerings || path === inCatalog ? 'post' : 'patch', headers: mine, body, invalid: { ...(bad === '' ? { body: 'not json' } : { url: bad }) }, tooLarge: true }, without);
+        return [
+            // Catalogs
+            ok('201', 'post', catalogs, catalogs, newCatalog),
+            ...writes(catalogs, catalogs, newCatalog, '', ['404']),
+            refused('post', catalogs, '403', catalogs, newCatalog, '[]', LOGGED_IN),
+            refused('post', catalogs, '409', catalogs, newCatalog, '[{"id":"cat-9"}]', AS_SELLER),
+            refused('post', catalogs, '422', catalogs, '{"relatedParty":[' + seller + ']}', '[]', AS_SELLER),
+            refused('post', catalogs, '502', catalogs, newCatalog, 'not json', AS_SELLER),
+            refused('get', catalogId, '200', `${catalogs}/cat-1`, undefined, catalog().replace('Active', 'Launched'), {}),
+            ...reads(catalogId, `${catalogs}/cat-1`, `${catalogs}/a%20b`),
+            refused('get', catalogId, '403', `${catalogs}/cat-1`, undefined, catalog()),
+            ok('200', 'patch', catalogId, `${catalogs}/cat-1`, '{"description":"x"}'),
+            ...writes(catalogId, `${catalogs}/cat-1`, '{"description":"x"}', `${catalogs}/a%20b`),
+            refused('patch', catalogId, '403', `${catalogs}/cat-1`, '{"description":"x"}', catalog().replace(seller, other), AS_SELLER),
+            refused('patch', catalogId, '409', `${catalogs}/cat-1`, '{"relatedParty":[]}', catalog(), AS_SELLER),
+            refused('patch', catalogId, '422', `${catalogs}/cat-1`, '{"name":""}', catalog(), AS_SELLER),
+            refused('patch', catalogId, '502', `${catalogs}/cat-1`, '{"description":"x"}', 'not json', AS_SELLER),
+            ok('200', 'delete', catalogId, `${catalogs}/cat-1`, undefined, AS_SELLER),
+            ...around(catalogId, `${catalogs}/cat-1`, { method: 'delete', headers: AS_SELLER, invalid: { url: `${catalogs}/a%20b` } }),
+            refused('delete', catalogId, '403', `${catalogs}/cat-1`, undefined, catalog().replace(seller, other), AS_SELLER),
+            refused('delete', catalogId, '409', `${catalogs}/cat-1`, undefined, catalog().replace('Active', 'Retired'), AS_SELLER),
+            refused('delete', catalogId, '502', `${catalogs}/cat-1`, undefined, 'not json', AS_SELLER),
+            // Offerings, made with or without a catalog in the route
+            ok('201', 'post', offerings, offerings, newOffering),
+            ...writes(offerings, offerings, newOffering, '', ['404']),
+            refused('post', offerings, '403', offerings, newOffering, '{}', LOGGED_IN),
+            refused('post', offerings, '422', offerings, '{"name":"Offer"}', '{}', AS_SELLER),
+            refused('post', offerings, '502', offerings, newOffering, 'not json', AS_SELLER),
+            ok('201', 'post', inCatalog, inCatalogUrl, newOffering),
+            ...writes(inCatalog, inCatalogUrl, newOffering, '', []).filter((c) => c.status !== '404'),
+            {
+                method: 'post',
+                path: inCatalog,
+                status: '404',
+                url: inCatalogUrl,
+                headers: mine,
+                body: newOffering,
+                arrange: () => tmforum.answer((res) => tmforum.json(res, (tmforum.seen?.url ?? '').includes('/catalog/') ? 404 : 200, product))
+            },
+            refused('post', inCatalog, '403', inCatalogUrl, newOffering, '{}', LOGGED_IN),
+            refused('post', inCatalog, '422', inCatalogUrl, '{"name":"Offer"}', '{}', AS_SELLER),
+            refused('post', inCatalog, '502', inCatalogUrl, newOffering, 'not json', AS_SELLER),
+            ok('200', 'get', offeringId, `${offerings}/o-1`, undefined, {}),
+            ...reads(offeringId, `${offerings}/o-1`, `${offerings}/a%20b`),
+            ok('200', 'patch', offeringId, `${offerings}/o-1`, '{"description":"x"}'),
+            ...writes(offeringId, `${offerings}/o-1`, '{"description":"x"}', `${offerings}/a%20b`),
+            refused('patch', offeringId, '403', `${offerings}/o-1`, '{"description":"x"}', offering().replace(seller, other), AS_SELLER),
+            refused('patch', offeringId, '409', `${offerings}/o-1`, '{"relatedParty":[]}', offering(), AS_SELLER),
+            refused('patch', offeringId, '422', `${offerings}/o-1`, '{"name":""}', offering(), AS_SELLER),
+            refused('patch', offeringId, '502', `${offerings}/o-1`, '{"description":"x"}', 'not json', AS_SELLER),
+            ok('200', 'delete', offeringId, `${offerings}/o-1`, undefined, AS_SELLER),
+            ...around(offeringId, `${offerings}/o-1`, { method: 'delete', headers: AS_SELLER, invalid: { url: `${offerings}/a%20b` } }),
+            refused('delete', offeringId, '403', `${offerings}/o-1`, undefined, offering().replace(seller, other), AS_SELLER),
+            refused('delete', offeringId, '409', `${offerings}/o-1`, undefined, offering().replace('Active', 'Retired'), AS_SELLER),
+            refused('delete', offeringId, '502', `${offerings}/o-1`, undefined, 'not json', AS_SELLER)
+        ];
+    };
+
     const cases: Case[] = [
         { method: 'get', path: '/health/live', status: '200', arrange: () => mongo.ping.mockResolvedValue(false) },
         { method: 'get', path: '/health/ready', status: '200', arrange: () => mongo.ping.mockResolvedValue(true) },
@@ -564,13 +683,14 @@ describe('responses against docs/openapi.yaml', () => {
         ...usageCases(),
         ...orderingCases(),
         ...categoryCases(),
+        ...catalogAndOfferingCases(),
         ...chargingCases()
     ];
 
     beforeAll(async () => {
         await tmforum.start();
 
-        @Module({ imports: [DependenciesStub, LoggerModule.forRoot({ pinoHttp: { level: 'silent' } }), HealthModule, AuthModule, DocumentModule, RevenueModule, SearchModule, InvoicingModule, QuoteModule, InventoryModule, AccountModule, PartyModule, ResourceModule, ServiceModule, ChargingModule, SoftwareModule, UsageModule, OrderingModule, CatalogModule] })
+        @Module({ imports: [DependenciesStub, FakeFeaturesModule, LoggerModule.forRoot({ pinoHttp: { level: 'silent' } }), HealthModule, AuthModule, DocumentModule, RevenueModule, SearchModule, InvoicingModule, QuoteModule, InventoryModule, AccountModule, PartyModule, ResourceModule, ServiceModule, ChargingModule, SoftwareModule, UsageModule, OrderingModule, CatalogModule] })
         class Contract {}
 
         app = await createApp(express(), Contract);

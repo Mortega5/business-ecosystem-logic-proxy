@@ -9,13 +9,14 @@ import { LegacyAuthBridge } from '../../legacy/legacy-auth.bridge';
 import { LegacyOperator } from '../../legacy/legacy-operator';
 import { LoggingModule } from '../../logging/logging.module';
 import { AS_ADMIN, fakeLogin, LOGGED_IN } from '../../testing/fake-login';
+import { FakeFeaturesModule } from '../../testing/fake-features';
 import { FakeUpstream } from '../../testing/fake-upstream';
 import { CatalogDefaults } from './catalog-defaults';
 import { CatalogModule } from './catalog.module';
 
 const upstream = new FakeUpstream();
 
-@Module({ imports: [AppConfigModule, LoggingModule, AuthModule, CatalogModule] })
+@Module({ imports: [AppConfigModule, LoggingModule, AuthModule, FakeFeaturesModule, CatalogModule] })
 class Root {}
 
 // The legacy application answers whatever of /catalog is not here
