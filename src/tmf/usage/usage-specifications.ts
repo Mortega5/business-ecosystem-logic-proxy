@@ -47,13 +47,19 @@ export class UsageSpecifications extends Specifications {
     /** The price plans (the bundles of prices) with a price that is by the usage spec, or that are the price themselves. */
     private async pricePlansOf(req: Request, id: string): Promise<string[]> {
         const plans = new Set<string>();
+        const single: string[] = [];
         for (const price of await this.all(req, '/productOfferingPrice', `usageSpecId=${encodeURIComponent(id)}`)) {
-            const priceId = String(price['id']);
             if (price['isBundle'] === true) {
-                plans.add(priceId);
-                continue;
+                plans.add(String(price['id']));
+            } else {
+                single.push(String(price['id']));
             }
-            for (const plan of await this.all(req, '/productOfferingPrice', `bundledPopRelationship.id=${encodeURIComponent(priceId)}`)) {
+        }
+        // A price is in the plans that bundle it; the ids of a batch are one query, as the TMForum takes several values for one field
+        const { plansPerQuery } = this.config.limits;
+        for (let from = 0; from < single.length; from += plansPerQuery) {
+            const ids = single.slice(from, from + plansPerQuery).map(encodeURIComponent).join(',');
+            for (const plan of await this.all(req, '/productOfferingPrice', `bundledPopRelationship.id=${ids}`)) {
                 if (plan['isBundle'] === true) {
                     plans.add(String(plan['id']));
                 }

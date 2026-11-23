@@ -173,6 +173,19 @@ describe('PATCH /usage/usageSpecification/:id', () => {
         expect(new URL(`http://x${asked[0]?.url ?? ''}`).searchParams.get('productOfferingPrice.id')).toBe('plan-1');
     });
 
+    it('looks for the plans of all its prices with one query', async () => {
+        prices = (query) =>
+            query.has('usageSpecId')
+                ? { status: 200, body: JSON.stringify([{ id: 'price-1', isBundle: false }, { id: 'price-2', isBundle: false }, { id: 'plan-0', isBundle: true }]) }
+                : { status: 200, body: '[]' };
+
+        await call('/usage/usageSpecification/u-1', { method: 'PATCH', headers: seller(), body: '{"lifecycleStatus":"Retired"}' });
+
+        const plans = seen.map((request) => new URL(`http://x${request.url ?? ''}`)).filter((target) => target.searchParams.has('bundledPopRelationship.id'));
+        expect(plans).toHaveLength(1);
+        expect(plans[0]?.searchParams.get('bundledPopRelationship.id')).toBe('price-1,price-2');
+    });
+
     it('is not retired while an offer that is alive charges for it', async () => {
         prices = (query) => ({ status: 200, body: JSON.stringify(query.has('usageSpecId') ? [{ id: 'plan-1', isBundle: true }] : []) });
         offers = { status: 200, body: JSON.stringify([{ id: 'o-1', lifecycleStatus: 'Launched' }]) };
