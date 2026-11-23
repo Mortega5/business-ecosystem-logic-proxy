@@ -7,6 +7,7 @@ import type { UpstreamResponse } from '../../http-client/upstream-client';
 import { LegacyOperator } from '../../legacy/legacy-operator';
 import { AS_JSON, PRIVATE } from '../http-options';
 import { OwnedResources } from '../owned-resources';
+import { NormalizedParties, type PartyRef } from '../normalized-parties';
 import { callerParty, isRecord, isRelatedAs } from '../related-party';
 import { isResourceId } from '../resource-id.pipe';
 import { parseJson } from '../specification/specifications';
@@ -38,7 +39,8 @@ export class Orders {
         private readonly proxy: TmfProxy,
         private readonly owned: OwnedResources,
         private readonly config: AppConfigService,
-        private readonly operator: LegacyOperator
+        private readonly operator: LegacyOperator,
+        private readonly parties: NormalizedParties
     ) {}
 
     private get roles(): { seller: string; customer: string } {
@@ -276,21 +278,8 @@ export class Orders {
         ];
     }
 
-    private async normalized(req: Request, user: UpstreamUser, party: { id: string; href: string; role: string }): Promise<Json> {
-        const organization = party.id.includes('organization');
-        let name = '';
-        if (party.id === user.partyId) {
-            name = user.id;
-        } else {
-            if (!isResourceId(party.id)) {
-                throw new BadGatewayError('The seller of an offering is not valid');
-            }
-            const found = await this.readJson(req, 'tmforum.party', `/${organization ? 'organization' : 'individual'}/${encodeURIComponent(party.id)}`, `The party ${party.id} could not be read`);
-            const references = Array.isArray(found['externalReference']) ? found['externalReference'] : [];
-            const reference: unknown = references.find((candidate) => isRecord(candidate) && typeof candidate['externalReferenceType'] === 'string' && candidate['externalReferenceType'].toLowerCase() === 'idm_id');
-            name = isRecord(reference) && typeof reference['name'] === 'string' ? reference['name'] : '';
-        }
-        return { id: party.id, href: party.href, name, role: party.role, '@referredType': organization ? 'Organization' : 'Individual' };
+    private normalized(req: Request, user: UpstreamUser, party: PartyRef): Promise<Json> {
+        return this.parties.of(req, user, party);
     }
 
     /** Tells the charging backend about an order that was made, with the terms that the buyer accepted; it answers where to pay, if anywhere. */
