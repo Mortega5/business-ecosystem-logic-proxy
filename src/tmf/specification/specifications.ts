@@ -3,6 +3,7 @@ import { BadGatewayError, DomainError, ForbiddenError, NotFoundError } from '../
 import { AppConfigService } from '../../config/app-config.service';
 import type { UpstreamName } from '../../config/upstream-names';
 import type { UpstreamResponse } from '../../http-client/upstream-client';
+import { AS_JSON, PRIVATE } from '../http-options';
 import { OwnedResources } from '../owned-resources';
 import { callerParty, isOwnedOnlyBy, isRecord, isRelatedAs } from '../related-party';
 import { SellerParties } from '../seller-parties';
@@ -40,9 +41,6 @@ export interface SpecificationApi {
 
 /** Takes back what was done before a step that failed; what it returns, when there is something, is what it could not take back. */
 export type Undo = () => Promise<string | undefined>;
-
-const PAGE = 100;
-const MAX_PAGES = 50;
 
 // What anybody may read; a specification in any other state, a draft, is for its owner
 const PUBLIC_STATUSES = ['launched', 'retired', 'obsolete'];
@@ -123,7 +121,7 @@ export class Specifications {
     async read(req: Request, res: Response, id: string): Promise<void> {
         const response = await this.proxy.send(req, { upstream: this.api.upstream, path: this.path(id), search: '' });
         const forEverybody = response.status >= 400 || this.assertReadable(req, response.body);
-        this.proxy.reply(res, response, forEverybody ? {} : { 'cache-control': 'private, no-store' });
+        this.proxy.reply(res, response, forEverybody ? {} : PRIVATE);
     }
 
     async create(req: Request, res: Response, body: string): Promise<void> {
@@ -131,14 +129,14 @@ export class Specifications {
         if (!this.isSeller(req) || !isOwnedOnlyBy(specification, callerParty(req, this.api.messages.create), this.config.auth.roles.seller)) {
             throw new ForbiddenError(this.api.messages.create);
         }
-        validateNameAndDescription(specification, this.api.noun, true);
+        validateNameAndDescription(specification, this.api.noun, true, this.config.limits);
         this.validate(specification);
         const undo = await this.beforeCreate(req, specification);
         const [seller] = specification['relatedParty'] as Record<string, unknown>[];
         specification['relatedParty'] = this.sellers.of(seller as Record<string, unknown>, (req as Request & { user: UpstreamUser }).user);
         const response = await this.sendOrUndo(
             req,
-            { upstream: this.api.upstream, path: `/${this.api.collection}`, body: JSON.stringify(specification), contentType: 'application/json' },
+            { upstream: this.api.upstream, path: `/${this.api.collection}`, body: JSON.stringify(specification), ...AS_JSON },
             undo,
             `The ${this.api.noun.toLowerCase()} could not be created`
         );
@@ -160,10 +158,10 @@ export class Specifications {
                 await this.assertNotInUse(req, id);
             }
         }
-        validateNameAndDescription(changes, this.api.noun, false);
+        validateNameAndDescription(changes, this.api.noun, false, this.config.limits);
         this.validate(changes);
         const { changes: sent, after } = this.prepareUpdate(current, changes);
-        const response = await this.proxy.send(req, { upstream: this.api.upstream, path: this.path(id), body: JSON.stringify(sent), contentType: 'application/json' });
+        const response = await this.proxy.send(req, { upstream: this.api.upstream, path: this.path(id), body: JSON.stringify(sent), ...AS_JSON });
         if (response.status < 400) {
             await after?.(req);
         }
@@ -180,7 +178,7 @@ export class Specifications {
         const undo = await this.beforeRetire(req, current);
         const response = await this.sendOrUndo(
             req,
-            { upstream: this.api.upstream, path: this.path(id), method: 'PATCH', body: JSON.stringify({ lifecycleStatus: 'Retired' }), contentType: 'application/json' },
+            { upstream: this.api.upstream, path: this.path(id), method: 'PATCH', body: JSON.stringify({ lifecycleStatus: 'Retired' }), ...AS_JSON },
             undo,
             `The ${this.api.noun.toLowerCase()} could not be retired`
         );
@@ -250,8 +248,9 @@ export class Specifications {
         if (dependents === undefined) {
             return;
         }
-        for (let page = 0; page < MAX_PAGES; page += 1) {
-            const search = `?${dependents.field}=${encodeURIComponent(id)}&fields=lifecycleStatus&limit=${PAGE}&offset=${page * PAGE}`;
+        const { pageSize, maxPages } = this.config.limits.readAll;
+        for (let page = 0; page < maxPages; page += 1) {
+            const search = `?${dependents.field}=${encodeURIComponent(id)}&fields=lifecycleStatus&limit=${pageSize}&offset=${page * pageSize}`;
             const response = await this.proxy.send(req, { upstream: dependents.upstream, path: dependents.path, method: 'GET', search });
             const found = parseJson(response.body);
             if (response.status >= 400 || !Array.isArray(found)) {
@@ -261,7 +260,7 @@ export class Specifications {
             if (inUse.length > 0) {
                 throw new DomainError(this.api.messages.retireInUse(inUse), 409);
             }
-            if (found.length < PAGE) {
+            if (found.length < pageSize) {
                 return;
             }
         }

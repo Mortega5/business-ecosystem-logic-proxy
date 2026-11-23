@@ -295,6 +295,14 @@ describe('request size configuration', () => {
         expect(load({ BAE_HTTP__UPLOAD_LIMIT: '100mb' }).http.uploadLimit).toBe('100mb');
     });
 
+    it('has a default for each limit of what is taken or read at once, that can be changed and has to be a positive number', () => {
+        expect(load({}).limits).toEqual({ orderItems: 50, noteLength: 10000, notesPerRequest: 20, nameLength: 100, descriptionLength: 100000, plansPerQuery: 20, readAll: { pageSize: 100, maxPages: 100 } });
+        expect(load({ BAE_LIMITS__ORDER_ITEMS: '200' }).limits.orderItems).toBe(200);
+        expect(load({ BAE_LIMITS__READ_ALL__PAGE_SIZE: '50' }).limits.readAll.pageSize).toBe(50);
+        expect(() => load({ BAE_LIMITS__NAME_LENGTH: '0' })).toThrow('limits.nameLength');
+        expect(() => load({ BAE_LIMITS__READ_ALL__MAX_PAGES: 'many' })).toThrow('limits.readAll.maxPages');
+    });
+
     it('refuses an upload limit that is not a size', () => {
         expect(() => load({ BAE_HTTP__UPLOAD_LIMIT: 'big' })).toThrow('http.uploadLimit');
         expect(() => load({ BAE_HTTP__UPLOAD_LIMIT: '50' })).toThrow('http.uploadLimit');

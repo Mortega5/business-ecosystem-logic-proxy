@@ -159,6 +159,19 @@ export const ConfigSchema = z.object({
         priceCompSchema: z.url(),
         blueprintSchema: z.url()
     }),
+    // What the proxy refuses to take or to read at once: each is a number of things, or of characters, and a bigger one costs more of the
+    // service that has to hold it
+    limits: z.object({
+        orderItems: z.coerce.number().int().positive(),
+        noteLength: z.coerce.number().int().positive(),
+        notesPerRequest: z.coerce.number().int().positive(),
+        nameLength: z.coerce.number().int().positive(),
+        descriptionLength: z.coerce.number().int().positive(),
+        // The ids of price plans that one query to the catalog asks for
+        plansPerQuery: z.coerce.number().int().positive(),
+        // When the proxy reads everything that a collection has: the items of a page, and how many pages at most
+        readAll: z.object({ pageSize: z.coerce.number().int().positive(), maxPages: z.coerce.number().int().positive() })
+    }),
     health: z.object({
         mongoPingTimeoutMs: z.coerce.number().int().positive()
     }),

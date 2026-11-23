@@ -1,5 +1,6 @@
 import type { Request } from 'express';
 import { BadGatewayError } from '../../common/domain-error';
+import { AS_JSON } from '../http-options';
 import { isRecord } from '../related-party';
 import { parseJson, Specifications, type Undo } from '../specification/specifications';
 import type { UpstreamUser } from '../upstream-headers';
@@ -140,7 +141,7 @@ export class SoftwareSpecifications extends Specifications {
             path,
             method,
             search: '',
-            ...(body === undefined ? {} : { body: JSON.stringify(body), contentType: 'application/json' })
+            ...(body === undefined ? {} : { body: JSON.stringify(body), ...AS_JSON })
         });
         if (response.status >= 400) {
             throw new BadGatewayError(failure);

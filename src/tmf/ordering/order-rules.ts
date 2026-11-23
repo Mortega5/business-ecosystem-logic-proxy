@@ -7,9 +7,6 @@ import { isResourceId } from '../resource-id.pipe';
 /** The states a seller may give to an order item. */
 const ITEM_STATES = ['acknowledged', 'cancelled', 'completed', 'inProgress', 'pending', 'failed'];
 
-const MAX_NOTE_LENGTH = 10_000;
-const MAX_NEW_NOTES = 20;
-
 const count = (items: Record<string, unknown>[], state: string): number => items.filter((item) => item['state'] === state).length;
 
 /**
@@ -101,7 +98,7 @@ const sameNote = (first: unknown, second: unknown): boolean =>
  * or repeats a note the order has is refused; a new note has its text from the client and nothing else (it is the caller's, as of now,
  * with an id that nobody else has).
  */
-export const notesWith = (previous: unknown, sent: unknown, author: string, now: Date): Record<string, unknown>[] => {
+export const notesWith = (previous: unknown, sent: unknown, author: string, now: Date, limits: { noteLength: number; notesPerRequest: number }): Record<string, unknown>[] => {
     const kept = Array.isArray(previous) ? previous.filter(isRecord) : [];
     if (!Array.isArray(sent) || !sent.every(isRecord)) {
         throw new DomainError('The notes must be a list of notes', 400);
@@ -112,14 +109,14 @@ export const notesWith = (previous: unknown, sent: unknown, author: string, now:
         }
     }
     const added = sent.filter((candidate) => !kept.some((note) => sameNote(note, candidate)));
-    if (added.length === 0 || added.length > MAX_NEW_NOTES) {
-        throw new DomainError(`A request adds between 1 and ${MAX_NEW_NOTES} notes`, 400);
+    if (added.length === 0 || added.length > limits.notesPerRequest) {
+        throw new DomainError(`A request adds between 1 and ${limits.notesPerRequest} notes`, 400);
     }
     const ids = new Set(kept.map((note) => note['id']));
     const created = added.map((note): Record<string, unknown> => {
         const { text, id } = note;
-        if (typeof text !== 'string' || text.trim() === '' || text.length > MAX_NOTE_LENGTH) {
-            throw new DomainError(`A note has a text of at most ${MAX_NOTE_LENGTH} characters`, 422);
+        if (typeof text !== 'string' || text.trim() === '' || text.length > limits.noteLength) {
+            throw new DomainError(`A note has a text of at most ${limits.noteLength} characters`, 422);
         }
         const noteId = typeof id === 'string' && isResourceId(id) && !ids.has(id) ? id : `urn:ngsi-ld:note:${randomUUID()}`;
         ids.add(noteId);

@@ -38,6 +38,7 @@ const VALUE: AppConfig = {
         priceCompSchema: 'https://schemas.example.org/price.json',
         blueprintSchema: 'https://schemas.example.org/blueprint.json'
     },
+    limits: { orderItems: 50, noteLength: 10000, notesPerRequest: 20, nameLength: 100, descriptionLength: 100000, plansPerQuery: 20, readAll: { pageSize: 100, maxPages: 100 } },
     health: { mongoPingTimeoutMs: 1000 },
     upstreams: {
         timeoutMs: 5000,

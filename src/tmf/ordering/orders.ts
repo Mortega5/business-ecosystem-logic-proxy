@@ -5,6 +5,7 @@ import { AppConfigService } from '../../config/app-config.service';
 import type { UpstreamName } from '../../config/upstream-names';
 import type { UpstreamResponse } from '../../http-client/upstream-client';
 import { LegacyOperator } from '../../legacy/legacy-operator';
+import { AS_JSON, PRIVATE } from '../http-options';
 import { OwnedResources } from '../owned-resources';
 import { callerParty, isRecord, isRelatedAs } from '../related-party';
 import { isResourceId } from '../resource-id.pipe';
@@ -15,10 +16,7 @@ import { itemsWithStates, notesWith, orderState, sortedByDate } from './order-ru
 
 type Json = Record<string, unknown>;
 
-const JSON_TYPE = { contentType: 'application/json' };
-const PRIVATE = { 'cache-control': 'private, no-store' };
 const ORDERS = '/charging/api/orderManagement/orders';
-const MAX_ITEMS = 50;
 // A bundle of offers is followed to the first offer of each bundle; this many bundles inside bundles is more than any catalog has
 const MAX_BUNDLE_DEPTH = 10;
 // What the charging backend says about the request itself, which the client is told as it is
@@ -136,7 +134,7 @@ export class Orders {
         if (!Array.isArray(sent) || sent.length === 0) {
             throw new DomainError('A product order must contain an productOrderItem field', 400);
         }
-        if (sent.length > MAX_ITEMS || !sent.every(isRecord)) {
+        if (sent.length > this.config.limits.orderItems || !sent.every(isRecord)) {
             throw new DomainError('The product order items are not valid', 400);
         }
 
@@ -157,7 +155,7 @@ export class Orders {
         const { id: _id, href: _href, state: _orderState, note: _note, orderDate: _orderDate, ...rest } = body;
         const order = { ...rest, productOrderItem: items, billingAccount, relatedParty: await this.orderParties(req, user, sellers) };
 
-        const created = await this.proxy.send(req, { upstream: 'tmforum.ordering', path: '/productOrder', method: 'POST', body: JSON.stringify(order), ...JSON_TYPE, search: '' });
+        const created = await this.proxy.send(req, { upstream: 'tmforum.ordering', path: '/productOrder', method: 'POST', body: JSON.stringify(order), ...AS_JSON, search: '' });
         const stored = jsonOf(created.body);
         if (created.status >= 400) {
             this.proxy.reply(res, created, PRIVATE);
@@ -314,7 +312,7 @@ export class Orders {
 
     /** A call to the charging backend; what it says about the request goes to the client, and any other failure is a bad gateway. */
     private async charging(req: Request, path: string, body: string, failure: string, headers?: Record<string, string>): Promise<UpstreamResponse> {
-        const response = await this.proxy.send(req, { upstream: 'charging', path, method: 'POST', body, ...JSON_TYPE, search: '', ...(headers === undefined ? {} : { headers }) });
+        const response = await this.proxy.send(req, { upstream: 'charging', path, method: 'POST', body, ...AS_JSON, search: '', ...(headers === undefined ? {} : { headers }) });
         if (response.status < 400) {
             return response;
         }
@@ -367,7 +365,7 @@ export class Orders {
         const left = `The order ${id} was refunded and could not be cancelled`;
         let response: UpstreamResponse;
         try {
-            response = await this.proxy.send(req, { upstream: 'tmforum.ordering', path: this.path(id), body: JSON.stringify({ state: 'cancelled', productOrderItem: cancelled }), ...JSON_TYPE, search: '' });
+            response = await this.proxy.send(req, { upstream: 'tmforum.ordering', path: this.path(id), body: JSON.stringify({ state: 'cancelled', productOrderItem: cancelled }), ...AS_JSON, search: '' });
         } catch {
             throw new BadGatewayError(left);
         }
@@ -391,7 +389,7 @@ export class Orders {
             upstream: 'tmforum.ordering',
             path: this.path(id),
             body: JSON.stringify({ productOrderItem: updated, ...(state === undefined ? {} : { state }) }),
-            ...JSON_TYPE,
+            ...AS_JSON,
             search: ''
         });
         if (response.status < 400 && state === 'completed') {
@@ -411,8 +409,8 @@ export class Orders {
     }
 
     private async addNotes(req: Request, res: Response, id: string, previous: Json, sent: unknown, partyId: string): Promise<void> {
-        const note = notesWith(previous['note'], sent, partyId, new Date());
-        const response = await this.proxy.send(req, { upstream: 'tmforum.ordering', path: this.path(id), body: JSON.stringify({ note }), ...JSON_TYPE, search: '' });
+        const note = notesWith(previous['note'], sent, partyId, new Date(), this.config.limits);
+        const response = await this.proxy.send(req, { upstream: 'tmforum.ordering', path: this.path(id), body: JSON.stringify({ note }), ...AS_JSON, search: '' });
         this.answer(res, response, partyId);
     }
 

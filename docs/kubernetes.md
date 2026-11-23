@@ -257,6 +257,11 @@ Keys read by the application:
 | `upstreams.tmforum.host`, `.port`, `.scheme` | string, integer, `http` `https` | not set (`http` when no scheme is given) | Default server of every TMForum API |
 | `upstreams.tmforum.apis.<api>.host`, `.port`, `.scheme`, `.path`, `.timeoutMs` | | the standard TMForum paths | What one API sets itself; see [Upstreams](#upstreams) |
 | `upstreams.charging`, `.revenue`, `.search` | `host`, `port`, `scheme`, `path`, `timeoutMs` | not set (`revenue.path` is `/revenue`) | The services that are not TMForum APIs |
+| `limits.orderItems` | integer | `50` | Items that one product order may have |
+| `limits.noteLength`, `limits.notesPerRequest` | integer | `10000`, `20` | Characters of a note of an order, and notes that one request adds |
+| `limits.nameLength`, `limits.descriptionLength` | integer | `100`, `100000` | Characters of the name and of the description of a specification or a category |
+| `limits.plansPerQuery` | integer | `20` | Price plans that one query to the catalog asks for, when the proxy looks for the offers that use a usage specification |
+| `limits.readAll.pageSize`, `limits.readAll.maxPages` | integer | `100`, `100` | When the proxy reads everything that a TMForum collection has (what uses a specification, the catalogs of the start-up): the items it asks for in a page, and the pages it reads at most before it gives up |
 | `health.mongoPingTimeoutMs` | integer | `1000` | |
 
 ## Logging

@@ -4,11 +4,6 @@ import { isRecord } from '../related-party';
 import { isInUse } from '../specification/specification-rules';
 import { parseJson, Specifications, type Undo } from '../specification/specifications';
 
-const PAGE = 100;
-const MAX_PAGES = 50;
-// The offers asked for in one query, so the address of the request stays short however many price plans there are
-const PLANS_PER_QUERY = 20;
-
 const IN_USE = 'The usage spec cannot be deleted because it is being used by active or launched product offers';
 const UNREADABLE_OFFERS = 'The product offers using the usage spec cannot be retrieved';
 
@@ -36,8 +31,9 @@ export class UsageSpecifications extends Specifications {
         try {
             const plans = await this.pricePlansOf(req, id);
             offers = [];
-            for (let from = 0; from < plans.length; from += PLANS_PER_QUERY) {
-                const ids = plans.slice(from, from + PLANS_PER_QUERY).map(encodeURIComponent).join(',');
+            const { plansPerQuery } = this.config.limits;
+            for (let from = 0; from < plans.length; from += plansPerQuery) {
+                const ids = plans.slice(from, from + plansPerQuery).map(encodeURIComponent).join(',');
                 offers.push(...(await this.all(req, '/productOffering', `productOfferingPrice.id=${ids}`)));
             }
         } catch {
@@ -69,14 +65,15 @@ export class UsageSpecifications extends Specifications {
     /** Every item of a query of the catalog, page after page. */
     private async all(req: Request, path: string, query: string): Promise<Record<string, unknown>[]> {
         const found: Record<string, unknown>[] = [];
-        for (let page = 0; page < MAX_PAGES; page += 1) {
-            const response = await this.proxy.send(req, { upstream: 'tmforum.catalog', path, method: 'GET', search: `?${query}&limit=${PAGE}&offset=${page * PAGE}` });
+        const { pageSize, maxPages } = this.config.limits.readAll;
+        for (let page = 0; page < maxPages; page += 1) {
+            const response = await this.proxy.send(req, { upstream: 'tmforum.catalog', path, method: 'GET', search: `?${query}&limit=${pageSize}&offset=${page * pageSize}` });
             const items = parseJson(response.body);
             if (response.status >= 400 || !Array.isArray(items)) {
                 throw new BadGatewayError(UNREADABLE_OFFERS);
             }
             found.push(...(items as unknown[]).filter(isRecord));
-            if (items.length < PAGE) {
+            if (items.length < pageSize) {
                 return found;
             }
         }

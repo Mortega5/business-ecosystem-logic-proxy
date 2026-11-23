@@ -69,6 +69,10 @@ export class AppConfigService {
         return this.value.catalog;
     }
 
+    get limits(): AppConfig['limits'] {
+        return this.value.limits;
+    }
+
     get health(): AppConfig['health'] {
         return this.value.health;
     }

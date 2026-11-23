@@ -36,14 +36,19 @@ export const sameRelatedParties = (current: unknown, changed: unknown): boolean 
     isDeepStrictEqual((current as unknown[]).toSorted(byPartyAndRole), (changed as unknown[]).toSorted(byPartyAndRole));
 
 /** The name is mandatory on creation, and it and the description have a size; `noun` says what the specification is in the refusal. */
-export const validateNameAndDescription = (specification: Record<string, unknown>, noun: string, creating: boolean): void => {
+export const validateNameAndDescription = (
+    specification: Record<string, unknown>,
+    noun: string,
+    creating: boolean,
+    limits: { nameLength: number; descriptionLength: number }
+): void => {
     const { name, description } = specification;
     if (name !== undefined && name !== null) {
         if (typeof name !== 'string') {
             throw new DomainError(`${noun} name must be a string`, 422);
         }
-        if (name.length > 100) {
-            throw new DomainError(`${noun} name is too long, it must be less than 100 characters`, 422);
+        if (name.length > limits.nameLength) {
+            throw new DomainError(`${noun} name is too long, it must be less than ${limits.nameLength} characters`, 422);
         }
         if (name.trim() === '') {
             throw new DomainError(`${noun} name is empty`, 422);
@@ -55,8 +60,8 @@ export const validateNameAndDescription = (specification: Record<string, unknown
         if (typeof description !== 'string') {
             throw new DomainError(`${noun} description must be a string`, 422);
         }
-        if (description.length > 100000) {
-            throw new DomainError(`${noun} description is too long, it must be less than 100.000 characters`, 422);
+        if (description.length > limits.descriptionLength) {
+            throw new DomainError(`${noun} description is too long, it must be less than ${limits.descriptionLength.toLocaleString('de-DE')} characters`, 422);
         }
     }
 };

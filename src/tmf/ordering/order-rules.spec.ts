@@ -3,6 +3,7 @@ import { itemsWithStates, notesWith, orderState, sortedByDate } from './order-ru
 
 const item = (id: string, state?: string, extra: object = {}) => ({ id, product: { name: id }, ...(state === undefined ? {} : { state }), ...extra });
 const NOW = new Date('2026-11-23T10:00:00.000Z');
+const addNote = (previous: unknown, sent: unknown, author: string, now: Date, limits = { noteLength: 10_000, notesPerRequest: 20 }) => notesWith(previous, sent, author, now, limits);
 
 describe('orderState', () => {
     it('follows from the states of the items', () => {
@@ -51,13 +52,13 @@ describe('notesWith', () => {
     const old = { id: 'urn:ngsi-ld:note:1', author: 'p-ana', text: 'Hello', date: '2026-11-01T00:00:00.000Z' };
 
     it('keeps the notes of the order and writes the new one as the caller, as of now', () => {
-        const notes = notesWith([old], [old, { id: 'urn:ngsi-ld:note:2', author: 'p-victim', text: 'Hi', date: '2001-01-01T00:00:00.000Z', extra: 'x' }], 'p-shop', NOW);
+        const notes = addNote([old], [old, { id: 'urn:ngsi-ld:note:2', author: 'p-victim', text: 'Hi', date: '2001-01-01T00:00:00.000Z', extra: 'x' }], 'p-shop', NOW);
 
         expect(notes).toEqual([old, { id: 'urn:ngsi-ld:note:2', author: 'p-shop', text: 'Hi', date: NOW.toISOString() }]);
     });
 
     it('gives an id of its own to a note whose id is not valid or is taken', () => {
-        const [, first, second] = notesWith([old], [old, { id: old.id, text: 'A' }, { id: 'a b', text: 'B' }], 'p-shop', NOW);
+        const [, first, second] = addNote([old], [old, { id: old.id, text: 'A' }, { id: 'a b', text: 'B' }], 'p-shop', NOW);
 
         expect(first?.['id']).toMatch(/^urn:ngsi-ld:note:[0-9a-f-]{36}$/);
         expect(second?.['id']).toMatch(/^urn:ngsi-ld:note:[0-9a-f-]{36}$/);
@@ -65,16 +66,24 @@ describe('notesWith', () => {
     });
 
     it('refuses a list that drops, changes or repeats a note of the order', () => {
-        expect(() => notesWith([old], [{ text: 'New' }], 'p-shop', NOW)).toThrow('existing notes');
-        expect(() => notesWith([old], [{ ...old, text: 'Changed' }, { text: 'New' }], 'p-shop', NOW)).toThrow('existing notes');
-        expect(() => notesWith([old], [old, old, { text: 'New' }], 'p-shop', NOW)).toThrow('existing notes');
+        expect(() => addNote([old], [{ text: 'New' }], 'p-shop', NOW)).toThrow('existing notes');
+        expect(() => addNote([old], [{ ...old, text: 'Changed' }, { text: 'New' }], 'p-shop', NOW)).toThrow('existing notes');
+        expect(() => addNote([old], [old, old, { text: 'New' }], 'p-shop', NOW)).toThrow('existing notes');
+    });
+
+    it('takes what a note and a request may have from the limits that are given', () => {
+        const limits = { noteLength: 5, notesPerRequest: 2 };
+
+        expect(() => addNote(undefined, [{ text: 'x'.repeat(6) }], 'p-shop', NOW, limits)).toThrow('at most 5 characters');
+        expect(() => addNote(undefined, [{ text: 'a' }, { text: 'b' }, { text: 'c' }], 'p-shop', NOW, limits)).toThrow('between 1 and 2 notes');
+        expect(addNote(undefined, [{ text: 'a' }, { text: 'b' }], 'p-shop', NOW, limits)).toHaveLength(2);
     });
 
     it('refuses a request with no new note, a note with no text, and one that is too long', () => {
-        expect(() => notesWith([old], [old], 'p-shop', NOW)).toThrow('adds between');
-        expect(() => notesWith(undefined, [{ text: '  ' }], 'p-shop', NOW)).toThrow('has a text');
-        expect(() => notesWith(undefined, [{ text: 'x'.repeat(10_001) }], 'p-shop', NOW)).toThrow('has a text');
-        expect(() => notesWith(undefined, 'note', 'p-shop', NOW)).toThrow('list of notes');
+        expect(() => addNote([old], [old], 'p-shop', NOW)).toThrow('adds between');
+        expect(() => addNote(undefined, [{ text: '  ' }], 'p-shop', NOW)).toThrow('has a text');
+        expect(() => addNote(undefined, [{ text: 'x'.repeat(10_001) }], 'p-shop', NOW)).toThrow('has a text');
+        expect(() => addNote(undefined, 'note', 'p-shop', NOW)).toThrow('list of notes');
     });
 });
 
