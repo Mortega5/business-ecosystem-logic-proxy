@@ -9,17 +9,22 @@ import { ResourceIdPipe } from '../resource-id.pipe';
 import { Categories } from './categories';
 import { Catalogs } from './catalogs';
 import { Offerings } from './offerings';
+import { ProductSpecifications } from './product-specifications';
 
 /**
  * The catalog API, as far as it has been moved here: the categories, which anybody reads and an administrator changes, and the
- * catalogs and the offerings, which a seller makes, changes and retires. What is not here yet (the lists of catalogs and offerings, the
- * product specifications and the prices) is answered by the legacy application, and what is here and is not a route of the portal (the delete of a
+ * catalogs, the offerings and the product specifications, which a seller makes, changes and retires. What is not here yet (the lists of catalogs and offerings and the prices) is answered by the legacy application, and what is here and is not a route of the portal (the delete of a
  * category, above all) is closed, so it cannot reach it.
  */
 @UseInterceptors(BodyTextInterceptor)
 @Controller('catalog')
 export class CatalogController {
-    constructor(private readonly categories: Categories, private readonly catalogs: Catalogs, private readonly offerings: Offerings) {}
+    constructor(
+        private readonly categories: Categories,
+        private readonly catalogs: Catalogs,
+        private readonly offerings: Offerings,
+        private readonly products: ProductSpecifications
+    ) {}
 
     @OptionalAuth()
     @Get('category')
@@ -95,5 +100,32 @@ export class CatalogController {
     @Delete('productOffering/:id')
     retireOffering(@Param('id', ResourceIdPipe) id: string, @Req() req: Request, @Res() res: Response): Promise<void> {
         return this.offerings.retire(req, res, id);
+    }
+
+    @OptionalAuth()
+    @Get('productSpecification')
+    listProducts(@Req() req: Request, @Res() res: Response): Promise<void> {
+        return this.products.list(req, res);
+    }
+
+    @OptionalAuth()
+    @Get('productSpecification/:id')
+    readProduct(@Param('id', ResourceIdPipe) id: string, @Req() req: Request, @Res() res: Response): Promise<void> {
+        return this.products.read(req, res, id);
+    }
+
+    @Post('productSpecification')
+    createProduct(@Body(JsonObjectBodyPipe) body: string, @Req() req: Request, @Res() res: Response): Promise<void> {
+        return this.products.create(req, res, body);
+    }
+
+    @Patch('productSpecification/:id')
+    updateProduct(@Param('id', ResourceIdPipe) id: string, @Body(JsonObjectBodyPipe) body: string, @Req() req: Request, @Res() res: Response): Promise<void> {
+        return this.products.update(req, res, id, body);
+    }
+
+    @Delete('productSpecification/:id')
+    retireProduct(@Param('id', ResourceIdPipe) id: string, @Req() req: Request, @Res() res: Response): Promise<void> {
+        return this.products.retire(req, res, id);
     }
 }
