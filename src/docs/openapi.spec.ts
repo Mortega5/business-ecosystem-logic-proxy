@@ -62,8 +62,9 @@ const mongo = { ping: vi.fn<(timeoutMs: number) => Promise<boolean>>() };
                 health: { mongoPingTimeoutMs: 500 },
                 http: { bodyLimit: '1kb', uploadLimit: '1kb' },
                 party: { editEnabled: true },
+                search: { enabled: false },
                 catalog: { partyLocation: 'https://schemas.example.org/party.json', defaultCatalogId: '' },
-                limits: { orderItems: 50, noteLength: 10000, notesPerRequest: 20, nameLength: 100, descriptionLength: 100000, plansPerQuery: 20, readAll: { pageSize: 100, maxPages: 100 } },
+                limits: { orderItems: 50, noteLength: 10000, notesPerRequest: 20, nameLength: 100, descriptionLength: 100000, plansPerQuery: 20, providersPerQuery: 50, providerCacheMs: 300000, readAll: { pageSize: 100, maxPages: 100 } },
                 auth: { propagateToken: true, allowLocalEori: false, roles: { admin: 'admin', customer: 'Buyer', seller: 'Seller', orgAdmin: 'orgAdmin' } },
                 upstream: (name: string) => ({ baseUrl: `http://127.0.0.1:${tmforum.port}/${name}`, timeoutMs: 300 })
             }
@@ -354,7 +355,9 @@ describe('responses against docs/openapi.yaml', () => {
         const individual = '{"id":"p-bob","href":"p-bob","@type":"Individual","givenName":"Bob","familyName":"Builder"}';
         const withoutLogin = (cases: Case[]): Case[] => cases.filter((c) => c.status !== '401');
         return [
-            ...withoutLogin(proxied('/party/organization', '/party/organization?fields=id&offset=0&limit=5', '[{"id":"p-acme"}]', { invalid: { url: '/party/organization?keyword=cloud' } })),
+            ...withoutLogin(proxied('/party/organization', '/party/organization?fields=id&offset=0&limit=5', '[{"id":"p-acme"}]', { invalid: { url: '/party/organization?q=x' } })),
+            refused('get', '/party/organization', '501', '/party/organization?lifecycleStatus=Launched&keyword=cloud', undefined, '[]', {}),
+            refused('get', '/party/organization', '502', '/party/organization?lifecycleStatus=Launched&limit=6', undefined, 'not json', {}),
             ...withoutLogin(proxied('/party/organization/{id}', '/party/organization/p-acme', '{"id":"p-acme","tradingName":"Acme"}', { invalid: { url: '/party/organization/a%20b' } })),
             ...proxied('/party/individual/{id}', '/party/individual/p-bob', individual, { invalid: { url: '/party/individual/a%20b' } }),
             refused('get', '/party/individual/{id}', '502', '/party/individual/p-bob', undefined, 'not json'),
@@ -599,6 +602,15 @@ describe('responses against docs/openapi.yaml', () => {
             refused('delete', catalogId, '403', `${catalogs}/cat-1`, undefined, catalog().replace(seller, other), AS_SELLER),
             refused('delete', catalogId, '409', `${catalogs}/cat-1`, undefined, catalog().replace('Active', 'Retired'), AS_SELLER),
             refused('delete', catalogId, '502', `${catalogs}/cat-1`, undefined, 'not json', AS_SELLER),
+            // The lists of offerings, of all of them and of a catalog
+            ...proxied(offerings, `${offerings}?limit=6&offset=0&lifecycleStatus=Launched`, '[]', { invalid: { url: `${offerings}?q=x` } }).filter((c) => c.status !== '401'),
+            refused('get', offerings, '501', `${offerings}?keyword=data`, undefined, '[]', {}),
+            refused('get', offerings, '502', offerings, undefined, 'not json', {}),
+            { method: 'get', path: inCatalog, status: '200', url: `${inCatalogUrl}?limit=6`, headers: {}, arrange: marketplace },
+            ...proxied(inCatalog, `${inCatalogUrl}?limit=6`, '[]', { invalid: { url: `${inCatalogUrl}?q=x` } }).filter((c) => c.status === '400' || c.status === '504'),
+            { method: 'get', path: inCatalog, status: '422', url: inCatalogUrl, headers: {}, arrange: () => tmforum.answer((res) => tmforum.json(res, 404, '{"error":"Not found"}')) },
+            refused('get', inCatalog, '501', `${inCatalogUrl}?keyword=data`, undefined, '[]', {}),
+            refused('get', inCatalog, '502', inCatalogUrl, undefined, 'not json', {}),
             // Offerings, made with or without a catalog in the route
             ok('201', 'post', offerings, offerings, newOffering),
             ...writes(offerings, offerings, newOffering, '', ['404']),

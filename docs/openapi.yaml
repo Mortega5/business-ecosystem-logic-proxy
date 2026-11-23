@@ -1511,8 +1511,14 @@ paths:
       summary: List of organisations
       description: |
         Open to anybody; it is asked for with the identity of the caller when there is one. Only the filters the portal uses are
-        accepted, each once. The directory of providers (`lifecycleStatus`, `keyword`) is not served yet and is refused like any
-        other filter.
+        accepted, each once.
+
+        With `lifecycleStatus=Launched` or a `keyword` it is the directory of providers: the organisations that have launched
+        offerings. With a search engine the engine finds them, in its order and paged by it. Without one they are the sellers of the
+        launched offerings that anybody may read (the ones made for a buyer do not count), without the operator of the marketplace,
+        sorted by `tradingName` (or by its reverse with `-tradingName`) and cut into the page that was asked for, so that a page is
+        full and `X-Total-Count` is the number of providers. They are kept for five minutes (`limits.providerCacheMs`). Without an
+        engine a `keyword` is refused (501), as a list that ignored it would look like its answer.
       security:
         - {}
         - bearerAuth: []
@@ -1537,6 +1543,26 @@ paths:
           schema:
             type: integer
             minimum: 0
+        - name: lifecycleStatus
+          in: query
+          required: false
+          description: 'Only `Launched` (in any case): the directory of providers.'
+          schema:
+            type: string
+            enum: [Launched]
+        - name: keyword
+          in: query
+          required: false
+          description: 'What the search engine looks for; up to 200 characters, with no `&`, `;` or `#`. It goes in the path of the engine, so a word with a `/`, a `\` or a `..` is refused (400).'
+          schema:
+            type: string
+        - name: sort
+          in: query
+          required: false
+          description: '`tradingName` or `-tradingName`.'
+          schema:
+            type: string
+            enum: [tradingName, '-tradingName']
       responses:
         '200':
           description: The organisations, as the party API answers them.
@@ -1556,6 +1582,14 @@ paths:
           $ref: '#/components/responses/InvalidQuery'
         '404':
           $ref: '#/components/responses/UpstreamNotFound'
+        '501':
+          description: A keyword was asked for and the marketplace has no search engine.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+        '502':
+          $ref: '#/components/responses/BadGateway'
         '504':
           $ref: '#/components/responses/UpstreamUnreachable'
   /party/organization/{id}:
@@ -3744,6 +3778,65 @@ paths:
         '504':
           $ref: '#/components/responses/UpstreamUnreachable'
   /catalog/productOffering:
+    get:
+      tags: [catalog]
+      operationId: listProductOfferings
+      summary: List of the offerings
+      description: |
+        The offerings that the caller may read, as the catalog API pages them (`X-Total-Count` is the one of the API). Open to anybody. An
+        offering made for a buyer is for the buyer and the seller only: unless `relatedParty.id` is the caller, the query leaves out the
+        offerings that name a buyer, whatever the client asks about `relatedParty.role*`, and one that the API lets through is dropped.
+
+        When the marketplace has a search engine and the query has a `keyword` or a `category.id`, the engine pages and sorts and gives
+        the ids, which are then asked of the API in its order (`lifecycleStatus` and the other filters are not applied to them, as in
+        v11). A `category.id` is then an id or a filter of the engine written `name::value`. Without an engine a keyword is refused
+        (501), as a list that ignored it would look like its answer, and the categories are ids.
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - name: filters
+          in: query
+          required: false
+          description: |
+            `limit`, `offset`, `sort`, `lifecycleStatus` (several, separated by commas), `isBundle`, `category.id`, `name*` (a regular
+            expression), `keyword`, `relatedParty.id`, `relatedParty.role`, `productOfferingPrice.id`, `productSpecification.id` and
+            `id`, each once; any other is refused.
+          style: form
+          explode: true
+          schema:
+            type: object
+            additionalProperties:
+              type: string
+      responses:
+        '200':
+          description: The offerings, as the catalog API answers them.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
+              example: []
+        '400':
+          $ref: '#/components/responses/InvalidQuery'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '501':
+          description: A keyword was asked for and the marketplace has no search engine.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+        '502':
+          $ref: '#/components/responses/BadGateway'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
     post:
       tags: [catalog]
       operationId: createProductOffering
@@ -3793,6 +3886,79 @@ paths:
         '504':
           $ref: '#/components/responses/UpstreamUnreachable'
   /catalog/catalog/{catalogId}/productOffering:
+    get:
+      tags: [catalog]
+      operationId: listProductOfferingsOfCatalog
+      summary: List of the offerings of a catalog
+      description: |
+        The offerings that the caller may read, as the catalog API pages them (`X-Total-Count` is the one of the API). Open to anybody. An
+        offering made for a buyer is for the buyer and the seller only: unless `relatedParty.id` is the caller, the query leaves out the
+        offerings that name a buyer, whatever the client asks about `relatedParty.role*`, and one that the API lets through is dropped.
+
+        When the marketplace has a search engine and the query has a `keyword` or a `category.id`, the engine pages and sorts and gives
+        the ids, which are then asked of the API in its order (`lifecycleStatus` and the other filters are not applied to them, as in
+        v11). A `category.id` is then an id or a filter of the engine written `name::value`. Without an engine a keyword is refused
+        (501), as a list that ignored it would look like its answer, and the categories are ids.
+
+        The offerings are the ones with a category of the catalog; a catalog with no categories has no offerings (v11 listed all of
+        them). The catalog has to exist (422).
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - name: catalogId
+          in: path
+          required: true
+          description: 'Identifier of the catalog: letters, digits and the marks : . _ -, up to 200 characters.'
+          schema:
+            type: string
+            pattern: '^(?!\.+$)[A-Za-z0-9:._-]{1,200}$'
+        - name: filters
+          in: query
+          required: false
+          description: |
+            `limit`, `offset`, `sort`, `lifecycleStatus` (several, separated by commas), `isBundle`, `category.id`, `name*` (a regular
+            expression), `keyword`, `relatedParty.id`, `relatedParty.role`, `productOfferingPrice.id`, `productSpecification.id` and
+            `id`, each once; any other is refused.
+          style: form
+          explode: true
+          schema:
+            type: object
+            additionalProperties:
+              type: string
+      responses:
+        '200':
+          description: The offerings, as the catalog API answers them.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
+              example: []
+        '400':
+          $ref: '#/components/responses/InvalidQuery'
+        '422':
+          description: The catalog cannot be read or does not exist.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+        '501':
+          description: A keyword was asked for and the marketplace has no search engine.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+        '502':
+          $ref: '#/components/responses/BadGateway'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
     post:
       tags: [catalog]
       operationId: createProductOfferingInCatalog
