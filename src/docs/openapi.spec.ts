@@ -534,14 +534,14 @@ describe('responses against docs/openapi.yaml', () => {
                 const method = tmforum.seen?.method;
                 const path = (tmforum.seen?.url ?? '').replace(/^\/[^/]+/, '');
                 const send = (status: number, body: string): void => tmforum.json(res, status, body);
-                if (path.startsWith('/charging') || path.includes('offeringJob')) {
+                if (path.startsWith('/charging') || path.includes('offeringJob') || path.includes('validateJob')) {
                     send(200, '{}');
                 } else if (path.startsWith('/individual') || path.startsWith('/organization')) {
                     send(200, '{"id":"p-ana"}');
                 } else if (path.startsWith('/category')) {
                     send(method === 'POST' ? 201 : 200, category);
                 } else if (path.startsWith('/productSpecification')) {
-                    send(200, product);
+                    send(method === 'POST' ? 201 : 200, product);
                 } else if (path.startsWith('/productOffering?')) {
                     send(200, '[]');
                 } else if (path.startsWith('/productOffering/')) {
@@ -635,6 +635,72 @@ describe('responses against docs/openapi.yaml', () => {
         ];
     };
 
+    // The product specifications of the catalog API: the list and the read that anybody may do of what is public, and what a seller makes, changes and retires
+    const productCases = (): Case[] => {
+        const base = '/catalog/productSpecification';
+        const id = `${base}/{id}`;
+        const seller = '{"id":"p-shop","role":"Seller"}';
+        const other = '{"id":"p-other","role":"Seller"}';
+        const mine = { ...json, ...AS_SELLER };
+        const owned = `{"id":"ps-1","lifecycleStatus":"Launched","relatedParty":[${seller}]}`;
+        const draft = owned.replace('Launched', 'Active');
+        const fresh = `{"name":"Data","relatedParty":[${seller}]}`;
+        const withoutLogin = (cases: Case[]): Case[] => cases.filter((c) => c.status !== '401');
+        // The catalog API and the charging backend with everything in its place, but for the charging backend that is down
+        const marketplace = (chargingDown = false): void =>
+            tmforum.answer((res) => {
+                const path = (tmforum.seen?.url ?? '').replace(/^\/[^/]+/, '');
+                if (path.includes('validateJob')) {
+                    tmforum.json(res, chargingDown ? 500 : 200, '{}');
+                } else if (path.startsWith('/productOffering?')) {
+                    tmforum.json(res, 200, '[]');
+                } else {
+                    tmforum.json(res, tmforum.seen?.method === 'POST' ? 201 : 200, owned);
+                }
+            });
+        const ok = (status: string, method: string, url: string, body?: string): Case => ({
+            method,
+            path: method === 'post' ? base : id,
+            status,
+            url,
+            headers: mine,
+            ...(body === undefined ? {} : { body }),
+            arrange: marketplace
+        });
+        const around = (method: string, url: string, options: ProxiedOptions, without: string[] = []): Case[] =>
+            proxied(method === 'post' ? base : id, url, '{}', { method, ...options }).filter((c) => c.status !== '200' && !without.includes(c.status));
+        return [
+            ...withoutLogin(proxied(base, `${base}?limit=6&offset=0`, '[]', { headers: AS_SELLER, invalid: { url: `${base}?q=x` } })),
+            refused('get', base, '403', base, undefined, '[]', {}),
+            ...withoutLogin(proxied(id, `${base}/ps-1`, owned, { invalid: { url: `${base}/a%20b` } })),
+            refused('get', id, '403', `${base}/ps-1`, undefined, draft),
+            refused('get', id, '502', `${base}/ps-1`, undefined, 'not json'),
+            ok('201', 'post', base, fresh),
+            ...around('post', base, { headers: mine, body: fresh, invalid: { body: 'not json' }, tooLarge: true }, ['404']),
+            refused('post', base, '403', base, fresh, '{}', LOGGED_IN),
+            refused('post', base, '422', base, `{"relatedParty":[${seller}]}`, '{}', AS_SELLER),
+            {
+                method: 'post',
+                path: base,
+                status: '502',
+                url: base,
+                headers: mine,
+                body: fresh,
+                arrange: () => marketplace(true)
+            },
+            ok('200', 'patch', `${base}/ps-1`, '{"description":"x"}'),
+            ...around('patch', `${base}/ps-1`, { headers: mine, body: '{"description":"x"}', invalid: { url: `${base}/a%20b` }, tooLarge: true }),
+            refused('patch', id, '403', `${base}/ps-1`, '{"description":"x"}', owned.replace(seller, other), AS_SELLER),
+            refused('patch', id, '409', `${base}/ps-1`, '{"relatedParty":[]}', owned, AS_SELLER),
+            refused('patch', id, '422', `${base}/ps-1`, '{"name":""}', owned, AS_SELLER),
+            refused('patch', id, '502', `${base}/ps-1`, '{"description":"x"}', 'not json', AS_SELLER),
+            ok('200', 'delete', `${base}/ps-1`),
+            ...around('delete', `${base}/ps-1`, { headers: AS_SELLER, invalid: { url: `${base}/a%20b` } }),
+            refused('delete', id, '403', `${base}/ps-1`, undefined, owned.replace(seller, other), AS_SELLER),
+            refused('delete', id, '409', `${base}/ps-1`, undefined, owned.replace('Launched', 'Retired'), AS_SELLER),
+            refused('delete', id, '502', `${base}/ps-1`, undefined, 'not json', AS_SELLER)
+        ];
+    };
     const cases: Case[] = [
         { method: 'get', path: '/health/live', status: '200', arrange: () => mongo.ping.mockResolvedValue(false) },
         { method: 'get', path: '/health/ready', status: '200', arrange: () => mongo.ping.mockResolvedValue(true) },
@@ -684,6 +750,7 @@ describe('responses against docs/openapi.yaml', () => {
         ...orderingCases(),
         ...categoryCases(),
         ...catalogAndOfferingCases(),
+        ...productCases(),
         ...chargingCases()
     ];
 

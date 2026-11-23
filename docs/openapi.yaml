@@ -3491,6 +3491,258 @@ paths:
           $ref: '#/components/responses/BadGateway'
         '504':
           $ref: '#/components/responses/UpstreamUnreachable'
+  /catalog/productSpecification:
+    get:
+      tags: [catalog]
+      operationId: listProductSpecifications
+      summary: List of the product specifications
+      description: |
+        The product specifications of the caller as a seller: the proxy adds the party of the caller (or the organisation they act
+        for) and its role to the query, last, whatever the portal sent.
+
+        When the only filters are `id` (a list of identifiers separated by commas, up to a hundred), `limit` and `offset`, it is
+        the specifications with those identifiers instead, and the caller gets the ones that anybody may read (launched, retired or
+        obsolete) and their own.
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - name: filters
+          in: query
+          required: false
+          description: |
+            Any filter of the catalog (`limit`, `offset`, `sort`, `lifecycleStatus`, a field of the resource, `name*`...), each once.
+            A name is a field, a value never holds `&` or `;`, and `q` is refused. Whatever the client sends about `relatedParty`
+            is dropped.
+          style: form
+          explode: true
+          schema:
+            type: object
+            additionalProperties:
+              type: string
+      responses:
+        '200':
+          description: The specifications, as the catalog API answers them.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
+              example: []
+        '400':
+          $ref: '#/components/responses/InvalidQuery'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+    post:
+      tags: [catalog]
+      operationId: createProductSpecification
+      summary: Create a product specification
+      description: |
+        Only a seller, and the related parties of the body have to be the caller (or the organisation they act for) as the seller
+        and nobody else. `id` and `href` of the body are dropped. The name is mandatory, up to 100 characters, and the description
+        up to 100.000. A profile picture has to be an SVG, PNG, JPEG or GIF image; the characteristics cannot repeat a name or an
+        id, have an empty range or a compliance credential; the plan of orchestration of a blueprint has to be consistent; and a
+        bundle has at least two (and at most fifty) products of the caller that are active or launched and are not bundles.
+
+        The charging backend checks the product before it is made, and is told when it was made: when it refuses it the answer
+        carries what it said, when the product cannot be made it is told to take it back, and when it cannot be told that the
+        product was made the product is retired and the answer says so.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '201':
+          description: The product specification created, as the catalog API answers it.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                id: urn:ngsi-ld:product-specification:1
+        '400':
+          $ref: '#/components/responses/InvalidBody'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/NotSpecificationSeller'
+        '422':
+          description: The product or what it is made of is not valid, or the charging backend refuses it.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '502':
+          $ref: '#/components/responses/BadGateway'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+  /catalog/productSpecification/{id}:
+    get:
+      tags: [catalog]
+      operationId: getProductSpecification
+      summary: A product specification
+      description: |
+        Open to anybody once it is launched, retired or obsolete; an active one is for its seller.
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: The product specification, as the catalog API answers it.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                id: urn:ngsi-ld:product-specification:1
+        '400':
+          $ref: '#/components/responses/InvalidId'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '502':
+          $ref: '#/components/responses/BadGateway'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+    patch:
+      tags: [catalog]
+      operationId: updateProductSpecification
+      summary: Change a product specification
+      description: |
+        Only the seller who owns it. The related parties cannot be changed and the lifecycle has to follow its order. It can be
+        retired once its offerings are retired or obsolete, made obsolete once they are obsolete, and launched once the service
+        and resource specifications that it is made of are launched. The characteristics keep their rules, and the compliance
+        credential cannot change; they can be removed only from an active product, and then the prices that name them stop doing so.
+        The bundle can change only while the product is active.
+
+        A digital product (with an asset type, a media type and a location) changes its characteristics only with a new version
+        that brings its new asset, and then nothing but the asset changes. The charging backend checks the new version before
+        the change and is told after it; when the change fails it is told to go back, and when it cannot be told or the prices
+        cannot be updated the answer says that the product was changed.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ResourceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: The product specification changed, as the catalog API answers it.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                id: urn:ngsi-ld:product-specification:1
+        '400':
+          $ref: '#/components/responses/InvalidIdOrBody'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/NotSpecificationSeller'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '409':
+          description: The related parties change, or an offering of the product is not retired (or not obsolete, to make it obsolete), or the service or resource specification that it needs is not launched.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+        '422':
+          description: The product or what it is made of is not valid, or the charging backend refuses it.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '502':
+          $ref: '#/components/responses/BadGateway'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+    delete:
+      tags: [catalog]
+      operationId: retireProductSpecification
+      summary: Retire a product specification
+      description: |
+        Only the seller who owns it, once its offerings are retired or obsolete. A delete retires the product, which stays in the API.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: The product specification retired, as the catalog API answers it.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                id: urn:ngsi-ld:product-specification:1
+        '400':
+          $ref: '#/components/responses/InvalidId'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/NotSpecificationSeller'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '409':
+          description: The product is retired already, or an offering of it is not retired.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+        '502':
+          $ref: '#/components/responses/BadGateway'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
   /catalog/productOffering:
     post:
       tags: [catalog]
