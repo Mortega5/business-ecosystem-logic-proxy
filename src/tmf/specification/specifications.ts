@@ -88,6 +88,11 @@ export class Specifications {
         return Promise.resolve(undefined);
     }
 
+    /** Once what the seller sends is valid and before a change is sent: checks that need to ask elsewhere. */
+    protected beforeUpdate(_req: Request, _id: string, _current: Record<string, unknown>, _changes: Record<string, unknown>): Promise<void> {
+        return Promise.resolve();
+    }
+
     /** Before a change is sent: the changes that go on, and what is done once the change has been made. */
     protected prepareUpdate(
         _current: Record<string, unknown>,
@@ -160,6 +165,7 @@ export class Specifications {
         }
         validateNameAndDescription(changes, this.api.noun, false, this.config.limits);
         this.validate(changes);
+        await this.beforeUpdate(req, id, current, changes);
         const { changes: sent, after } = this.prepareUpdate(current, changes);
         const response = await this.proxy.send(req, { upstream: this.api.upstream, path: this.path(id), body: JSON.stringify(sent), ...AS_JSON });
         if (response.status < 400) {
@@ -243,14 +249,23 @@ export class Specifications {
         return current;
     }
 
+    /** The filter that finds what uses the specification, or nothing when nothing can; by default what names it in `field`. */
+    protected dependentsFilter(_req: Request, id: string): Promise<string | undefined> {
+        return Promise.resolve(`${this.api.dependents?.field ?? ''}=${encodeURIComponent(id)}`);
+    }
+
     protected async assertNotInUse(req: Request, id: string): Promise<void> {
         const { dependents } = this.api;
         if (dependents === undefined) {
             return;
         }
+        const filter = await this.dependentsFilter(req, id);
+        if (filter === undefined) {
+            return;
+        }
         const { pageSize, maxPages } = this.config.limits.readAll;
         for (let page = 0; page < maxPages; page += 1) {
-            const search = `?${dependents.field}=${encodeURIComponent(id)}&fields=lifecycleStatus&limit=${pageSize}&offset=${page * pageSize}`;
+            const search = `?${filter}&fields=lifecycleStatus&limit=${pageSize}&offset=${page * pageSize}`;
             const response = await this.proxy.send(req, { upstream: dependents.upstream, path: dependents.path, method: 'GET', search });
             const found = parseJson(response.body);
             if (response.status >= 400 || !Array.isArray(found)) {
