@@ -31,6 +31,8 @@ export interface OwnedList {
     path: string;
     /** The role that makes a resource the caller's; the customer by default. */
     role?: OwnerRole;
+    /** The order of the list when the client asks for none, as the TMForum takes it: `-field` for the descending one. */
+    defaultSort?: string;
     /** The refusal when the caller has no party; the inventory's by default. */
     refusal?: string;
 }
@@ -81,6 +83,9 @@ export class OwnedResources {
                 throw new DomainError('Invalid query', 400);
             }
             params.append(name, value);
+        }
+        if (options.defaultSort !== undefined && !params.has('sort')) {
+            params.append('sort', options.defaultSort);
         }
         params.append('relatedParty.id', partyId);
         params.append('relatedParty.role', this.config.auth.roles[options.role ?? 'customer']);

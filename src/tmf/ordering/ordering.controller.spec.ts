@@ -160,12 +160,22 @@ describe('GET /ordering/productOrder, the list', () => {
         ]);
     });
 
-    it('gives a seller the items that are theirs, the newest order first, and nothing of an order they are not in', async () => {
+    it('asks the API for the newest orders first when the client asks for no order', async () => {
+        await call('/ordering/productOrder?limit=5', { headers: LOGGED_IN });
+        expect([...new URLSearchParams(seen[0]?.search).entries()]).toEqual([
+            ['limit', '5'],
+            ['sort', '-orderDate'],
+            ['relatedParty.id', 'p-ana'],
+            ['relatedParty.role', 'Buyer']
+        ]);
+    });
+
+    it('gives a seller the items that are theirs, in the order of the API, and nothing of an order they are not in', async () => {
         list = {
             status: 200,
             body: JSON.stringify([
-                JSON.parse(order({ id: 'old', orderDate: '2026-01-01T00:00:00.000Z' })),
                 JSON.parse(order({ id: 'new', orderDate: '2026-06-01T00:00:00.000Z' })),
+                JSON.parse(order({ id: 'old', orderDate: '2026-01-01T00:00:00.000Z' })),
                 JSON.parse(order({ id: 'not-mine', relatedParty: [OTHER, ANA] }))
             ])
         };

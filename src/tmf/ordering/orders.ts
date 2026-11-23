@@ -25,7 +25,6 @@ const CLIENT_ERRORS = [400, 403, 409, 422];
 
 const jsonOf = (text: string): unknown => parseJson(text);
 
-const orderTime = (order: Json): number => (typeof order['orderDate'] === 'string' ? Date.parse(order['orderDate']) || 0 : 0);
 
 /**
  * The product orders of the ordering API, as far as the portal uses them. An order is seen by the customer, who has all its items,
@@ -53,7 +52,7 @@ export class Orders {
     async list(req: Request, res: Response): Promise<void> {
         const asked = req.query['relatedParty.role'];
         const role = typeof asked === 'string' && asked.toLowerCase() === this.roles.seller.toLowerCase() ? 'seller' : 'customer';
-        const search = `?${this.owned.query(req, { upstream: 'tmforum.ordering', path: '/productOrder', role, refusal: 'You are not authorized to list the orders' }).toString()}`;
+        const search = `?${this.owned.query(req, { upstream: 'tmforum.ordering', path: '/productOrder', role, defaultSort: '-orderDate', refusal: 'You are not authorized to list the orders' }).toString()}`;
         const response = await this.proxy.send(req, { upstream: 'tmforum.ordering', path: '/productOrder', method: 'GET', search });
         const orders = jsonOf(response.body);
         if (response.status >= 400) {
@@ -68,9 +67,7 @@ export class Orders {
             const seen = this.presented(order, partyId);
             return seen === undefined ? [] : [seen];
         });
-        // The page is as the API sorted it when the client asked for a sort, and the newest first when it did not
-        const sorted = req.query['sort'] === undefined ? shown.toSorted((a, b) => orderTime(b) - orderTime(a)) : shown;
-        this.proxy.reply(res, { ...response, body: JSON.stringify(sorted) }, PRIVATE);
+        this.proxy.reply(res, { ...response, body: JSON.stringify(shown) }, PRIVATE);
     }
 
     async read(req: Request, res: Response, id: string): Promise<void> {
