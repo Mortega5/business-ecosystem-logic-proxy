@@ -245,7 +245,7 @@ export class Specifications {
         return current;
     }
 
-    private async assertNotInUse(req: Request, id: string): Promise<void> {
+    protected async assertNotInUse(req: Request, id: string): Promise<void> {
         const { dependents } = this.api;
         if (dependents === undefined) {
             return;

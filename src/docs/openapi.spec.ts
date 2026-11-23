@@ -19,6 +19,7 @@ import { AccountModule } from '../tmf/account/account.module';
 import { DocumentModule } from '../tmf/document/document.module';
 import { ChargingModule } from '../tmf/charging/charging.module';
 import { SoftwareModule } from '../tmf/software/software.module';
+import { UsageModule } from '../tmf/usage/usage.module';
 import { ResourceModule } from '../tmf/resource/resource.module';
 import { RevenueModule } from '../tmf/revenue/revenue.module';
 import { InventoryModule } from '../tmf/inventory/inventory.module';
@@ -414,6 +415,25 @@ describe('responses against docs/openapi.yaml', () => {
         ];
     };
 
+    // The usage specifications: the list of the seller, a create and a change; nothing else of /usage is served
+    const usageCases = (): Case[] => {
+        const base = '/usage/usageSpecification';
+        const owned = '{"id":"u-1","lifecycleStatus":"Active","relatedParty":[{"id":"p-shop","role":"Seller"}]}';
+        const notMine = '{"id":"u-1","lifecycleStatus":"Active","relatedParty":[{"id":"p-other","role":"Seller"}]}';
+        const mine = { ...json, ...AS_SELLER };
+        return [
+            ...proxied(base, `${base}?limit=6&offset=0`, '[]', { invalid: { url: `${base}?q=x` } }),
+            ...proxied(base, base, owned, { method: 'post', headers: mine, body: '{"name":"Calls","relatedParty":[{"id":"p-shop","role":"Seller"}]}', invalid: { body: 'not json' }, tooLarge: true }),
+            refused('post', base, '403', base, '{"name":"Calls","relatedParty":[{"id":"p-other","role":"Seller"}]}', '{}', AS_SELLER),
+            refused('post', base, '422', base, '{"relatedParty":[{"id":"p-shop","role":"Seller"}]}', '{}', AS_SELLER),
+            ...proxied(`${base}/{id}`, `${base}/u-1`, owned, { method: 'patch', headers: mine, body: '{"name":"Changed"}', invalid: { url: `${base}/a%20b` }, tooLarge: true }),
+            refused('patch', `${base}/{id}`, '403', `${base}/u-1`, '{"name":"Changed"}', notMine, AS_SELLER),
+            refused('patch', `${base}/{id}`, '409', `${base}/u-1`, '{"relatedParty":[]}', owned, AS_SELLER),
+            refused('patch', `${base}/{id}`, '422', `${base}/u-1`, '{"name":""}', owned, AS_SELLER),
+            refused('patch', `${base}/{id}`, '502', `${base}/u-1`, '{"name":"Changed"}', 'not json', AS_SELLER)
+        ];
+    };
+
     // The charging backend: the confirmation of an order, the configuration of the e-mail of the administrator, and the upload of a file
     const chargingCases = (): Case[] => {
         const base = '/charging/api';
@@ -478,13 +498,14 @@ describe('responses against docs/openapi.yaml', () => {
         // A software specification also makes its support package, and says so when it cannot
         refused('post', '/software/resourceSpecification', '502', '/software/resourceSpecification', '{"@type":"SoftwareSpecification","name":"App","relatedParty":[{"id":"p-shop","role":"Seller"}]}', 'not json', AS_SELLER),
         ...specificationCases('/software/resource', { privateRead: true, retire: false }),
+        ...usageCases(),
         ...chargingCases()
     ];
 
     beforeAll(async () => {
         await tmforum.start();
 
-        @Module({ imports: [DependenciesStub, LoggerModule.forRoot({ pinoHttp: { level: 'silent' } }), HealthModule, AuthModule, DocumentModule, RevenueModule, SearchModule, InvoicingModule, QuoteModule, InventoryModule, AccountModule, PartyModule, ResourceModule, ServiceModule, ChargingModule, SoftwareModule] })
+        @Module({ imports: [DependenciesStub, LoggerModule.forRoot({ pinoHttp: { level: 'silent' } }), HealthModule, AuthModule, DocumentModule, RevenueModule, SearchModule, InvoicingModule, QuoteModule, InventoryModule, AccountModule, PartyModule, ResourceModule, ServiceModule, ChargingModule, SoftwareModule, UsageModule] })
         class Contract {}
 
         app = await createApp(express(), Contract);
