@@ -50,22 +50,22 @@ export class CatalogController {
     }
 
     @OptionalAuth()
-    @Get(':id')
+    @Get('catalog/:id')
     readCatalog(@Param('id', ResourceIdPipe) id: string, @Req() req: Request, @Res() res: Response): Promise<void> {
         return this.catalogs.read(req, res, id);
     }
 
-    @Post()
+    @Post('catalog')
     createCatalog(@Body(JsonObjectBodyPipe) body: string, @Req() req: Request, @Res() res: Response): Promise<void> {
         return this.catalogs.create(req, res, body);
     }
 
-    @Patch(':id')
+    @Patch('catalog/:id')
     updateCatalog(@Param('id', ResourceIdPipe) id: string, @Body(JsonObjectBodyPipe) body: string, @Req() req: Request, @Res() res: Response): Promise<void> {
         return this.catalogs.update(req, res, id, body);
     }
 
-    @Delete(':id')
+    @Delete('catalog/:id')
     retireCatalog(@Param('id', ResourceIdPipe) id: string, @Req() req: Request, @Res() res: Response): Promise<void> {
         return this.catalogs.retire(req, res, id);
     }
