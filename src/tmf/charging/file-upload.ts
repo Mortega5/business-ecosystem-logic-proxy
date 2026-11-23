@@ -22,7 +22,7 @@ const isSafeName = (name: string): boolean =>
  * The upload of a file as the portal makes it, `{ content: { name, data }, contentType, isPublic }` with the file in base64, as
  * the text to send on: nothing but those fields goes to the backend, and the name, the type and the content are checked.
  */
-export const checkedUploadJob = (body: string): string => {
+export const checkedFileUpload = (body: string): string => {
     const upload: unknown = JSON.parse(body);
     const content = isRecord(upload) ? upload['content'] : undefined;
     if (!isRecord(upload) || !isRecord(content) || typeof content['name'] !== 'string' || typeof content['data'] !== 'string' || typeof upload['contentType'] !== 'string') {

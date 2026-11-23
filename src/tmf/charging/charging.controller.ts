@@ -7,7 +7,7 @@ import { AdministratorGuard } from '../administrator.guard';
 import { AS_JSON, PRIVATE } from '../http-options';
 import { JsonObjectBodyPipe } from '../json-body.pipe';
 import { TmfProxy } from '../tmf-proxy';
-import { checkedUploadJob } from './upload-job';
+import { checkedFileUpload } from './file-upload';
 
 // The charging backend serves its routes under its own `/charging` prefix, which the proxy leaves in the path
 const ORDERS = '/charging/api/orderManagement';
@@ -44,8 +44,8 @@ export class ChargingController {
 
     // The file travels in the body in base64, so this is the biggest body the proxy takes
     @Post('api/assetManagement/assets/uploadJob')
-    uploadJob(@Body(JsonObjectBodyPipe) body: string, @Req() req: Request, @Res() res: Response): Promise<void> {
-        return this.proxy.forward(req, res, { upstream: 'charging', path: '/charging/api/assetManagement/assets/uploadJob', body: checkedUploadJob(body), ...AS_JSON });
+    uploadFile(@Body(JsonObjectBodyPipe) body: string, @Req() req: Request, @Res() res: Response): Promise<void> {
+        return this.proxy.forward(req, res, { upstream: 'charging', path: '/charging/api/assetManagement/assets/uploadJob', body: checkedFileUpload(body), ...AS_JSON });
     }
 
     @All(['', '{*path}'])
