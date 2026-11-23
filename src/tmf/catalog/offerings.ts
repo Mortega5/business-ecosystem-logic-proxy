@@ -1,6 +1,9 @@
 import { isDeepStrictEqual } from 'node:util';
 import { Injectable, Logger } from '@nestjs/common';
 import type { Request, Response } from 'express';
+import { z } from 'zod';
+import { pagination, queryParams, sorting } from '../schemas/pagination';
+import { parseRequest } from '../schemas/parse';
 import { BadGatewayError, DomainError, ForbiddenError, NotFoundError } from '../../common/domain-error';
 import { AppConfigService } from '../../config/app-config.service';
 import { LegacyOperator } from '../../legacy/legacy-operator';
@@ -29,23 +32,22 @@ const ID = /^[A-Za-z0-9:._-]{1,200}$/;
 const IDS = /^[A-Za-z0-9:._-]{1,200}(,[A-Za-z0-9:._-]{1,200}){0,99}$/;
 
 // What anybody may ask of the list of offerings, with what each filter may be; a category may also be one of the filters of the search engine
-const LIST_FILTERS: Record<string, RegExp> = {
-    limit: /^\d{1,6}$/,
-    offset: /^\d{1,9}$/,
-    sort: /^-?[A-Za-z][A-Za-z0-9_.]{0,60}$/,
-    lifecycleStatus: /^[A-Za-z]{1,20}(,[A-Za-z]{1,20}){0,5}$/,
-    isBundle: /^(true|false)$/,
-    'category.id': /^[^&;#=]{1,500}$/,
-    'name*': /^[^&;#]{1,300}$/,
-    keyword: /^[^&;#]{1,200}$/,
-    'relatedParty.id': ID,
-    'relatedParty.role': /^[A-Za-z]{1,30}$/,
+const offeringsQuery = z.strictObject({
+    ...pagination,
+    ...sorting(),
+    lifecycleStatus: z.string().regex(/^[A-Za-z]{1,20}(,[A-Za-z]{1,20}){0,5}$/).optional(),
+    isBundle: z.string().regex(/^(true|false)$/).optional(),
+    'category.id': z.string().regex(/^[^&;#=]{1,500}$/).optional(),
+    'name*': z.string().regex(/^[^&;#]{1,300}$/).optional(),
+    keyword: z.string().regex(/^[^&;#]{1,200}$/).optional(),
+    'relatedParty.id': z.string().regex(ID).optional(),
+    'relatedParty.role': z.string().regex(/^[A-Za-z]{1,30}$/).optional(),
     // Whatever the client says about who the offerings are for, the proxy says it itself
-    'relatedParty.role*': /^.{1,200}$/,
-    'productOfferingPrice.id': IDS,
-    'productSpecification.id': ID,
-    id: IDS
-};
+    'relatedParty.role*': z.string().regex(/^.{1,200}$/).optional(),
+    'productOfferingPrice.id': z.string().regex(IDS).optional(),
+    'productSpecification.id': z.string().regex(ID).optional(),
+    id: z.string().regex(IDS).optional()
+});
 
 const statusOf = (value: unknown): string => (typeof value === 'string' ? value.toLowerCase() : '');
 
@@ -198,17 +200,8 @@ export class Offerings {
     }
 
     private listFilters(req: Request): Map<string, string> {
-        const asked = new Map<string, string>();
-        for (const [name, value] of Object.entries(req.query)) {
-            const allowed = Object.hasOwn(LIST_FILTERS, name) ? LIST_FILTERS[name] : undefined;
-            if (allowed === undefined || typeof value !== 'string' || !allowed.test(value)) {
-                throw new DomainError('Invalid query', 400);
-            }
-            asked.set(name, value);
-        }
-        return asked;
+        return new Map(queryParams(req.query, parseRequest(offeringsQuery, req.query, 'Invalid query')));
     }
-
     /** Without a search engine a category is the id of one. */
     private assertCategoryIds(categories: string | null): void {
         if (categories !== null && categories.split(',').some((id) => !isResourceId(id))) {

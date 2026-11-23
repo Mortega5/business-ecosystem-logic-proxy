@@ -9,7 +9,7 @@ import { OwnedResources, type OwnerRole } from '../owned-resources';
 import { callerParty, isRelatedAs } from '../related-party';
 import { ResourceIdPipe } from '../resource-id.pipe';
 import { billRenaming, ratesQuery } from '../schemas/customer-bill';
-import { pageParams } from '../schemas/pagination';
+import { queryParams } from '../schemas/pagination';
 import { parseRequest } from '../schemas/parse';
 import { TmfProxy } from '../tmf-proxy';
 
@@ -58,7 +58,7 @@ export class BillingController {
     async rates(@Req() req: Request, @Res() res: Response): Promise<void> {
         const query = parseRequest(ratesQuery, req.query, 'Invalid query params for appliedCustomerBillingRate');
         const billId = query['bill.id'];
-        const params = new URLSearchParams([['bill.id', billId], ...pageParams(query)]);
+        const params = queryParams(req.query, query);
         const current = await this.bill(req, billId);
         if (current.status >= 400) {
             this.proxy.reply(res, current);

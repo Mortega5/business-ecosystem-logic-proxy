@@ -2,6 +2,9 @@ import { All, Body, Controller, Get, Param, Patch, Req, Res, UseInterceptors } f
 import type { Request, Response } from 'express';
 import { BodyTextInterceptor } from '../body-text.interceptor';
 import { OptionalAuth } from '../../auth/public.decorator';
+import { z } from 'zod';
+import { pagination, queryParams, sorting } from '../schemas/pagination';
+import { parseRequest } from '../schemas/parse';
 import { BadGatewayError, DomainError, ForbiddenError, NotFoundError } from '../../common/domain-error';
 import { AppConfigService } from '../../config/app-config.service';
 import { LegacyPartyCache } from '../../legacy/legacy-party-cache';
@@ -19,14 +22,13 @@ const NOT_ALLOWED = 'You are not allowed to access this resource';
 // What an individual shows depends on who asks, so a cache in between must not give it to somebody else
 
 // What the portal asks of the list of organisations; with `lifecycleStatus` or `keyword` it is the directory of providers
-const LIST_FILTERS: Record<string, RegExp> = {
-    fields: /^[A-Za-z0-9_.@,-]{1,200}$/,
-    offset: /^\d{1,9}$/,
-    limit: /^\d{1,9}$/,
-    lifecycleStatus: /^launched$/i,
-    keyword: /^[^&;#]{1,200}$/,
-    sort: /^-?tradingName$/
-};
+const organizationQuery = z.strictObject({
+    fields: z.string().regex(/^[A-Za-z0-9_.@,-]{1,200}$/).optional(),
+    ...pagination,
+    lifecycleStatus: z.string().regex(/^launched$/i).optional(),
+    keyword: z.string().regex(/^[^&;#]{1,200}$/).optional(),
+    ...sorting(['tradingName'])
+});
 
 // What anybody who is logged in may know of another individual: the name that the portal shows
 const PUBLIC_INDIVIDUAL = ['id', 'href', '@type', 'givenName', 'familyName'];
@@ -58,14 +60,7 @@ export class PartyController {
     @OptionalAuth()
     @Get('organization')
     list(@Req() req: Request, @Res() res: Response): Promise<void> {
-        const params = new URLSearchParams();
-        for (const [name, value] of Object.entries(req.query)) {
-            const allowed = Object.hasOwn(LIST_FILTERS, name) ? LIST_FILTERS[name] : undefined;
-            if (allowed === undefined || typeof value !== 'string' || !allowed.test(value)) {
-                throw new DomainError('Invalid query', 400);
-            }
-            params.append(name, value);
-        }
+        const params = queryParams(req.query, parseRequest(organizationQuery, req.query, 'Invalid query'));
         if (ProviderDirectory.isDirectoryQuery(params)) {
             return this.directory.list(req, res, params);
         }

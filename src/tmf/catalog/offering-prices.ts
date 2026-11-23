@@ -1,5 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type { Request, Response } from 'express';
+import { z } from 'zod';
+import { pagination, queryParams } from '../schemas/pagination';
+import { parseRequest } from '../schemas/parse';
 import { DomainError, ForbiddenError, NotFoundError, BadGatewayError } from '../../common/domain-error';
 import { AppConfigService } from '../../config/app-config.service';
 import { AS_JSON } from '../http-options';
@@ -19,13 +22,12 @@ const BATCH = 10;
 const NOT_OWNER = 'The user making the request is not the owner of the accessed resource';
 
 // What anybody may ask of the list of prices, with what each filter may be
-const LIST_FILTERS: Record<string, RegExp> = {
-    limit: /^\d{1,6}$/,
-    offset: /^\d{1,9}$/,
-    id: /^[A-Za-z0-9:._-]{1,200}(,[A-Za-z0-9:._-]{1,200}){0,99}$/,
-    usageSpecId: /^[A-Za-z0-9:._-]{1,200}$/,
-    'bundledPopRelationship.id': /^[A-Za-z0-9:._-]{1,200}$/
-};
+const pricesQuery = z.strictObject({
+    ...pagination,
+    id: z.string().regex(/^[A-Za-z0-9:._-]{1,200}(,[A-Za-z0-9:._-]{1,200}){0,99}$/).optional(),
+    usageSpecId: z.string().regex(/^[A-Za-z0-9:._-]{1,200}$/).optional(),
+    'bundledPopRelationship.id': z.string().regex(/^[A-Za-z0-9:._-]{1,200}$/).optional()
+});
 
 const parseObject = (text: string): Json => {
     const parsed: unknown = JSON.parse(text);
@@ -62,14 +64,7 @@ export class OfferingPrices {
     // ---- Reads, open to anybody
 
     list(req: Request, res: Response): Promise<void> {
-        const params = new URLSearchParams();
-        for (const [name, value] of Object.entries(req.query)) {
-            const allowed = Object.hasOwn(LIST_FILTERS, name) ? LIST_FILTERS[name] : undefined;
-            if (allowed === undefined || typeof value !== 'string' || !allowed.test(value)) {
-                throw new DomainError('Invalid query', 400);
-            }
-            params.append(name, value);
-        }
+        const params = queryParams(req.query, parseRequest(pricesQuery, req.query, 'Invalid query'));
         return this.proxy.forward(req, res, { upstream: 'tmforum.catalog', path: '/productOfferingPrice', search: params.size === 0 ? '' : `?${params.toString()}` });
     }
 

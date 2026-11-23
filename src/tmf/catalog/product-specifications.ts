@@ -1,6 +1,7 @@
 import { isDeepStrictEqual } from 'node:util';
 import { Injectable, Logger } from '@nestjs/common';
 import type { Request, Response } from 'express';
+import { z } from 'zod';
 import { BadGatewayError, DomainError, ForbiddenError } from '../../common/domain-error';
 import { AppConfigService } from '../../config/app-config.service';
 import type { UpstreamName } from '../../config/upstream-names';
@@ -9,6 +10,8 @@ import { AS_JSON } from '../http-options';
 import { OwnedResources } from '../owned-resources';
 import { isRecord, isRelatedAs } from '../related-party';
 import { isResourceId } from '../resource-id.pipe';
+import { pagination, queryParams } from '../schemas/pagination';
+import { parseRequest } from '../schemas/parse';
 import { SellerParties } from '../seller-parties';
 import { parseJson, Specifications, type SpecificationApi, type Undo } from '../specification/specifications';
 import { TmfProxy } from '../tmf-proxy';
@@ -22,7 +25,8 @@ type Json = Record<string, unknown>;
 // More bundled products than anybody puts together by hand; each one is a request to the API
 const MAX_BUNDLED = 50;
 // What the list of the ids may carry; any other filter would show what its owner has not published
-const LIST_FILTERS = new Set(['id', 'limit', 'offset']);
+const idsQuery = z.strictObject({ id: z.string(), ...pagination });
+const LIST_FILTERS = new Set(Object.keys(idsQuery.shape));
 const PAGE = 100;
 
 const PRODUCT: SpecificationApi = {
@@ -82,21 +86,11 @@ export class ProductSpecifications extends Specifications {
         if (typeof ids !== 'string' || filters.some((name) => !LIST_FILTERS.has(name))) {
             return super.list(req, res);
         }
-        const params = new URLSearchParams();
         const wanted = ids.split(',');
         if (wanted.length > PAGE || !wanted.every(isResourceId)) {
             throw new DomainError('Invalid query', 400);
         }
-        params.set('id', ids);
-        for (const name of ['limit', 'offset']) {
-            const value = req.query[name];
-            if (value !== undefined) {
-                if (typeof value !== 'string' || !/^\d{1,6}$/.test(value)) {
-                    throw new DomainError('Invalid query', 400);
-                }
-                params.set(name, value);
-            }
-        }
+        const params = queryParams(req.query, parseRequest(idsQuery, req.query, 'Invalid query'));
         const response = await this.proxy.send(req, { upstream: this.api.upstream, path: `/${this.api.collection}`, method: 'GET', search: `?${params.toString()}` });
         const found = parseJson(response.body);
         if (response.status >= 400 || !Array.isArray(found)) {

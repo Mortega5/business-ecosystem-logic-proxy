@@ -1,5 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type { Request, Response } from 'express';
+import { z } from 'zod';
+import { pagination, queryParams, sorting } from '../schemas/pagination';
+import { parseRequest } from '../schemas/parse';
 import { BadGatewayError, DomainError, ForbiddenError, NotFoundError } from '../../common/domain-error';
 import { AppConfigService } from '../../config/app-config.service';
 import type { UpstreamResponse } from '../../http-client/upstream-client';
@@ -19,14 +22,13 @@ type Json = Record<string, unknown>;
 const MAX_DEPTH = 20;
 
 // What anybody may ask of the list of categories, with what each filter may be
-const LIST_FILTERS: Record<string, RegExp> = {
-    limit: /^\d{1,6}$/,
-    offset: /^\d{1,9}$/,
-    sort: /^-?[A-Za-z][A-Za-z0-9_.]{0,60}$/,
-    lifecycleStatus: /^[A-Za-z]{1,20}(,[A-Za-z]{1,20}){0,5}$/,
-    parentId: /^[A-Za-z0-9:._-]{1,200}$/,
-    isRoot: /^(true|false)$/
-};
+const categoriesQuery = z.strictObject({
+    ...pagination,
+    ...sorting(),
+    lifecycleStatus: z.string().regex(/^[A-Za-z]{1,20}(,[A-Za-z]{1,20}){0,5}$/).optional(),
+    parentId: z.string().regex(/^[A-Za-z0-9:._-]{1,200}$/).optional(),
+    isRoot: z.string().regex(/^(true|false)$/).optional()
+});
 
 const RETIRED = ['retired', 'obsolete'];
 
@@ -53,14 +55,7 @@ export class Categories {
     // ---- Reads, open to anybody
 
     list(req: Request, res: Response): Promise<void> {
-        const params = new URLSearchParams();
-        for (const [name, value] of Object.entries(req.query)) {
-            const allowed = Object.hasOwn(LIST_FILTERS, name) ? LIST_FILTERS[name] : undefined;
-            if (allowed === undefined || typeof value !== 'string' || !allowed.test(value)) {
-                throw new DomainError('Invalid query', 400);
-            }
-            params.append(name, value);
-        }
+        const params = queryParams(req.query, parseRequest(categoriesQuery, req.query, 'Invalid query'));
         return this.proxy.forward(req, res, { upstream: 'tmforum.catalog', path: '/category', search: params.size === 0 ? '' : `?${params.toString()}` });
     }
 
