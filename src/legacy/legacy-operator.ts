@@ -8,12 +8,21 @@ import { Injectable } from '@nestjs/common';
 export class LegacyOperator {
     /** The operator as the related party of what a seller creates, or nothing when the marketplace has none. */
     seller(): Record<string, unknown> | undefined {
+        return this.as('sellerOperator');
+    }
+
+    /** The operator as the related party of what a buyer orders, or nothing when the marketplace has none. */
+    buyer(): Record<string, unknown> | undefined {
+        return this.as('buyerOperator');
+    }
+
+    private as(role: 'sellerOperator' | 'buyerOperator'): Record<string, unknown> | undefined {
         const { operator } = require('../../lib/operator') as { operator: { getOperatorId: () => string | undefined } };
-        const config = require('../../config') as { operatorId: string; roles: { sellerOperator: string } };
+        const config = require('../../config') as { operatorId: string; roles: Record<typeof role, string> };
         const id = operator.getOperatorId();
         if (id === undefined || id === '') {
             return undefined;
         }
-        return { id, href: id, name: config.operatorId, role: config.roles.sellerOperator, '@referredType': 'Organization' };
+        return { id, href: id, name: config.operatorId, role: config.roles[role], '@referredType': 'Organization' };
     }
 }

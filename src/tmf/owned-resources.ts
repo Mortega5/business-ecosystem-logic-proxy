@@ -62,6 +62,11 @@ export class OwnedResources {
      * proxy sets itself: the party of the caller and its role, last and next to each other, as the broker needs them.
      */
     async list(req: Request, res: Response, options: OwnedList): Promise<void> {
+        await this.proxy.forward(req, res, { upstream: options.upstream, path: options.path, search: `?${this.query(req, options).toString()}` });
+    }
+
+    /** The query of a list of the caller: the filters of the client that are allowed, then the related party. */
+    query(req: Request, options: OwnedList): URLSearchParams {
         const partyId = callerParty(req, options.refusal ?? 'You are not authorized to list the inventory');
         const params = new URLSearchParams();
         const filters = Object.entries(req.query);
@@ -79,7 +84,7 @@ export class OwnedResources {
         }
         params.append('relatedParty.id', partyId);
         params.append('relatedParty.role', this.config.auth.roles[options.role ?? 'customer']);
-        await this.proxy.forward(req, res, { upstream: options.upstream, path: options.path, search: `?${params.toString()}` });
+        return params;
     }
 
     /** One resource, given only when the caller is related to it in the role that makes it theirs. */

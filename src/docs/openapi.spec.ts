@@ -19,6 +19,7 @@ import { AccountModule } from '../tmf/account/account.module';
 import { DocumentModule } from '../tmf/document/document.module';
 import { ChargingModule } from '../tmf/charging/charging.module';
 import { SoftwareModule } from '../tmf/software/software.module';
+import { OrderingModule } from '../tmf/ordering/ordering.module';
 import { UsageModule } from '../tmf/usage/usage.module';
 import { ResourceModule } from '../tmf/resource/resource.module';
 import { RevenueModule } from '../tmf/revenue/revenue.module';
@@ -434,6 +435,42 @@ describe('responses against docs/openapi.yaml', () => {
         ];
     };
 
+    // The product orders: the list and one order of the caller, a new order and a change; nothing else of /ordering is served
+    const orderingCases = (): Case[] => {
+        const base = '/ordering/productOrder';
+        const party = (id: string, role: string) => `{"id":"${id}","role":"${role}"}`;
+        const item = '{"id":"i-1","state":"acknowledged","product":{"relatedParty":[{"id":"p-shop","role":"Seller"}]}}';
+        const mine = `{"id":"o-1","relatedParty":[${party('p-ana', 'Buyer')},${party('p-shop', 'Seller')}],"productOrderItem":[${item}],"note":[]}`;
+        const notMine = `{"id":"o-1","relatedParty":[${party('p-other', 'Seller')}],"productOrderItem":[]}`;
+        // One answer for every service the order is made with: the offering (for a buyer), the billing account, the order and the charging backend
+        const everything = `{"id":"o-1","redirectUrl":"https://pay.example.org/1","relatedParty":[${party('p-shop', 'Seller')},${party('p-ana', 'Buyer')}]}`;
+        const newOrder = `{"relatedParty":[${party('p-ana', 'Buyer')}],"billingAccount":{"id":"ba-1"},"productOrderItem":[{"id":"i-1","productOffering":{"id":"o-1"},"product":{}}]}`;
+        const withLogin = { ...json, ...LOGGED_IN };
+        const failCharging = (): void =>
+            tmforum.answer((res) => tmforum.json(res, tmforum.seen?.url?.startsWith('/charging') === true ? 500 : 200, everything));
+        const cancelFails = (): void =>
+            tmforum.answer((res) => {
+                const request = tmforum.seen;
+                const order = '{"id":"o-1","relatedParty":[{"id":"p-ana","role":"Buyer"}],"productOrderItem":[{"id":"i-1","state":"acknowledged"}]}';
+                tmforum.json(res, request?.method === 'PATCH' ? 500 : 200, order);
+            });
+        return [
+            ...proxied(base, `${base}?limit=6&offset=0`, '[]', { invalid: { url: `${base}?q=x` } }),
+            refused('get', base, '502', base, undefined, 'not json'),
+            ...proxied(`${base}/{id}`, `${base}/o-1`, mine, { invalid: { url: `${base}/a%20b` } }),
+            refused('get', `${base}/{id}`, '403', `${base}/o-1`, undefined, notMine),
+            refused('get', `${base}/{id}`, '502', `${base}/o-1`, undefined, 'not json'),
+            ...proxied(base, base, everything, { method: 'post', headers: withLogin, body: newOrder, invalid: { body: 'not json' }, tooLarge: true }).filter((c) => c.status !== '404'),
+            refused('post', base, '403', base, `{"relatedParty":[${party('p-victim', 'Buyer')}],"productOrderItem":[]}`, everything),
+            refused('post', base, '422', base, newOrder.replace('"billingAccount":{"id":"ba-1"},', ''), everything),
+            { method: 'post', path: base, status: '502', url: base, headers: withLogin, body: newOrder, arrange: failCharging },
+            ...proxied(`${base}/{id}`, `${base}/o-1`, mine, { method: 'patch', headers: withLogin, body: '{"note":[{"text":"Hi"}]}', invalid: { url: `${base}/a%20b` }, tooLarge: true }),
+            refused('patch', `${base}/{id}`, '403', `${base}/o-1`, '{"billingAccount":{"id":"ba-2"}}', mine, LOGGED_IN),
+            refused('patch', `${base}/{id}`, '422', `${base}/o-1`, '{"note":[{"text":""}]}', mine, LOGGED_IN),
+            { method: 'patch', path: `${base}/{id}`, status: '502', url: `${base}/o-1`, headers: withLogin, body: '{"state":"cancelled"}', arrange: cancelFails }
+        ];
+    };
+
     // The charging backend: the confirmation of an order, the configuration of the e-mail of the administrator, and the upload of a file
     const chargingCases = (): Case[] => {
         const base = '/charging/api';
@@ -499,13 +536,14 @@ describe('responses against docs/openapi.yaml', () => {
         refused('post', '/software/resourceSpecification', '502', '/software/resourceSpecification', '{"@type":"SoftwareSpecification","name":"App","relatedParty":[{"id":"p-shop","role":"Seller"}]}', 'not json', AS_SELLER),
         ...specificationCases('/software/resource', { privateRead: true, retire: false }),
         ...usageCases(),
+        ...orderingCases(),
         ...chargingCases()
     ];
 
     beforeAll(async () => {
         await tmforum.start();
 
-        @Module({ imports: [DependenciesStub, LoggerModule.forRoot({ pinoHttp: { level: 'silent' } }), HealthModule, AuthModule, DocumentModule, RevenueModule, SearchModule, InvoicingModule, QuoteModule, InventoryModule, AccountModule, PartyModule, ResourceModule, ServiceModule, ChargingModule, SoftwareModule, UsageModule] })
+        @Module({ imports: [DependenciesStub, LoggerModule.forRoot({ pinoHttp: { level: 'silent' } }), HealthModule, AuthModule, DocumentModule, RevenueModule, SearchModule, InvoicingModule, QuoteModule, InventoryModule, AccountModule, PartyModule, ResourceModule, ServiceModule, ChargingModule, SoftwareModule, UsageModule, OrderingModule] })
         class Contract {}
 
         app = await createApp(express(), Contract);

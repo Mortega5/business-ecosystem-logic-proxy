@@ -8,6 +8,6 @@ import { TmfProxy } from './tmf-proxy';
 @Module({
     imports: [HttpClientModule],
     providers: [TmfProxy, OwnedResources, SellerParties, LegacyOperator],
-    exports: [TmfProxy, OwnedResources, SellerParties]
+    exports: [TmfProxy, OwnedResources, SellerParties, LegacyOperator]
 })
 export class TmfModule {}

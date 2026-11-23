@@ -37,6 +37,8 @@ tags:
     description: The software specifications and their support packages, as far as the portal uses them.
   - name: usage
     description: The usage specifications of a seller, as far as the portal uses them.
+  - name: ordering
+    description: The product orders, as far as the portal uses them.
 paths:
   /health/live:
     get:
@@ -2897,6 +2899,224 @@ paths:
           $ref: '#/components/responses/PayloadTooLarge'
         '422':
           $ref: '#/components/responses/InvalidSpecification'
+        '502':
+          $ref: '#/components/responses/BadGateway'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+  /ordering/productOrder:
+    get:
+      tags: [ordering]
+      operationId: listProductOrders
+      summary: List of the product orders of the caller
+      description: |
+        The orders the caller is related to as a customer, or as a seller when `relatedParty.role` is the seller role: the proxy adds the party of
+        the caller (or the organisation they act for) and the role to the query, last, whatever the portal sent. A seller has the items of an
+        order that are theirs. Without `sort` the newest order is the first. Any other method or path under `/ordering` answers 404.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - name: filters
+          in: query
+          required: false
+          description: |
+            Any filter of the API (`limit`, `offset`, `sort`, `state`, `productOrderItem.action`, a field of the resource...), each once. A name is
+            a field, a value never holds `&` or `;`, and `q` is refused. `relatedParty.role` chooses the role, and the rest about `relatedParty`
+            is dropped.
+          style: form
+          explode: true
+          schema:
+            type: object
+            additionalProperties:
+              type: string
+      responses:
+        '200':
+          description: The orders, as the ordering API answers them.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
+              example: []
+        '400':
+          $ref: '#/components/responses/InvalidQuery'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '502':
+          $ref: '#/components/responses/BadGateway'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+    post:
+      tags: [ordering]
+      operationId: createProductOrder
+      summary: Make a product order
+      description: |
+        The related parties of the order are not the client's: the customer is the caller (a body that names another customer is refused), the
+        sellers are found in the offering of each item (or in its product specification, or in the first offering of a bundle), each once, and the
+        operator of the marketplace is added when there is one. An offering for a buyer is only ordered by that buyer, and nobody orders their own
+        offering. The billing account has to be one the caller is related to. `id`, `href`, `state`, `note` and `orderDate` of the body, and the state of
+        the items, are dropped. Once the order is made the charging backend is told, with `X-Terms-Accepted` when the request had it as `true`; its
+        answer says where to pay, in `X-Redirect-URL`. When it refuses or fails the answer says that the order was made and was not processed.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - name: X-Terms-Accepted
+          in: header
+          required: false
+          description: '`true` when the buyer accepted the terms of the offerings, which the charging backend asks for when an offering has them.'
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: The order made, as the ordering API answers it.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+            X-Redirect-URL:
+              description: Where the buyer pays, when the charging backend asks for a payment.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                id: urn:ngsi-ld:product-order:1
+        '400':
+          $ref: '#/components/responses/InvalidBody'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          description: The customer is not the caller, the offering is the caller's own or for another buyer.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '422':
+          description: The billing account is missing, does not exist or is not the caller's.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+        '502':
+          $ref: '#/components/responses/BadGateway'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+  /ordering/productOrder/{id}:
+    get:
+      tags: [ordering]
+      operationId: getProductOrder
+      summary: A product order
+      description: |
+        Given to its customer, with all its items, and to a seller of it, with the items that are theirs; to nobody else. The notes are in the
+        order they were written.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: The order, as the ordering API answers it.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                id: urn:ngsi-ld:product-order:1
+        '400':
+          $ref: '#/components/responses/InvalidId'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          description: The caller is not in the order.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '502':
+          $ref: '#/components/responses/BadGateway'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+    patch:
+      tags: [ordering]
+      operationId: updateProductOrder
+      summary: Change a product order
+      description: |
+        A customer sends one thing: the state `cancelled`, or the notes. An order is cancelled while every item is acknowledged: the charges are
+        refunded first and then the items are cancelled, and when the second step fails the answer says that the refund was made. A seller sends
+        one thing too: the items, in which only the state of their own items changes (the state of the order follows from the items, and a
+        completed order is told to the charging backend, which when it cannot be told is said in the answer), or the notes. A note is added to the
+        ones the order has, which are not changed; it is written as the caller, as of now. Anything else is refused.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ResourceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: The order changed, as the caller sees it.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                id: urn:ngsi-ld:product-order:1
+        '400':
+          $ref: '#/components/responses/InvalidIdOrBody'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          description: The caller is not in the order, or the change is not one they can make.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '422':
+          description: A note has no text, or has too much.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
         '502':
           $ref: '#/components/responses/BadGateway'
         '504':

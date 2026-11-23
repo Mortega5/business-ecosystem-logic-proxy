@@ -22,6 +22,8 @@ export interface ProxyTarget {
     upload?: boolean;
     /** The query string to send, with its `?`; when the route sets it, the client's own is not sent at all. */
     search?: string;
+    /** Headers of the request that the route sets itself, after the ones of the user: never a header the client sent. */
+    headers?: Record<string, string>;
     /** Headers of the answer that the route sets itself, whatever the upstream said. */
     responseHeaders?: Record<string, string>;
 }
@@ -59,6 +61,7 @@ export class TmfProxy {
                         forwardedFor: req.ip,
                         policy: this.config.auth
                     }),
+                    ...target.headers,
                     ...(target.contentType === undefined ? {} : { 'content-type': target.contentType })
                 }
             });
