@@ -6,7 +6,6 @@ import { AppConfigService } from '../../config/app-config.service';
 import { LegacyOperator } from '../../legacy/legacy-operator';
 import { ChargingAssets } from '../charging-assets';
 import { AS_JSON, PRIVATE } from '../http-options';
-import { NormalizedParties } from '../normalized-parties';
 import { callerParty, isRecord, isRelatedAs } from '../related-party';
 import { isResourceId } from '../resource-id.pipe';
 import { isRetired, isValidStatusTransition, sameRelatedParties, validateNameAndDescription } from '../specification/specification-rules';
@@ -14,6 +13,7 @@ import { parseJson } from '../specification/specifications';
 import { TmfProxy } from '../tmf-proxy';
 import type { UpstreamUser } from '../upstream-headers';
 import { LaunchRequirements } from './launch-requirements';
+import { OfferingParties } from './offering-parties';
 
 type Json = Record<string, unknown>;
 
@@ -47,7 +47,7 @@ export class Offerings {
         private readonly proxy: TmfProxy,
         private readonly config: AppConfigService,
         private readonly operator: LegacyOperator,
-        private readonly parties: NormalizedParties,
+        private readonly parties: OfferingParties,
         private readonly charging: ChargingAssets,
         private readonly launch: LaunchRequirements
     ) {}
@@ -99,14 +99,14 @@ export class Offerings {
         }
         const partyId = callerParty(req, 'You are not authorized to create resources');
         validateNameAndDescription(offering, 'Product offering', true, this.config.limits);
-        this.assertPartiesShape(offering['relatedParty']);
+        this.parties.assertShape(offering['relatedParty']);
         offering['validFor'] ??= { startDateTime: new Date().toISOString() };
         const launching = statusOf(offering['lifecycleStatus']) === 'launched';
         const product = await this.assertComposition(req, offering, partyId, ['active', 'launched'], 'Offerings can only be attached to active or launched products', 'create');
         const catalogCategory = catalogId === undefined ? undefined : await this.assertCatalog(req, catalogId, partyId);
         // The parties are looked up when they are needed, which is before the offering is checked for a launch and otherwise after the charging backend has checked it
         let parties: Json[] | undefined;
-        const partiesOf = async (): Promise<Json[]> => (parties ??= await this.relatedParties(req, offering['relatedParty'], partyId));
+        const partiesOf = async (): Promise<Json[]> => (parties ??= await this.parties.of(req, offering['relatedParty'], partyId));
         if (launching) {
             await this.assertCanLaunch(req, { ...offering, relatedParty: await partiesOf() }, product);
         }
@@ -418,47 +418,5 @@ export class Offerings {
             }
         }
         return kept;
-    }
-
-    // ---- Related parties
-
-    /** Each related party is an object with an id and a role, which v11 did not check (a `null` there ended its process). */
-    private assertPartiesShape(sent: unknown): void {
-        if (sent === undefined || sent === null) {
-            return;
-        }
-        if (!Array.isArray(sent) || sent.some((party) => !isRecord(party) || typeof party['role'] !== 'string' || typeof party['id'] !== 'string')) {
-            throw new DomainError('Invalid related party', 400);
-        }
-    }
-
-    /**
-     * As v11 wrote them: the buyer the offering is for, if the body names one, and the operator as buyer when it names anybody; then the
-     * caller as the seller, and the operator as their seller. What the client says about the seller is not looked at.
-     */
-    private async relatedParties(req: Request, sent: unknown, partyId: string): Promise<Json[]> {
-        const user = (req as Request & { user: UpstreamUser }).user;
-        const result: Json[] = [];
-        if (sent !== undefined && sent !== null) {
-            this.assertPartiesShape(sent);
-            const parties = sent as Json[];
-            if (parties.length > 0) {
-                const buyer = parties.find((party) => statusOf(party['role']) === this.roles.customer.toLowerCase());
-                if (buyer !== undefined) {
-                    const id = buyer['id'] as string;
-                    result.push(await this.parties.of(req, user, { id, href: typeof buyer['href'] === 'string' ? buyer['href'] : id, role: buyer['role'] as string }));
-                }
-                const buyerOperator = this.operator.buyer();
-                if (buyerOperator !== undefined) {
-                    result.push(buyerOperator);
-                }
-            }
-        }
-        result.push(await this.parties.of(req, user, { id: partyId, href: partyId, role: this.roles.seller }));
-        const sellerOperator = this.operator.seller();
-        if (sellerOperator !== undefined) {
-            result.push(sellerOperator);
-        }
-        return result;
     }
 }
