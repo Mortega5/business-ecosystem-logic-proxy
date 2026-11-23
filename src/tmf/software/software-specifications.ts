@@ -59,12 +59,14 @@ export class SoftwareSpecifications extends Specifications {
             relatedParty: [owner]
         });
         const failure = 'It was impossible to create the software support package';
+        // A spec that was found just now is not asked for again: only one that was known before can have been removed since
+        const wasKnown = (this.defaults?.supportPackageSpecId ?? '') !== '';
         let created: Record<string, unknown>;
         try {
             created = await this.call(req, 'POST', '/resource', supportPackage(await this.supportSpecificationId(req)), failure);
         } catch (error) {
             // The spec that the start-up found was removed afterwards: it is forgotten, and found or made again, once
-            if (!(await this.forgetSupportSpecificationIfGone(req))) {
+            if (!wasKnown || !(await this.forgetSupportSpecificationIfGone(req))) {
                 throw error;
             }
             created = await this.call(req, 'POST', '/resource', supportPackage(await this.supportSpecificationId(req)), failure);

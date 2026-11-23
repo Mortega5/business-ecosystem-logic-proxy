@@ -50,23 +50,29 @@ describe('CatalogBootstrapService', () => {
         const { service, defaults } = start(config({ enabled: true, retryDelayMs: 5 }));
 
         await vi.waitFor(() => {
-            expect(defaults.defaultCatalogId).toBe('catalog-01');
+            expect(defaults.defaultCatalogId).not.toBe('');
             expect(defaults.supportPackageSpecId).not.toBe('');
         });
         service.onApplicationShutdown();
 
-        expect(defaults.systemCategoryIds).toEqual({ dataset: 'category-02' });
-        expect(defaults.isDefaultCatalog('catalog-01')).toBe(true);
-        expect(defaults.isSystemCategory('category-02')).toBe(true);
+        // The ids are given in the order in which the two tasks ask, so they are what the TMForum has and not a number
+        const [catalog] = apis.catalogs;
+        const [dataset] = apis.categories;
+        expect(defaults.defaultCatalogId).toBe(catalog?.id);
+        expect(defaults.systemCategoryIds).toEqual({ dataset: dataset?.id });
+        expect(defaults.supportPackageSpecId).toBe(apis.specs[0]?.id);
+        expect(defaults.isDefaultCatalog(catalog?.id ?? '')).toBe(true);
+        expect(defaults.isSystemCategory(dataset?.id ?? '')).toBe(true);
         expect(defaults.isSystemCategory('category-99')).toBe(false);
     });
 
     it('tries again while the TMForum does not answer, and the support package spec does not wait for the catalog', async () => {
-        let failures = 2;
+        let up = false;
+        let refused = 0;
         const create = apis.createCatalog;
         apis.createCatalog = (body) => {
-            if (failures > 0) {
-                failures -= 1;
+            if (!up) {
+                refused += 1;
                 return Promise.reject(new Error('catalog API is down'));
             }
             return create(body);
@@ -74,11 +80,13 @@ describe('CatalogBootstrapService', () => {
 
         const { service, defaults } = start(config({ enabled: true, retryDelayMs: 5 }));
         await vi.waitFor(() => expect(defaults.supportPackageSpecId).not.toBe(''));
+        await vi.waitFor(() => expect(refused).toBeGreaterThan(1));
         expect(defaults.defaultCatalogId).toBe('');
-        await vi.waitFor(() => expect(defaults.defaultCatalogId).toBe('catalog-01'));
+        up = true;
+        await vi.waitFor(() => expect(defaults.defaultCatalogId).not.toBe(''));
         service.onApplicationShutdown();
 
-        expect(failures).toBe(0);
+        expect(defaults.defaultCatalogId).toBe(apis.catalogs[0]?.id);
     });
 
     it('stops trying when the server shuts down', async () => {

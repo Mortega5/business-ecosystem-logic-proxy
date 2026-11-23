@@ -61,6 +61,8 @@ const mongo = { ping: vi.fn<(timeoutMs: number) => Promise<boolean>>() };
                 health: { mongoPingTimeoutMs: 500 },
                 http: { bodyLimit: '1kb', uploadLimit: '1kb' },
                 party: { editEnabled: true },
+                catalog: { partyLocation: 'https://schemas.example.org/party.json', defaultCatalogId: '' },
+                limits: { orderItems: 50, noteLength: 10000, notesPerRequest: 20, nameLength: 100, descriptionLength: 100000, plansPerQuery: 20, readAll: { pageSize: 100, maxPages: 100 } },
                 auth: { propagateToken: true, allowLocalEori: false, roles: { admin: 'admin', customer: 'Buyer', seller: 'Seller', orgAdmin: 'orgAdmin' } },
                 upstream: (name: string) => ({ baseUrl: `http://127.0.0.1:${tmforum.port}/${name}`, timeoutMs: 300 })
             }

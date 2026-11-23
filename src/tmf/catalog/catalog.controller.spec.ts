@@ -19,7 +19,7 @@ class Root {}
 
 // The legacy application answers whatever of /catalog is not here
 const legacy = express();
-legacy.all('/catalog/*path', (_req, res) => {
+legacy.get('/catalog/productOffering', (_req, res) => {
     res.json({ from: 'legacy' });
 });
 
@@ -202,6 +202,7 @@ describe('PATCH /catalog/category/:id', () => {
 
         expect((await patch('c-1', { name: 'Taken' })).status).toBe(409);
         same = { status: 200, body: '[{"id":"c-1"}]' };
+        written = { status: 200, body: JSON.stringify({ id: 'c-1', name: 'Data again', lifecycleStatus: 'Launched' }) };
         expect((await patch('c-1', { name: 'Data again' })).status).toBe(200);
     });
 
@@ -226,10 +227,10 @@ describe('PATCH /catalog/category/:id', () => {
     });
 
     it('tells the client that the category was changed when the default catalog cannot be changed', async () => {
-        written = { status: 200, body: JSON.stringify({ id: 'c-1', lifecycleStatus: 'Obsolete' }) };
+        written = { status: 200, body: JSON.stringify({ id: 'c-1', lifecycleStatus: 'Retired' }) };
         catalogWrite = { status: 500, body: '{}' };
 
-        const res = await patch('c-1', { lifecycleStatus: 'Obsolete' });
+        const res = await patch('c-1', { lifecycleStatus: 'Retired' });
 
         expect(res.status).toBe(502);
         expect(((await res.json()) as { error: string }).error).toBe('The category c-1 was changed and could not be removed from the default catalog');
