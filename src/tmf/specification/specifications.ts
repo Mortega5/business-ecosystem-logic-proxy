@@ -34,6 +34,8 @@ export interface SpecificationApi {
         list: string;
         read: string;
         create: string;
+        /** The refusal when the caller is a seller and the body names somebody else as the owner; `create` by default. */
+        notOwner?: string;
         update: string;
         missing: string;
         retireInUse: (inUse: Record<string, unknown>[]) => string;
@@ -91,9 +93,14 @@ export class Specifications {
         return Promise.resolve(undefined);
     }
 
-    /** Once what the seller sends is valid and before a change is sent: checks that need to ask elsewhere. */
-    protected beforeUpdate(_req: Request, _id: string, _current: Record<string, unknown>, _changes: Record<string, unknown>): Promise<void> {
+    /** Once the specification is made: what has to be told elsewhere. If it throws, what was made stays, and it is for the step to deal with it. */
+    protected afterCreate(_req: Request, _created: Record<string, unknown>): Promise<void> {
         return Promise.resolve();
+    }
+
+    /** Once what the seller sends is valid and before a change is sent: checks that need to ask elsewhere, and what undoes what they made if the change fails. */
+    protected beforeUpdate(_req: Request, _id: string, _current: Record<string, unknown>, _changes: Record<string, unknown>): Promise<Undo | undefined> {
+        return Promise.resolve(undefined);
     }
 
     /** Before a change is sent: the changes that go on, and what is done once the change has been made. */
@@ -134,8 +141,11 @@ export class Specifications {
 
     async create(req: Request, res: Response, body: string): Promise<void> {
         const { id: _id, href: _href, ...specification } = parseObject(body);
-        if (!this.isSeller(req) || !isOwnedOnlyBy(specification, callerParty(req, this.api.messages.create), this.config.auth.roles.seller)) {
+        if (!this.isSeller(req)) {
             throw new ForbiddenError(this.api.messages.create);
+        }
+        if (!isOwnedOnlyBy(specification, callerParty(req, this.api.messages.create), this.config.auth.roles.seller)) {
+            throw new ForbiddenError(this.api.messages.notOwner ?? this.api.messages.create);
         }
         validateNameAndDescription(specification, this.api.noun, true, this.config.limits);
         this.validate(specification);
@@ -148,6 +158,12 @@ export class Specifications {
             undo,
             `The ${this.api.noun.toLowerCase()} could not be created`
         );
+        if (response.status < 400) {
+            const created = parseJson(response.body);
+            if (isRecord(created)) {
+                await this.afterCreate(req, created);
+            }
+        }
         this.proxy.reply(res, response);
     }
 
@@ -168,9 +184,14 @@ export class Specifications {
         }
         validateNameAndDescription(changes, this.api.noun, false, this.config.limits);
         this.validate(changes);
-        await this.beforeUpdate(req, id, current, changes);
+        const undo = await this.beforeUpdate(req, id, current, changes);
         const { changes: sent, after } = this.prepareUpdate(current, changes);
-        const response = await this.proxy.send(req, { upstream: this.api.upstream, path: this.path(id), body: JSON.stringify(sent), ...AS_JSON });
+        const response = await this.sendOrUndo(
+            req,
+            { upstream: this.api.upstream, path: this.path(id), body: JSON.stringify(sent), ...AS_JSON },
+            undo,
+            `The ${this.api.noun.toLowerCase()} could not be updated`
+        );
         if (response.status < 400) {
             await after?.(req);
         }
@@ -220,20 +241,26 @@ export class Specifications {
         }
     }
 
+    /** Who may read a specification: everybody, only its owner, or nobody who asks. */
+    protected visibility(req: Request, specification: Record<string, unknown>): 'everybody' | 'owner' | 'nobody' {
+        const status = specification['lifecycleStatus'];
+        const partyId = (req as Request & { user?: UpstreamUser }).user?.partyId;
+        if (this.api.privateReads !== true && typeof status === 'string' && PUBLIC_STATUSES.includes(status.toLowerCase())) {
+            return 'everybody';
+        }
+        return typeof partyId === 'string' && isRelatedAs(specification, partyId, this.config.auth.roles.seller) ? 'owner' : 'nobody';
+    }
+
     private assertReadable(req: Request, body: string): boolean {
         const specification = parseJson(body);
         if (!isRecord(specification)) {
             throw this.unreadable();
         }
-        const status = specification['lifecycleStatus'];
-        const partyId = (req as Request & { user?: UpstreamUser }).user?.partyId;
-        if (this.api.privateReads !== true && typeof status === 'string' && PUBLIC_STATUSES.includes(status.toLowerCase())) {
-            return true;
+        const visibility = this.visibility(req, specification);
+        if (visibility === 'nobody') {
+            throw new ForbiddenError(this.api.messages.read);
         }
-        if (typeof partyId === 'string' && isRelatedAs(specification, partyId, this.config.auth.roles.seller)) {
-            return false;
-        }
-        throw new ForbiddenError(this.api.messages.read);
+        return visibility === 'everybody';
     }
 
     /** The specification as the API has it, for a seller who owns it. */

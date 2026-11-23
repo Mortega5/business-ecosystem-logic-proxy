@@ -22,6 +22,7 @@ const CATALOG: SpecificationApi = {
         list: 'You are not authorized to list the catalogs',
         read: 'Unauthorized to read a catalog that is not launched',
         create: 'You are not authorized to create resources',
+        notOwner: 'The user making the request and the specified owner are not the same user',
         update: 'The user making the request is not the owner of the accessed resource',
         missing: 'The required resource does not exist',
         retireInUse: (inUse) => `Cannot retire a catalog without retiring all the offerings in it (blocked by offerings ${inUse.map((offering) => String(offering['id'])).join(', ')})`
@@ -75,13 +76,14 @@ export class Catalogs extends Specifications {
         };
     }
 
-    protected override async beforeUpdate(req: Request, id: string, current: Record<string, unknown>, changes: Record<string, unknown>): Promise<void> {
+    protected override async beforeUpdate(req: Request, id: string, current: Record<string, unknown>, changes: Record<string, unknown>): Promise<Undo | undefined> {
         if ('category' in changes && categoryIds(changes).toSorted().join() !== categoryIds(current).toSorted().join()) {
             throw new DomainError('The field "category" can not be modified', 409);
         }
         if (typeof changes['name'] === 'string') {
             await this.assertNameFree(req, changes['name'], id);
         }
+        return undefined;
     }
 
     protected override async dependentsFilter(req: Request, id: string): Promise<string | undefined> {
