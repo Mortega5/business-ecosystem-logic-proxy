@@ -3,6 +3,8 @@ import { AuthModule } from './auth/auth.module';
 import { AppConfigModule } from './config/app-config.module';
 import { FeaturesModule } from './features/features.module';
 import { AccountModule } from './tmf/account/account.module';
+import { CatalogBootstrapModule } from './tmf/catalog/bootstrap/catalog-bootstrap.module';
+import { CatalogModule } from './tmf/catalog/catalog.module';
 import { ChargingModule } from './tmf/charging/charging.module';
 import { DocumentModule } from './tmf/document/document.module';
 import { InventoryModule } from './tmf/inventory/inventory.module';
@@ -20,5 +22,5 @@ import { HealthModule } from './health/health.module';
 import { LoggingModule } from './logging/logging.module';
 import { MongoPersistenceModule } from './persistence/mongo-persistence.module';
 
-@Module({ imports: [AppConfigModule, AuthModule, LoggingModule, MongoPersistenceModule, FeaturesModule, HealthModule, DocumentModule, RevenueModule, SearchModule, InvoicingModule, QuoteModule, InventoryModule, AccountModule, PartyModule, ResourceModule, ServiceModule, ChargingModule, SoftwareModule, UsageModule, OrderingModule] })
+@Module({ imports: [AppConfigModule, AuthModule, LoggingModule, MongoPersistenceModule, FeaturesModule, HealthModule, DocumentModule, RevenueModule, SearchModule, InvoicingModule, QuoteModule, InventoryModule, AccountModule, PartyModule, ResourceModule, ServiceModule, ChargingModule, SoftwareModule, UsageModule, OrderingModule, CatalogModule, CatalogBootstrapModule] })
 export class AppModule {}

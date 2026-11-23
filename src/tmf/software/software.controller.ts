@@ -5,6 +5,7 @@ import { NotFoundError } from '../../common/domain-error';
 import { AppConfigService } from '../../config/app-config.service';
 import { BodyTextInterceptor } from '../body-text.interceptor';
 import { JsonBodyPipe } from '../json-body.pipe';
+import { CatalogDefaults } from '../catalog/catalog-defaults';
 import { OwnedResources } from '../owned-resources';
 import { ResourceIdPipe } from '../resource-id.pipe';
 import { SellerParties } from '../seller-parties';
@@ -53,9 +54,9 @@ export class SoftwareController {
     private readonly specifications: SoftwareSpecifications;
     private readonly packages: SoftwareSpecifications;
 
-    constructor(proxy: TmfProxy, owned: OwnedResources, config: AppConfigService, sellers: SellerParties) {
-        this.specifications = new SoftwareSpecifications(proxy, owned, config, sellers, SPECIFICATIONS);
-        this.packages = new SoftwareSpecifications(proxy, owned, config, sellers, PACKAGES);
+    constructor(proxy: TmfProxy, owned: OwnedResources, config: AppConfigService, sellers: SellerParties, defaults: CatalogDefaults) {
+        this.specifications = new SoftwareSpecifications(proxy, owned, config, sellers, SPECIFICATIONS, defaults);
+        this.packages = new SoftwareSpecifications(proxy, owned, config, sellers, PACKAGES, defaults);
     }
 
     @Get('resourceSpecification')

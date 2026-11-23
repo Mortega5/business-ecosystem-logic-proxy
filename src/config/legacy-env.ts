@@ -56,6 +56,9 @@ const VALUES: [string, string][] = [
     ['quotes.api', 'BAE_LP_QUOTE_API'],
     ['dsp.contractDefinitionSchema', 'BAE_LP_DSP_CONTRACT_DEFINITION_SCHEMA'],
     ['catalog.offeringSchema', 'BAE_LP_OFFERING_SCHEMA'],
+    ['catalog.partyLocation', 'BAE_LP_PARTY_LOCATION'],
+    ['catalog.defaultCatalogId', 'BAE_LP_DEFAULT_CATALOG_ID'],
+    ['catalog.defaultCatalogName', 'BAE_LP_DEFAULT_CATALOG_NAME'],
     ['catalog.priceCompSchema', 'BAE_LP_PRICE_COMP_SCHEMA'],
     ['catalog.blueprintSchema', 'BAE_LP_BLUEPRINT_SCHEMA']
 ];

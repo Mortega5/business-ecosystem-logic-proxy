@@ -36,7 +36,12 @@ const VALUE: AppConfig = {
     catalog: {
         offeringSchema: 'https://schemas.example.org/offering.json',
         priceCompSchema: 'https://schemas.example.org/price.json',
-        blueprintSchema: 'https://schemas.example.org/blueprint.json'
+        blueprintSchema: 'https://schemas.example.org/blueprint.json',
+        partyLocation: 'https://schemas.example.org/party.json',
+        defaultCatalogId: '',
+        defaultCatalogName: 'default',
+        bootstrap: { enabled: true, retryDelayMs: 5000, records: { defaultCatalog: 'default', supportPackageSpec: 'global' } },
+        systemCategories: [{ key: 'dataset', name: 'Dataset', description: 'Datasets' }]
     },
     limits: { orderItems: 50, noteLength: 10000, notesPerRequest: 20, nameLength: 100, descriptionLength: 100000, plansPerQuery: 20, readAll: { pageSize: 100, maxPages: 100 } },
     health: { mongoPingTimeoutMs: 1000 },

@@ -16,7 +16,14 @@ export class LegacyOperator {
         return this.as('buyerOperator');
     }
 
-    private as(role: 'sellerOperator' | 'buyerOperator'): Record<string, unknown> | undefined {
+    /** The operator as the owner of what the platform creates (its seller and its seller operator), or nothing when there is none. */
+    owner(): Record<string, unknown>[] | undefined {
+        const owner = this.as('seller');
+        const operator = this.as('sellerOperator');
+        return owner === undefined || operator === undefined ? undefined : [owner, operator];
+    }
+
+    private as(role: 'seller' | 'sellerOperator' | 'buyerOperator'): Record<string, unknown> | undefined {
         const { operator } = require('../../lib/operator') as { operator: { getOperatorId: () => string | undefined } };
         const config = require('../../config') as { operatorId: string; roles: Record<typeof role, string> };
         const id = operator.getOperatorId();

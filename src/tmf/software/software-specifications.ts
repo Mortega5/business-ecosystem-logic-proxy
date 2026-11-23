@@ -1,8 +1,13 @@
 import type { Request } from 'express';
 import { BadGatewayError } from '../../common/domain-error';
+import { AppConfigService } from '../../config/app-config.service';
+import { CatalogDefaults } from '../catalog/catalog-defaults';
 import { AS_JSON } from '../http-options';
+import { OwnedResources } from '../owned-resources';
+import { SellerParties } from '../seller-parties';
+import { TmfProxy } from '../tmf-proxy';
 import { isRecord } from '../related-party';
-import { parseJson, Specifications, type Undo } from '../specification/specifications';
+import { parseJson, Specifications, type SpecificationApi, type Undo } from '../specification/specifications';
 import type { UpstreamUser } from '../upstream-headers';
 import { SUPPORT_SPECIFICATION, SUPPORT_SPECIFICATION_NAME, SUPPORT_SPECIFICATION_TYPE, validateDeploymentDefinition } from './software-rules';
 
@@ -22,6 +27,18 @@ const supportPackageOf = (specification: Record<string, unknown>): string | unde
 export class SoftwareSpecifications extends Specifications {
     private supportSpecification: Promise<string> | undefined;
 
+    /** `defaults` knows the support package spec that the start-up found; without it, or until it does, the spec is looked for. */
+    constructor(
+        proxy: TmfProxy,
+        owned: OwnedResources,
+        config: AppConfigService,
+        sellers: SellerParties,
+        api: SpecificationApi,
+        private readonly defaults?: CatalogDefaults
+    ) {
+        super(proxy, owned, config, sellers, api);
+    }
+
     protected override validate(specification: Record<string, unknown>): void {
         validateDeploymentDefinition(specification);
     }
@@ -30,24 +47,28 @@ export class SoftwareSpecifications extends Specifications {
         if (specification['@type'] !== 'SoftwareSpecification') {
             return undefined;
         }
-        const supportSpecificationId = await this.supportSpecificationId(req);
         const [seller] = specification['relatedParty'] as Record<string, unknown>[];
         const [owner] = this.sellers.of(seller as Record<string, unknown>, (req as Request & { user: UpstreamUser }).user);
-        const created = await this.call(
-            req,
-            'POST',
-            '/resource',
-            {
-                name: `Software Support Package for ${String(specification['name'])}`,
-                '@type': 'SoftwareSupportPackage',
-                '@baseType': 'Resource',
-                ...AVAILABLE,
-                resourceSpecification: { id: supportSpecificationId },
-                resourceCharacteristic: specification['resourceCharacteristic'] ?? [],
-                relatedParty: [owner]
-            },
-            'It was impossible to create the software support package'
-        );
+        const supportPackage = (supportSpecificationId: string): Record<string, unknown> => ({
+            name: `Software Support Package for ${String(specification['name'])}`,
+            '@type': 'SoftwareSupportPackage',
+            '@baseType': 'Resource',
+            ...AVAILABLE,
+            resourceSpecification: { id: supportSpecificationId },
+            resourceCharacteristic: specification['resourceCharacteristic'] ?? [],
+            relatedParty: [owner]
+        });
+        const failure = 'It was impossible to create the software support package';
+        let created: Record<string, unknown>;
+        try {
+            created = await this.call(req, 'POST', '/resource', supportPackage(await this.supportSpecificationId(req)), failure);
+        } catch (error) {
+            // The spec that the start-up found was removed afterwards: it is forgotten, and found or made again, once
+            if (!(await this.forgetSupportSpecificationIfGone(req))) {
+                throw error;
+            }
+            created = await this.call(req, 'POST', '/resource', supportPackage(await this.supportSpecificationId(req)), failure);
+        }
         const packageId = created['id'];
         if (typeof packageId !== 'string') {
             throw new BadGatewayError('It was impossible to create the software support package');
@@ -106,6 +127,10 @@ export class SoftwareSpecifications extends Specifications {
 
     /** The global specification of the support packages, found by its name, or created. Two creates at once make one. */
     private supportSpecificationId(req: Request): Promise<string> {
+        const known = this.defaults?.supportPackageSpecId ?? '';
+        if (known !== '') {
+            return Promise.resolve(known);
+        }
         this.supportSpecification ??= this.findOrCreateSupportSpecification(req).finally(() => {
             this.supportSpecification = undefined;
         });
@@ -125,13 +150,29 @@ export class SoftwareSpecifications extends Specifications {
               )
             : undefined;
         if (isRecord(existing)) {
+            this.defaults?.setSupportPackageSpecId(existing['id'] as string);
             return existing['id'] as string;
         }
         const created = await this.call(req, 'POST', '/resourceSpecification', SUPPORT_SPECIFICATION, 'It was impossible to create the software support package spec');
         if (typeof created['id'] !== 'string') {
             throw new BadGatewayError('It was impossible to create the software support package spec');
         }
+        this.defaults?.setSupportPackageSpecId(created['id']);
         return created['id'];
+    }
+
+    /** Forgets the support package spec that is known when it is not in the API any more; says whether it did. */
+    private async forgetSupportSpecificationIfGone(req: Request): Promise<boolean> {
+        const known = this.defaults?.supportPackageSpecId ?? '';
+        if (known === '') {
+            return false;
+        }
+        const response = await this.proxy.send(req, { upstream: this.api.upstream, path: `/resourceSpecification/${encodeURIComponent(known)}`, method: 'GET', search: '' });
+        if (response.status !== 404) {
+            return false;
+        }
+        this.defaults?.setSupportPackageSpecId('');
+        return true;
     }
 
     /** A request of the proxy itself to the API, as the caller; it fails with what could not be done when the API does not answer well. */

@@ -39,6 +39,8 @@ tags:
     description: The usage specifications of a seller, as far as the portal uses them.
   - name: ordering
     description: The product orders, as far as the portal uses them.
+  - name: catalog
+    description: The catalog API, as far as it has been moved here (the categories); the rest of it is answered by the legacy application.
 paths:
   /health/live:
     get:
@@ -3117,6 +3119,186 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResult'
+        '502':
+          $ref: '#/components/responses/BadGateway'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+  /catalog/category:
+    get:
+      tags: [catalog]
+      operationId: listCategories
+      summary: List of the categories
+      description: |
+        Open to anybody. Only the filters of the portal are sent on: `limit`, `offset`, `sort`, `lifecycleStatus` (several, separated by commas),
+        `parentId` and `isRoot`; any other is refused. Any method other than the ones of this tag under `/catalog/category`, the delete of a
+        category included, answers 404.
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - name: filters
+          in: query
+          required: false
+          description: '`limit`, `offset`, `sort`, `lifecycleStatus`, `parentId` and `isRoot`, each once.'
+          style: form
+          explode: true
+          schema:
+            type: object
+            additionalProperties:
+              type: string
+      responses:
+        '200':
+          description: The categories, as the catalog API answers them.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
+              example: []
+        '400':
+          $ref: '#/components/responses/InvalidQuery'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+    post:
+      tags: [catalog]
+      operationId: createCategory
+      summary: Create a category
+      description: |
+        Only an administrator. A category is root unless it says it is not (and then it has a parent that exists), has a name, and has a name that no
+        other launched category of the same parent has. `id` and `href` are dropped and `validFor` is set to now when it is missing. When the
+        marketplace has an operator it is the owner of the category. A root category is added to the default catalog; when there is none yet the
+        category is made all the same, and when the catalog cannot be changed the answer says that the category was made.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: The category created, as the catalog API answers it.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                id: urn:ngsi-ld:category:1
+        '400':
+          $ref: '#/components/responses/InvalidBody'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/NotAnAdministrator'
+        '409':
+          description: A launched category of the same parent has the name.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '502':
+          $ref: '#/components/responses/BadGateway'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+  /catalog/category/{id}:
+    get:
+      tags: [catalog]
+      operationId: getCategory
+      summary: A category
+      description: Open to anybody.
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: The category, as the catalog API answers it.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                id: urn:ngsi-ld:category:1
+        '400':
+          $ref: '#/components/responses/InvalidId'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
+    patch:
+      tags: [catalog]
+      operationId: updateCategory
+      summary: Change a category
+      description: |
+        Only an administrator. The related parties cannot be changed and the lifecycle has to follow its order. The name, the parent and the root
+        status are checked as in a creation when they change, and a category cannot be put below itself. The default catalog and the system
+        categories are the platform's: a system category cannot be retired, renamed or moved. A category that is retired or made obsolete is taken
+        out of the default catalog, and when that cannot be done the answer says that the category was changed.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ResourceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: The category changed, as the catalog API answers it.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                id: urn:ngsi-ld:category:1
+        '400':
+          $ref: '#/components/responses/InvalidIdOrBody'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/NotAnAdministrator'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '409':
+          description: The related parties change, or a launched category of the same parent has the name.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
         '502':
           $ref: '#/components/responses/BadGateway'
         '504':

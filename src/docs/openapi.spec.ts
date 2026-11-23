@@ -19,6 +19,7 @@ import { AccountModule } from '../tmf/account/account.module';
 import { DocumentModule } from '../tmf/document/document.module';
 import { ChargingModule } from '../tmf/charging/charging.module';
 import { SoftwareModule } from '../tmf/software/software.module';
+import { CatalogModule } from '../tmf/catalog/catalog.module';
 import { OrderingModule } from '../tmf/ordering/ordering.module';
 import { UsageModule } from '../tmf/usage/usage.module';
 import { ResourceModule } from '../tmf/resource/resource.module';
@@ -471,6 +472,29 @@ describe('responses against docs/openapi.yaml', () => {
         ];
     };
 
+    // The categories of the catalog API: open to read and for an administrator to write; the rest of /catalog is the legacy application's
+    const categoryCases = (): Case[] => {
+        const base = '/catalog/category';
+        const category = '{"id":"c-1","name":"Data","isRoot":true,"lifecycleStatus":"Launched"}';
+        const asAdmin = { ...json, ...AS_ADMIN };
+        const withoutLogin = (cases: Case[]): Case[] => cases.filter((c) => c.status !== '401');
+        // A new category asks for the ones with its name (a list) and then is made (an object)
+        const creates = (): void => tmforum.answer((res) => tmforum.json(res, 200, tmforum.seen?.method === 'GET' ? '[]' : category));
+        return [
+            ...withoutLogin(proxied(base, `${base}?limit=6&offset=0`, '[]', { invalid: { url: `${base}?q=x` } })),
+            ...withoutLogin(proxied(`${base}/{id}`, `${base}/c-1`, category, { invalid: { url: `${base}/a%20b` } })),
+            ...proxied(base, base, category, { method: 'post', headers: asAdmin, body: '{"name":"Data"}', invalid: { body: 'not json' }, tooLarge: true }).filter((c) => c.status !== '200' && c.status !== '404'),
+            { method: 'post', path: base, status: '200', url: base, headers: asAdmin, body: '{"name":"Data"}', arrange: creates },
+            refused('post', base, '403', base, '{"name":"Data"}', '[]', LOGGED_IN),
+            refused('post', base, '409', base, '{"name":"Data"}', '[{"id":"c-2"}]', AS_ADMIN),
+            refused('post', base, '502', base, '{"name":"Data"}', 'not json', AS_ADMIN),
+            ...proxied(`${base}/{id}`, `${base}/c-1`, category, { method: 'patch', headers: asAdmin, body: '{"description":"x"}', invalid: { url: `${base}/a%20b` }, tooLarge: true }),
+            refused('patch', `${base}/{id}`, '403', `${base}/c-1`, '{"description":"x"}', category, LOGGED_IN),
+            refused('patch', `${base}/{id}`, '409', `${base}/c-1`, '{"relatedParty":[{"id":"p-1","role":"Seller"}]}', category, AS_ADMIN),
+            refused('patch', `${base}/{id}`, '502', `${base}/c-1`, '{"description":"x"}', 'not json', AS_ADMIN)
+        ];
+    };
+
     // The charging backend: the confirmation of an order, the configuration of the e-mail of the administrator, and the upload of a file
     const chargingCases = (): Case[] => {
         const base = '/charging/api';
@@ -537,13 +561,14 @@ describe('responses against docs/openapi.yaml', () => {
         ...specificationCases('/software/resource', { privateRead: true, retire: false }),
         ...usageCases(),
         ...orderingCases(),
+        ...categoryCases(),
         ...chargingCases()
     ];
 
     beforeAll(async () => {
         await tmforum.start();
 
-        @Module({ imports: [DependenciesStub, LoggerModule.forRoot({ pinoHttp: { level: 'silent' } }), HealthModule, AuthModule, DocumentModule, RevenueModule, SearchModule, InvoicingModule, QuoteModule, InventoryModule, AccountModule, PartyModule, ResourceModule, ServiceModule, ChargingModule, SoftwareModule, UsageModule, OrderingModule] })
+        @Module({ imports: [DependenciesStub, LoggerModule.forRoot({ pinoHttp: { level: 'silent' } }), HealthModule, AuthModule, DocumentModule, RevenueModule, SearchModule, InvoicingModule, QuoteModule, InventoryModule, AccountModule, PartyModule, ResourceModule, ServiceModule, ChargingModule, SoftwareModule, UsageModule, OrderingModule, CatalogModule] })
         class Contract {}
 
         app = await createApp(express(), Contract);

@@ -157,7 +157,23 @@ export const ConfigSchema = z.object({
     catalog: z.object({
         offeringSchema: z.url(),
         priceCompSchema: z.url(),
-        blueprintSchema: z.url()
+        blueprintSchema: z.url(),
+        partyLocation: z.url(),
+        // The default catalog lists the root categories the marketplace shows. When this id is set it is the one that is used (it has
+        // to exist); otherwise the start-up finds the stored one, the one marked with the catalog type `default`, or makes one
+        defaultCatalogId: z.string(),
+        defaultCatalogName: z.string().min(1),
+        // One category per kind of product the marketplace sells: they are made at start-up, belong to the default catalog, and cannot
+        // be retired, renamed or moved. A catalog cannot be named as one of them
+        // What the proxy makes sure of every time it starts: the default catalog, the system categories and the support package spec of
+        // the software. It does nothing when it is off, and a thing that is not there is then not made; it retries while the TMForum is down
+        bootstrap: z.object({
+            enabled: booleanLike,
+            retryDelayMs: z.coerce.number().int().positive(),
+            // The ids of the records in which it keeps what it found. They are the ones v11 used: what was stored is lost if they change
+            records: z.object({ defaultCatalog: z.string().min(1), supportPackageSpec: z.string().min(1) })
+        }),
+        systemCategories: z.array(z.object({ key: z.string().min(1), name: z.string().min(1), description: z.string() })).min(1)
     }),
     // What the proxy refuses to take or to read at once: each is a number of things, or of characters, and a bigger one costs more of the
     // service that has to hold it

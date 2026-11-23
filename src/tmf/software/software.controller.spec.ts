@@ -9,6 +9,7 @@ import { LegacyAuthBridge } from '../../legacy/legacy-auth.bridge';
 import { LoggingModule } from '../../logging/logging.module';
 import { AS_SELLER, fakeLogin, LOGGED_IN } from '../../testing/fake-login';
 import { FakeUpstream } from '../../testing/fake-upstream';
+import { CatalogDefaults } from '../catalog/catalog-defaults';
 import { SoftwareModule } from './software.module';
 
 const upstream = new FakeUpstream();
@@ -86,6 +87,7 @@ beforeEach(() => {
     upstream.reset();
     seen = [];
     listDelay = 0;
+    app.get(CatalogDefaults).setSupportPackageSpecId('');
     world = {
         current: reply(software()),
         currentPackage: reply({ id: 'pkg-1', '@type': 'SoftwareSupportPackage', relatedParty: [SELLER] }),
@@ -475,5 +477,50 @@ describe('the rest of /software', () => {
         expect(res.status).toBe(404);
         expect(await res.json()).toEqual({ error: 'Not found' });
         expect(seen).toEqual([]);
+    });
+});
+
+describe('the support package spec that the start-up found', () => {
+    it('is the one every support package is made from, without looking for it', async () => {
+        app.get(CatalogDefaults).setSupportPackageSpecId('spec-known');
+
+        const res = await create(creation());
+
+        expect(res.status).toBe(201);
+        expect(steps()).toEqual(['POST /resource', 'POST /resourceSpecification']);
+        expect((bodyOf('POST /resource') as { resourceSpecification: unknown }).resourceSpecification).toEqual({ id: 'spec-known' });
+    });
+
+    it('is remembered when the spec is found or made the first time, so the next one does not look for it', async () => {
+        await create(creation());
+        seen = [];
+        await create(creation());
+
+        expect(app.get(CatalogDefaults).supportPackageSpecId).toBe('spec-global');
+        expect(steps()).toEqual(['POST /resource', 'POST /resourceSpecification']);
+    });
+
+    it('is forgotten when it is not in the software API any more, and found again', async () => {
+        app.get(CatalogDefaults).setSupportPackageSpecId('spec-gone');
+        let attempts = 0;
+        Object.defineProperty(world, 'packageCreate', { get: () => (attempts++ === 0 ? reply({}, 400) : reply({ id: 'pkg-1' }, 201)), configurable: true, enumerable: true });
+        world.current = reply({}, 404);
+
+        const res = await create(creation());
+
+        expect(res.status).toBe(201);
+        expect(steps()).toEqual(['POST /resource', 'GET /resourceSpecification/spec-gone', 'GET /resourceSpecification', 'POST /resource', 'POST /resourceSpecification']);
+        expect(app.get(CatalogDefaults).supportPackageSpecId).toBe('spec-global');
+    });
+
+    it('is kept when the package fails for another reason', async () => {
+        app.get(CatalogDefaults).setSupportPackageSpecId('spec-known');
+        world.packageCreate = reply({}, 500);
+
+        const res = await create(creation());
+
+        expect(res.status).toBe(502);
+        expect(steps()).toEqual(['POST /resource', 'GET /resourceSpecification/spec-known']);
+        expect(app.get(CatalogDefaults).supportPackageSpecId).toBe('spec-known');
     });
 });

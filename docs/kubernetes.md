@@ -205,7 +205,8 @@ Variables of the legacy application that also configure the Nest application:
 | `BAE_LP_PAYMENT_GATEWAY`, `BAE_LP_PAYMENT_PROVIDER` | `purchase.paymentGateway`, `purchase.paymentProvider` | The provider is trimmed and lowercased; blank means `none` |
 | `BAE_LP_QUOTE_API` | `quotes.api` | |
 | `BAE_LP_DSP_CONTRACT_DEFINITION_SCHEMA` | `dsp.contractDefinitionSchema` | |
-| `BAE_LP_OFFERING_SCHEMA`, `BAE_LP_PRICE_COMP_SCHEMA`, `BAE_LP_BLUEPRINT_SCHEMA` | `catalog.offeringSchema`, `catalog.priceCompSchema`, `catalog.blueprintSchema` | |
+| `BAE_LP_OFFERING_SCHEMA`, `BAE_LP_PRICE_COMP_SCHEMA`, `BAE_LP_BLUEPRINT_SCHEMA`, `BAE_LP_PARTY_LOCATION` | `catalog.offeringSchema`, `catalog.priceCompSchema`, `catalog.blueprintSchema`, `catalog.partyLocation` | |
+| `BAE_LP_DEFAULT_CATALOG_ID`, `BAE_LP_DEFAULT_CATALOG_NAME` | `catalog.defaultCatalogId`, `catalog.defaultCatalogName` | |
 | `BAE_LP_CORS_EXPOSE_REDIRECT` | `http.cors.exposeRedirect` | Anything other than `true` turns it off |
 | `BAE_LP_PROPAGATE_TOKEN`, `BAE_LP_ALLOW_LOCAL_EORI` | `auth.propagateToken`, `auth.allowLocalEori` | Anything other than `true` turns the option off |
 | `BAE_LP_OAUTH2_ADMIN_ROLE`, `_SELLER_ROLE`, `_CUSTOMER_ROLE`, `_ORG_ADMIN_ROLE` | `auth.roles.admin`, `.seller`, `.customer`, `.orgAdmin` | |
@@ -252,7 +253,13 @@ Keys read by the application:
 | `dsp.contractDefinitionSchema` | URL | not set | Required when `dsp.enabled` is `true` |
 | `launchValidation.enabled`, `dataSpace.enabled` | boolean | `false` | |
 | `catalogManagement.enabled` | boolean | `true` | |
-| `catalog.offeringSchema`, `catalog.priceCompSchema`, `catalog.blueprintSchema` | URL | the legacy values | `@schemaLocation` of offerings, price components and blueprint product specifications |
+| `catalog.offeringSchema`, `catalog.priceCompSchema`, `catalog.blueprintSchema`, `catalog.partyLocation` | URL | the legacy values | `@schemaLocation` of offerings, price components, blueprint product specifications and the related parties of what the operator owns |
+| `catalog.defaultCatalogId` | string | empty | The default catalog, which lists the root categories the marketplace shows; when it is set it is the one used and it has to exist. When it is empty the proxy takes the stored one, the one the catalog API marks with the catalog type `default`, or makes one |
+| `catalog.defaultCatalogName` | string | `default` | The name of the default catalog the proxy makes, and with which it recognises the one made before the catalog type existed |
+| `catalog.bootstrap.enabled` | boolean | `true` | Whether the proxy makes sure, every time it starts, of the default catalog, the system categories (in the default catalog) and the support package spec of the software. Off, it does nothing and what is not there is not made; the default catalog is then the one of `catalog.defaultCatalogId`, if any |
+| `catalog.bootstrap.retryDelayMs` | integer | `5000` | The wait before the start-up tries again when the TMForum APIs do not answer |
+| `catalog.bootstrap.records.defaultCatalog`, `catalog.bootstrap.records.supportPackageSpec` | string | `default`, `global` | The ids of the records (in `defaultcatalog` and `supportpackagespec`) in which the start-up keeps what it found. They are the ones of v11: changing them leaves what it stored unread, and it looks for it again |
+| `catalog.systemCategories` | list of `key`, `name`, `description` | `dataset`, `api`, `blueprint` | The categories of the platform, one per kind of product; the proxy makes them, adds them to the default catalog, and does not let them be retired, renamed or moved. A catalog cannot be named as one of them |
 | `upstreams.timeoutMs` | integer | `30000` | Timeout of every upstream that does not set its own |
 | `upstreams.tmforum.host`, `.port`, `.scheme` | string, integer, `http` `https` | not set (`http` when no scheme is given) | Default server of every TMForum API |
 | `upstreams.tmforum.apis.<api>.host`, `.port`, `.scheme`, `.path`, `.timeoutMs` | | the standard TMForum paths | What one API sets itself; see [Upstreams](#upstreams) |
