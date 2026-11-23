@@ -11,6 +11,10 @@ info:
 tags:
   - name: health
     description: Probes for the container orchestrator.
+  - name: version
+    description: What is running.
+  - name: contact-us
+    description: The contact form of the portal.
   - name: document
     description: The TMForum document API, as far as the portal uses it.
   - name: revenue
@@ -44,6 +48,112 @@ tags:
   - name: catalog
     description: The catalog API, as far as it has been moved here (the categories); the rest of it is answered by the legacy application.
 paths:
+  /version:
+    get:
+      tags: [version]
+      operationId: getVersion
+      summary: What is running
+      description: Open to anybody. The version of the package, the commit it was built from when the build says so (`BAE_GIT_HASH`, empty otherwise) and how long the process has been up.
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      responses:
+        '200':
+          description: The version.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [version, uptime, git_hash]
+                properties:
+                  version:
+                    type: string
+                  uptime:
+                    type: string
+                  git_hash:
+                    type: string
+              example:
+                version: 12.0.0
+                uptime: 0 d, 1 h, 2 m, 3 s
+                git_hash: ''
+  /contact-us:
+    post:
+      tags: [contact-us]
+      operationId: sendContactForm
+      summary: Send the contact form
+      description: |
+        Open to anybody. The body is what the contact form of the portal sends and nothing else (any other field answers 400):
+        the names, the organisation and the role (up to `limits.nameLength` characters), a valid email, the message (up to
+        `limits.noteLength`) and `privacyAccepted`, which must be `true`. The notification, with everything the visitor wrote
+        escaped, goes to the address that the marketplace has for it, or to the charging backend. When it cannot be delivered
+        the answer is 502.
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [firstName, lastName, email, organization, roleInOrganization, message, privacyAccepted]
+              additionalProperties: false
+              properties:
+                supportType:
+                  type: string
+                firstName:
+                  type: string
+                lastName:
+                  type: string
+                email:
+                  type: string
+                  format: email
+                organization:
+                  type: string
+                roleInOrganization:
+                  type: string
+                message:
+                  type: string
+                privacyAccepted:
+                  type: boolean
+                  enum: [true]
+                marketingAccepted:
+                  type: boolean
+      responses:
+        '200':
+          description: The notification was delivered.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [sent]
+                properties:
+                  sent:
+                    type: boolean
+              example:
+                sent: true
+        '400':
+          description: The body is not a JSON object, or it is not the contact form.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: Invalid contact form
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '502':
+          description: The notification could not be delivered.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: The message could not be sent
   /health/live:
     get:
       tags: [health]

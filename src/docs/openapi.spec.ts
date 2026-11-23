@@ -15,6 +15,8 @@ import { AppModule } from '../app.module';
 import { HealthModule } from '../health/health.module';
 import { LegacyAuthBridge } from '../legacy/legacy-auth.bridge';
 import { MongoConnectionService } from '../persistence/mongo-connection.service';
+import { ContactUsModule } from '../contact-us/contact-us.module';
+import { VersionModule } from '../version/version.module';
 import { AccountModule } from '../tmf/account/account.module';
 import { BillingModule } from '../tmf/billing/billing.module';
 import { DocumentModule } from '../tmf/document/document.module';
@@ -67,6 +69,7 @@ const mongo = { ping: vi.fn<(timeoutMs: number) => Promise<boolean>>() };
                 catalog: { partyLocation: 'https://schemas.example.org/party.json', defaultCatalogId: '' },
                 limits: { orderItems: 50, noteLength: 10000, notesPerRequest: 20, nameLength: 100, descriptionLength: 100000, plansPerQuery: 20, providersPerQuery: 50, providerCacheMs: 300000, readAll: { pageSize: 100, maxPages: 100 } },
                 auth: { propagateToken: true, allowLocalEori: false, roles: { admin: 'admin', customer: 'Buyer', seller: 'Seller', orgAdmin: 'orgAdmin' } },
+                hasUpstream: () => false,
                 upstream: (name: string) => ({ baseUrl: `http://127.0.0.1:${tmforum.port}/${name}`, timeoutMs: 300 })
             }
         },
@@ -373,6 +376,18 @@ describe('responses against docs/openapi.yaml', () => {
                 c.status === '200' ? { ...c, arrange: () => tmforum.answer((res) => tmforum.json(res, 200, res.req.url?.includes('/customerBill/') === true ? mine : '[]')) } : c
             ),
             refused('get', '/billing/appliedCustomerBillingRate', '403', '/billing/appliedCustomerBillingRate?bill.id=b-1', undefined, notMine)
+        ];
+    };
+
+    // The contact form: open to anybody, and notified to the charging backend
+    const contactUsCases = (): Case[] => {
+        const form = JSON.stringify({ firstName: 'Ana', lastName: 'Lopez', email: 'ana@example.org', organization: 'Acme', roleInOrganization: 'CTO', message: 'Hello', privacyAccepted: true });
+        const base = { method: 'post', path: '/contact-us', headers: json };
+        return [
+            { ...base, status: '200', body: form, arrange: () => tmforum.answer((res) => tmforum.json(res, 200, '{}')) },
+            { ...base, status: '400', body: '{"firstName":"Ana"}', arrange: () => undefined },
+            { ...base, status: '413', body: JSON.stringify({ filler: 'x'.repeat(2000) }), arrange: () => undefined },
+            { ...base, status: '502', body: form, arrange: () => tmforum.answer((res) => tmforum.json(res, 500, '{}')) }
         ];
     };
 
@@ -779,6 +794,8 @@ describe('responses against docs/openapi.yaml', () => {
         ];
     };
     const cases: Case[] = [
+        { method: 'get', path: '/version', status: '200', arrange: () => undefined },
+        ...contactUsCases(),
         { method: 'get', path: '/health/live', status: '200', arrange: () => mongo.ping.mockResolvedValue(false) },
         { method: 'get', path: '/health/ready', status: '200', arrange: () => mongo.ping.mockResolvedValue(true) },
         { method: 'get', path: '/health/ready', status: '503', arrange: () => mongo.ping.mockResolvedValue(false) },
@@ -836,7 +853,7 @@ describe('responses against docs/openapi.yaml', () => {
     beforeAll(async () => {
         await tmforum.start();
 
-        @Module({ imports: [DependenciesStub, FakeFeaturesModule, LoggerModule.forRoot({ pinoHttp: { level: 'silent' } }), HealthModule, AuthModule, DocumentModule, RevenueModule, SearchModule, InvoicingModule, QuoteModule, InventoryModule, AccountModule, BillingModule, PartyModule, ResourceModule, ServiceModule, ChargingModule, SoftwareModule, UsageModule, OrderingModule, CatalogModule] })
+        @Module({ imports: [DependenciesStub, FakeFeaturesModule, LoggerModule.forRoot({ pinoHttp: { level: 'silent' } }), HealthModule, VersionModule, ContactUsModule, AuthModule, DocumentModule, RevenueModule, SearchModule, InvoicingModule, QuoteModule, InventoryModule, AccountModule, BillingModule, PartyModule, ResourceModule, ServiceModule, ChargingModule, SoftwareModule, UsageModule, OrderingModule, CatalogModule] })
         class Contract {}
 
         app = await createApp(express(), Contract);
