@@ -803,6 +803,34 @@ describe('responses against docs/openapi.yaml', () => {
             refused('patch', id, '502', `${base}/p-1`, '{"description":"x"}', 'not json', AS_SELLER)
         ];
     };
+    const adminCatalogCases = (): Case[] => {
+        const path = '/admin/catalog/catalog/{id}';
+        const target = '/admin/catalog/catalog/cat-1';
+        const admin = { ...AS_ADMIN, ...json };
+        // What the catalog API says: how the catalog is read, and whether the name is taken
+        const catalogApi = (read: number, taken = false) => () =>
+            tmforum.answer((res) => {
+                if (tmforum.seen?.method === 'PATCH') {
+                    return tmforum.json(res, 200, '{"id":"cat-1","name":"Marketplace"}');
+                }
+                if ((tmforum.seen?.url ?? '').includes('/catalog?')) {
+                    return tmforum.json(res, 200, taken ? '[{"id":"cat-other"}]' : '[]');
+                }
+                return tmforum.json(res, read, read === 200 ? '{"id":"cat-1","name":"Old"}' : '{}');
+            });
+        const named = '{"name":"Marketplace","description":"All of it"}';
+        return [
+            { method: 'patch', path, status: '200', url: target, headers: admin, body: named, arrange: catalogApi(200) },
+            { method: 'patch', path, status: '400', url: target, headers: admin, body: '{"lifecycleStatus":"Retired"}', arrange: () => undefined },
+            { method: 'patch', path, status: '401', url: target, headers: json, body: named, arrange: () => undefined },
+            { method: 'patch', path, status: '403', url: target, headers: { ...LOGGED_IN, ...json }, body: named, arrange: () => undefined },
+            { method: 'patch', path, status: '404', url: target, headers: admin, body: named, arrange: catalogApi(404) },
+            { method: 'patch', path, status: '409', url: target, headers: admin, body: named, arrange: catalogApi(200, true) },
+            { method: 'patch', path, status: '413', url: target, headers: admin, body: JSON.stringify({ name: 'x', filler: 'x'.repeat(2000) }), arrange: () => undefined },
+            { method: 'patch', path, status: '422', url: target, headers: admin, body: JSON.stringify({ name: 'x'.repeat(101) }), arrange: catalogApi(200) },
+            { method: 'patch', path, status: '502', url: target, headers: admin, body: named, arrange: catalogApi(500) }
+        ];
+    };
     const adminConfigCases = (): Case[] => {
         const admin = { ...AS_ADMIN, ...json };
         const asUser = { ...LOGGED_IN, ...json };
@@ -877,6 +905,7 @@ describe('responses against docs/openapi.yaml', () => {
         ...contactUsCases(),
         { method: 'get', path: '/config', status: '200', arrange: () => undefined },
         ...adminConfigCases(),
+        ...adminCatalogCases(),
         { method: 'post', path: '/feedback', status: '200', headers: json, body: '{"rating":4,"type":"campaign","description":"Nice"}', arrange: () => undefined },
         { method: 'post', path: '/feedback', status: '400', headers: json, body: '{"rating":9}', arrange: () => undefined },
         { method: 'post', path: '/feedback', status: '413', headers: json, body: JSON.stringify({ rating: 4, filler: 'x'.repeat(2000) }), arrange: () => undefined },

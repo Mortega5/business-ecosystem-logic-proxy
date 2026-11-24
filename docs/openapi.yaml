@@ -748,6 +748,88 @@ paths:
           $ref: '#/components/responses/NotAnAdministrator'
         '413':
           $ref: '#/components/responses/PayloadTooLarge'
+  /admin/catalog/catalog/{id}:
+    patch:
+      tags: [catalog]
+      operationId: updateCatalogAsAdministrator
+      summary: Change the name and the description of a catalog
+      description: |
+        For administrators, who need not be the owner of the catalog: it is how the default catalog, which has no owner, is edited. Only `name` and `description` can be sent. The name is checked as for the owner of a catalog (no characters that are not allowed, not taken by another catalog) and cannot be one of a system category (`API`, `Dataset`...). The other routes under `/admin` are not described here and are answered by the legacy application.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ResourceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+              additionalProperties: false
+            example:
+              name: Marketplace
+              description: All of it
+      responses:
+        '200':
+          description: The catalog, as the catalog API answers it.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                id: urn:ngsi-ld:catalog:default
+                name: Marketplace
+        '400':
+          $ref: '#/components/responses/InvalidIdOrBody'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/NotAnAdministrator'
+        '404':
+          description: The catalog does not exist.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: The required resource does not exist
+        '409':
+          description: The name is taken by another catalog, or it is reserved to a system category.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: This catalog name is reserved
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '422':
+          description: The name or the description is empty (the name), too long or not a text.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: Catalog name is too long, it must be less than 100 characters
+        '502':
+          description: The catalog, or the catalogs with that name, could not be read.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: The catalog could not be read
   /health/live:
     get:
       tags: [health]
