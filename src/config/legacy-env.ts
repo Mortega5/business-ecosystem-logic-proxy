@@ -49,6 +49,12 @@ const SWITCHES: [string, string][] = [
 ];
 
 const VALUES: [string, string][] = [
+    ['auth.idp.provider', 'BAE_LP_OAUTH2_PROVIDER'],
+    ['auth.idp.server', 'BAE_LP_OAUTH2_SERVER'],
+    ['auth.idp.clientId', 'BAE_LP_OAUTH2_CLIENT_ID'],
+    ['auth.idp.clientSecret', 'BAE_LP_OAUTH2_CLIENT_SECRET'],
+    ['auth.idp.callbackUrl', 'BAE_LP_OAUTH2_CALLBACK'],
+    ['auth.idp.realm', 'BAE_LP_OIDC_REALM'],
     ['auth.roles.admin', 'BAE_LP_OAUTH2_ADMIN_ROLE'],
     ['auth.roles.seller', 'BAE_LP_OAUTH2_SELLER_ROLE'],
     ['auth.roles.customer', 'BAE_LP_OAUTH2_CUSTOMER_ROLE'],

@@ -24,7 +24,18 @@ const VALUE: AppConfig = {
         retryInitialDelayMs: 1000,
         retryMaxDelayMs: 30000
     },
-    auth: { propagateToken: true, allowLocalEori: false, roles: { admin: 'admin', customer: 'Buyer', seller: 'Seller', orgAdmin: 'orgAdmin' } },
+    auth: {
+        propagateToken: true,
+        allowLocalEori: false,
+        roles: { admin: 'admin', customer: 'Buyer', seller: 'Seller', orgAdmin: 'orgAdmin' },
+        replacedTokenGraceMs: 30000,
+        idpTimeoutMs: 10000,
+        idp: { provider: 'fiware' },
+        profileTtlMs: 7200000,
+        refreshMarginSeconds: 5,
+        defaultTokenLifetimeSeconds: 1800,
+        store: { type: 'memory', memoryMaxEntries: 1000 }
+    },
     purchase: { enabled: true, paymentProvider: 'none' },
     quotes: { enabled: true, api: '/quote/quoteManagement' },
     tendering: { enabled: true, devButtonsOpenClose: false },

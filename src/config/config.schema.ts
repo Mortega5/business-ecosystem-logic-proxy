@@ -132,7 +132,51 @@ export const ConfigSchema = z.object({
             customer: z.string().min(1),
             seller: z.string().min(1),
             orgAdmin: z.string().min(1)
-        })
+        }),
+        // After a refresh, how long the token that was replaced still answers with the renewed profile: it is for the requests
+        // that were already on their way with it, so it is short
+        replacedTokenGraceMs: z.coerce.number().int().nonnegative(),
+        // How long a profile is kept so that a user whose token has ended can still be refreshed. It is also how long a token that
+        // was revoked at the identity provider keeps working here, since the provider is not asked while the profile is kept
+        profileTtlMs: z.coerce.number().int().positive(),
+        // A token with this many seconds left or fewer is refreshed
+        refreshMarginSeconds: z.coerce.number().int().nonnegative(),
+        // Lifetime given to a token whose identity provider does not say when it ends
+        defaultTokenLifetimeSeconds: z.coerce.number().int().positive(),
+        // How long a call to the identity provider (user info, refresh) may take
+        idpTimeoutMs: z.coerce.number().int().positive(),
+        // The main identity provider, the one called `local`. Each provider asks for its own settings
+        idp: z
+            .object({
+                provider: z.enum(['fiware', 'keycloak', 'github', 'i4trust', 'oidc-discover', 'aimarket']),
+                server: z.string().min(1).optional(),
+                clientId: z.string().min(1).optional(),
+                clientSecret: z.string().min(1).optional(),
+                callbackUrl: z.string().min(1).optional(),
+                realm: z.string().min(1).optional()
+            })
+            .superRefine((idp, context) => {
+                const required: Record<string, (keyof typeof idp)[]> = {
+                    keycloak: ['server', 'clientId', 'clientSecret', 'callbackUrl', 'realm']
+                };
+                for (const key of required[idp.provider] ?? []) {
+                    if (idp[key] === undefined) {
+                        context.addIssue({ code: 'custom', path: [key], message: `is required when auth.idp.provider is ${idp.provider}` });
+                    }
+                }
+            }),
+        // Where the profile of each token is kept: in the process, or in MongoDB so that every instance shares it. The profile
+        // holds refresh tokens, so in MongoDB it is sealed with the key, which has to be a random string of its own
+        store: z
+            .object({
+                type: z.enum(['memory', 'mongo']),
+                memoryMaxEntries: z.coerce.number().int().positive(),
+                encryptionKey: z.string().min(32).optional()
+            })
+            .refine((store) => store.type !== 'mongo' || store.encryptionKey !== undefined, {
+                path: ['encryptionKey'],
+                message: 'is required when auth.store.type is mongo'
+            })
     }),
     purchase: z
         .object({

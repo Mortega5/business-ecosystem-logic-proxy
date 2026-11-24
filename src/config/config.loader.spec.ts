@@ -273,8 +273,56 @@ describe('authentication configuration', () => {
         expect(load({}).auth).toEqual({
             propagateToken: true,
             allowLocalEori: false,
-            roles: { admin: 'admin', customer: 'Buyer', seller: 'Seller', orgAdmin: 'orgAdmin' }
+            roles: { admin: 'admin', customer: 'Buyer', seller: 'Seller', orgAdmin: 'orgAdmin' },
+            replacedTokenGraceMs: 30000,
+            idpTimeoutMs: 10000,
+            idp: { provider: 'fiware' },
+            profileTtlMs: 7200000,
+            refreshMarginSeconds: 5,
+            defaultTokenLifetimeSeconds: 1800,
+            store: { type: 'memory', memoryMaxEntries: 1000 }
         });
+    });
+
+    it('reads the main identity provider from the variables of v11, and keycloak asks for all of its settings', () => {
+        expect(load({ BAE_LP_OAUTH2_PROVIDER: 'github', BAE_LP_OAUTH2_CLIENT_ID: 'id' }).auth.idp).toEqual({ provider: 'github', clientId: 'id' });
+        expect(() => load({ BAE_LP_OAUTH2_PROVIDER: 'keycloak', BAE_LP_OAUTH2_SERVER: 'https://kc.example.org' })).toThrow(/auth\.idp\.clientId/);
+
+        expect(
+            load({
+                BAE_LP_OAUTH2_PROVIDER: 'keycloak',
+                BAE_LP_OAUTH2_SERVER: 'https://kc.example.org',
+                BAE_LP_OAUTH2_CLIENT_ID: 'bae',
+                BAE_LP_OAUTH2_CLIENT_SECRET: 'secret',
+                BAE_LP_OAUTH2_CALLBACK: 'https://bae.example.org/auth/keycloak/callback',
+                BAE_LP_OIDC_REALM: 'dome'
+            }).auth.idp
+        ).toMatchObject({ provider: 'keycloak', realm: 'dome', clientId: 'bae' });
+        expect(() => load({ BAE_LP_OAUTH2_PROVIDER: 'unknown' })).toThrow(/provider/);
+    });
+
+    it('lets the times of the tokens be changed', () => {
+        const auth = load({
+            BAE_AUTH__REPLACED_TOKEN_GRACE_MS: '5000',
+            BAE_AUTH__PROFILE_TTL_MS: '60000',
+            BAE_AUTH__REFRESH_MARGIN_SECONDS: '15',
+            BAE_AUTH__DEFAULT_TOKEN_LIFETIME_SECONDS: '600'
+        }).auth;
+
+        expect([auth.replacedTokenGraceMs, auth.profileTtlMs, auth.refreshMarginSeconds, auth.defaultTokenLifetimeSeconds]).toEqual([5000, 60000, 15, 600]);
+        expect(() => load({ BAE_AUTH__PROFILE_TTL_MS: '0' })).toThrow(/profileTtlMs/);
+    });
+
+    it('keeps the profiles in memory unless MongoDB is chosen, and then asks for the key that seals them', () => {
+        expect(() => load({ BAE_AUTH__STORE__TYPE: 'mongo' })).toThrow(/auth\.store\.encryptionKey/);
+        expect(() => load({ BAE_AUTH__STORE__TYPE: 'mongo', BAE_AUTH__STORE__ENCRYPTION_KEY: 'short' })).toThrow(/encryptionKey/);
+        const key = 'k'.repeat(32);
+        expect(load({ BAE_AUTH__STORE__TYPE: 'mongo', BAE_AUTH__STORE__ENCRYPTION_KEY: key }).auth.store).toEqual({
+            type: 'mongo',
+            memoryMaxEntries: 1000,
+            encryptionKey: key
+        });
+        expect(load({ BAE_AUTH__STORE__MEMORY_MAX_ENTRIES: '50' }).auth.store.memoryMaxEntries).toBe(50);
     });
 
     it('accepts the legacy variables', () => {
