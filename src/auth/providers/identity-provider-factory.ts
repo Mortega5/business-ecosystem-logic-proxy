@@ -1,5 +1,7 @@
 import type { AppConfig } from '../../config/config.schema';
+import { AimarketProvider } from './aimarket-provider';
 import { FiwareProvider } from './fiware-provider';
+import { GithubProvider } from './github-provider';
 import type { IdentityProvider } from './identity-provider';
 import type { Fetcher } from './idp-http';
 import { KeycloakProvider } from './keycloak-provider';
@@ -41,10 +43,12 @@ export const createIdentityProvider = (idp: IdpSettings, dependencies: ProviderD
                 organizationName: dependencies.organizationName
             });
         }
+        case 'aimarket':
         case 'fiware': {
             // There is no default key: a fixed one would let anybody who knows it sign a token
             const settings = required(idp, idp.oidcEnabled ? ['server', 'clientId', 'clientSecret', 'callbackUrl', 'oidcKey'] : ['server', 'clientId', 'clientSecret', 'callbackUrl']);
-            return new FiwareProvider({
+            const Provider = idp.provider === 'aimarket' ? AimarketProvider : FiwareProvider;
+            return new Provider({
                 ...common,
                 server: settings.server,
                 clientId: settings.clientId,
@@ -52,6 +56,10 @@ export const createIdentityProvider = (idp: IdpSettings, dependencies: ProviderD
                 ...(idp.oidcEnabled && idp.oidcKey !== undefined ? { key: idp.oidcKey } : {}),
                 ...(idp.defaultRole === undefined ? {} : { defaultRole: idp.defaultRole })
             });
+        }
+        case 'github': {
+            required(idp, ['clientId', 'clientSecret', 'callbackUrl']);
+            return new GithubProvider({ ...common, sellerRole: dependencies.roles.seller });
         }
         default:
             throw new Error(`auth.idp.provider ${idp.provider} is not available yet`);

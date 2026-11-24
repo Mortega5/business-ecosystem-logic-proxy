@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { AppConfig } from '../../config/config.schema';
+import { AimarketProvider } from './aimarket-provider';
 import { FiwareProvider } from './fiware-provider';
+import { GithubProvider } from './github-provider';
 import { createIdentityProvider, type ProviderDependencies } from './identity-provider-factory';
 import { KeycloakProvider } from './keycloak-provider';
 
@@ -33,12 +35,26 @@ describe('createIdentityProvider', () => {
         expect(createIdentityProvider({ provider: 'fiware', oidcEnabled: false, ...complete }, dependencies)).toBeInstanceOf(FiwareProvider);
     });
 
+    it('builds aimarket with the settings of fiware, key included', () => {
+        const idp: Idp = { provider: 'aimarket', oidcEnabled: true, ...complete };
+
+        expect(() => createIdentityProvider(idp, dependencies)).toThrow('auth.idp.oidcKey required when auth.idp.provider is aimarket');
+        expect(createIdentityProvider({ ...idp, oidcKey: 'k'.repeat(16) }, dependencies)).toBeInstanceOf(AimarketProvider);
+    });
+
     it('gives the provider the id it is registered under', () => {
         expect(createIdentityProvider({ provider: 'fiware', oidcEnabled: false, ...complete }, dependencies).id).toBe('local');
         expect(createIdentityProvider({ provider: 'fiware', oidcEnabled: false, ...complete }, dependencies, 'other').id).toBe('other');
     });
 
+    it('builds github, which needs the credentials of its application', () => {
+        expect(createIdentityProvider({ provider: 'github', oidcEnabled: true, ...complete }, dependencies)).toBeInstanceOf(GithubProvider);
+        expect(() => createIdentityProvider({ provider: 'github', oidcEnabled: true }, dependencies)).toThrow(
+            'auth.idp.clientId, auth.idp.clientSecret, auth.idp.callbackUrl required when auth.idp.provider is github'
+        );
+    });
+
     it('says so when the provider is not ported yet', () => {
-        expect(() => createIdentityProvider({ provider: 'github', oidcEnabled: true }, dependencies)).toThrow('not available yet');
+        expect(() => createIdentityProvider({ provider: 'i4trust', oidcEnabled: true, ...complete }, dependencies)).toThrow('not available yet');
     });
 });
