@@ -254,7 +254,7 @@ Keys read by the application:
 | `tendering.enabled` | boolean | `true` | |
 | `tendering.devButtonsOpenClose` | boolean | `false` | |
 | `dsp.enabled` | boolean | `false` | |
-| `dsp.contractDefinitionSchema` | URL | not set | Required when `dsp.enabled` is `true` |
+| `dsp.contractDefinitionSchema` | URL | the `contract-definition.json` of `wistefan/edc-dsc` (branch `init`) | The schema of the EDC contract definition that the portal puts in the offers that use the data space. v11 gave here the schema of the deployment of software by mistake |
 | `launchValidation.enabled`, `dataSpace.enabled` | boolean | `false` | |
 | `catalogManagement.enabled` | boolean | `true` | |
 | `catalog.offeringSchema`, `catalog.priceCompSchema`, `catalog.blueprintSchema`, `catalog.partyLocation` | URL | the legacy values | `@schemaLocation` of offerings, price components, blueprint product specifications and the related parties of what the operator owns |
@@ -313,7 +313,7 @@ PEM file and set `NODE_EXTRA_CA_CERTS` to its path.
 Each feature keeps its settings next to its `enabled` switch. The `feature-flags` document of the `config` collection
 can override the switches only, with the names the admin API and the frontend use (`purchaseEnabled`,
 `dspEnabled`, `tenderDevButtonsOpenCloseEnabled`...), and it is read every 5 seconds. A feature that the database
-turns on while its settings are incomplete (for instance `dsp` without `dsp.contractDefinitionSchema`) stays off and
+turns on while its settings are incomplete (none is today, as every setting has a default; the check is for a setting that is given none) stays off and
 a warning is logged.
 
 ### Upstreams

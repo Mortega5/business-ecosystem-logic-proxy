@@ -57,6 +57,8 @@ party:
 
 dsp:
   enabled: false
+  # The EDC contract definition (an access policy and a contract policy). v11 gave here the schema of the deployment of software by mistake
+  contractDefinitionSchema: https://raw.githubusercontent.com/wistefan/edc-dsc/refs/heads/init/schemas/contract-definition.json
 
 launchValidation:
   enabled: false

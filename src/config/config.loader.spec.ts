@@ -245,12 +245,14 @@ describe('feature configuration', () => {
         ).toBe('https://pay.example.org');
     });
 
-    it('requires the contract definition schema when dsp is enabled', () => {
-        expect(() => load({ BAE_DSP__ENABLED: 'true' })).toThrow('dsp.contractDefinitionSchema');
-        expect(
-            load({ BAE_DSP__ENABLED: 'true', BAE_DSP__CONTRACT_DEFINITION_SCHEMA: 'https://schemas.example.org/dsp.json' })
-                .dsp.enabled
-        ).toBe(true);
+    it('has the schema of the EDC contract definition by default, so that dsp can be turned on, and it can be changed and has to be a URL', () => {
+        const byDefault = 'https://raw.githubusercontent.com/wistefan/edc-dsc/refs/heads/init/schemas/contract-definition.json';
+
+        expect(load({}).dsp.contractDefinitionSchema).toBe(byDefault);
+        expect(load({ BAE_DSP__ENABLED: 'true' }).dsp).toEqual({ enabled: true, contractDefinitionSchema: byDefault });
+        expect(load({ BAE_DSP__CONTRACT_DEFINITION_SCHEMA: 'https://schemas.example.org/dsp.json' }).dsp.contractDefinitionSchema).toBe('https://schemas.example.org/dsp.json');
+        expect(load({ BAE_LP_DSP_CONTRACT_DEFINITION_SCHEMA: 'https://schemas.example.org/legacy.json' }).dsp.contractDefinitionSchema).toBe('https://schemas.example.org/legacy.json');
+        expect(() => load({ BAE_DSP__CONTRACT_DEFINITION_SCHEMA: 'not a url' })).toThrow('dsp.contractDefinitionSchema');
     });
 
     it('accepts the legacy variables and reads anything but "true" as off', () => {
