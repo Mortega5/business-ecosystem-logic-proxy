@@ -203,6 +203,18 @@ export const ConfigSchema = z.object({
     }),
     // The figures of the landing page (offerings and providers) are kept in Mongo and read again, in the background, when they are this old; a read
     // that fails is not tried again before retryDelayMs. The counts of an organisation are kept in memory for providerTtlMs
+    // What the portal reads from `GET /config` that the proxy only passes on. `extra` is sent to every visitor as it is, whatever it names, so
+    // nothing secret goes in it; a key that the proxy sets itself is not taken from it
+    portal: z.object({
+        chatUrl: z.string(),
+        knowledgeBaseUrl: z.string(),
+        ticketingUrl: z.string(),
+        matomoId: z.string(),
+        matomoUrl: z.string(),
+        googleTagManagerId: z.string(),
+        theme: z.string(),
+        extra: z.record(z.string(), z.unknown())
+    }),
     stats: z.object({
         ttlMs: z.coerce.number().int().positive(),
         retryDelayMs: z.coerce.number().int().positive(),

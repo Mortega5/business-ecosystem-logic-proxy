@@ -111,6 +111,16 @@ limits:
     pageSize: 100
     maxPages: 100
 
+portal:
+  chatUrl: ""
+  knowledgeBaseUrl: ""
+  ticketingUrl: ""
+  matomoId: ""
+  matomoUrl: ""
+  googleTagManagerId: ""
+  theme: ""
+  extra: {}
+
 stats:
   ttlMs: 86400000
   retryDelayMs: 600000

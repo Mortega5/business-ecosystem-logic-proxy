@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parse } from 'yaml';
 import { ConfigSchema, type AppConfig } from './config.schema';
-import { legacyEnvToObject, type LegacyVariable } from './legacy-env';
+import { legacyEnvToObject, legacyPortalDefaults, type LegacyVariable } from './legacy-env';
 import { FORBIDDEN_KEYS, isPlainObject, setPath, type PlainObject } from './plain-object';
 
 export type { PlainObject };
@@ -104,13 +104,13 @@ export const resolveApplicationPath = (
     return fileExists(DEFAULT_APPLICATION_PATH) ? DEFAULT_APPLICATION_PATH : undefined;
 };
 
-/** defaults < legacy variables < application file < environment variables. */
+/** defaults < the ones of v11 for the links of the portal < legacy variables < application file < environment variables. */
 export const loadStaticConfig = (options: LoadOptions): AppConfig => {
     const defaults = readYamlFile(options.defaultsPath);
     const application = options.applicationPath === undefined ? {} : readYamlFile(options.applicationPath);
     const legacy = legacyEnvToObject(options.env);
     legacy.used.forEach((variable) => options.onLegacyVariable?.(variable));
-    return parseConfig(deepMerge(deepMerge(deepMerge(defaults, legacy.values), application), envToObject(options.env)));
+    return parseConfig(deepMerge(deepMerge(deepMerge(deepMerge(defaults, legacyPortalDefaults()), legacy.values), application), envToObject(options.env)));
 };
 
 /** The configuration the application runs with: shipped defaults, optional application file and environment. */

@@ -75,7 +75,7 @@ describe('legacyEnvToObject', () => {
 
     it('reports only the variables that are set and ignores empty ones', () => {
         expect(legacyEnvToObject({ BAE_LP_PORT: '', BAE_LP_MONGO_SERVER: '' })).toEqual({ values: {}, used: [] });
-        expect(legacyEnvToObject({ PATH: '/bin', BAE_APP__PORT: '9000', BAE_LP_THEME: 'x' })).toEqual({ values: {}, used: [] });
+        expect(legacyEnvToObject({ PATH: '/bin', BAE_APP__PORT: '9000', BAE_LP_ANALYTICS_URL: 'x' })).toEqual({ values: {}, used: [] });
     });
 });
 

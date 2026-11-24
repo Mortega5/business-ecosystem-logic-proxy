@@ -54,6 +54,13 @@ const VALUES: [string, string][] = [
     ['auth.roles.customer', 'BAE_LP_OAUTH2_CUSTOMER_ROLE'],
     ['auth.roles.orgAdmin', 'BAE_LP_OAUTH2_ORG_ADMIN_ROLE'],
     ['purchase.paymentGateway', 'BAE_LP_PAYMENT_GATEWAY'],
+    ['portal.chatUrl', 'BAE_LP_CHAT_URL'],
+    ['portal.knowledgeBaseUrl', 'BAE_LP_KNOWLEDGE_BASE_URL'],
+    ['portal.ticketingUrl', 'BAE_LP_TICKETING_URL'],
+    ['portal.matomoId', 'BAE_LP_MATOMO_ID'],
+    ['portal.matomoUrl', 'BAE_LP_MATOMO_URL'],
+    ['portal.googleTagManagerId', 'BAE_LP_GOOGLE_TAG_MANAGER_ID'],
+    ['portal.theme', 'BAE_LP_THEME'],
     ['quotes.api', 'BAE_LP_QUOTE_API'],
     ['dsp.contractDefinitionSchema', 'BAE_LP_DSP_CONTRACT_DEFINITION_SCHEMA'],
     ['catalog.offeringSchema', 'BAE_LP_OFFERING_SCHEMA'],
@@ -109,6 +116,46 @@ const STANDALONE_ENDPOINTS: [string, string][] = [
     ['revenue', 'REVENUE'],
     ['search', 'SEARCH']
 ];
+
+// TO REMOVE: what the portal reads from `GET /config` that is not the core's, and that v11 reads from variables of its own. They are taken
+// into `portal.extra` so that a deployment of v11 goes on working; the day they are set in `portal.extra` (or by a module of their own),
+// delete this block, `legacyPortalDefaults`, its use in config.loader.ts, its tests in config.loader.spec.ts and the rows of
+// docs/kubernetes.md that say TO REMOVE.
+const PORTAL_EXTRA_VARIABLES: [key: string, variable: string][] = [
+    ['portal.extra.domeTrust', 'BAE_LP_DOME_TRUST'],
+    ['portal.extra.domeAbout', 'BAE_LP_DOME_ABOUT'],
+    ['portal.extra.domeRegister', 'BAE_LP_DOME_REGISTER'],
+    ['portal.extra.domeRegistrationForm', 'BAE_LP_DOME_REGISTRATION_FORM'],
+    ['portal.extra.domeOnboardingGuidelines', 'BAE_LP_DOME_ONBOARDING_GUIDELINES'],
+    ['portal.extra.domeGuidelines', 'BAE_LP_DOME_GUIDELINES'],
+    ['portal.extra.domePublish', 'BAE_LP_DOME_PUBLISH'],
+    ['portal.extra.learUrl', 'BAE_LP_LEAR_URL'],
+    ['portal.extra.roles.certifier', 'BAE_LP_OAUTH2_ORG_CERTIFIER_ROLE']
+];
+
+const portalExtraRules: LegacyRule[] = [
+    ...PORTAL_EXTRA_VARIABLES.map(([key, variable]) => ({ key, variables: [variable], build: (env: NodeJS.ProcessEnv) => env[variable] })),
+    // The register link of the customers is the register link when it has none of its own
+    {
+        key: 'portal.extra.domeRegisterCustomer',
+        variables: ['BAE_LP_DOME_REGISTER_CUSTOMER', 'BAE_LP_DOME_REGISTER'],
+        build: (env) => (present(env.BAE_LP_DOME_REGISTER_CUSTOMER) ? env.BAE_LP_DOME_REGISTER_CUSTOMER : env.BAE_LP_DOME_REGISTER)
+    }
+];
+
+const DOME_REGISTER = 'https://dome-marketplace.github.io/onboarding/';
+
+/** TO REMOVE: the addresses that v11 gave by default to the links of the portal, which apply when no variable, file or `portal.extra` sets them. */
+export const legacyPortalDefaults = (): PlainObject => ({
+    portal: {
+        extra: {
+            domeAbout: 'https://dome-marketplace.eu/about/',
+            domeRegister: DOME_REGISTER,
+            domeRegisterCustomer: DOME_REGISTER,
+            domePublish: 'https://knowledgebase.dome-marketplace.org/shelves/company-onboarding-process'
+        }
+    }
+});
 
 // The host or the port that the variables leave out come from the group. The path is the one of the legacy endpoint,
 // which is empty except for revenue and invoicing, unless PATH says otherwise.
@@ -185,6 +232,7 @@ const RULES: LegacyRule[] = [
     { key: 'search.enabled', variables: ['BAE_LP_SEARCH_URL'], build: (env) => (present(env.BAE_LP_SEARCH_URL) ? 'true' : undefined) },
     ...switchRules,
     ...valueRules,
+    ...portalExtraRules,
     contactUsRule,
     ...endpointRules
 ];

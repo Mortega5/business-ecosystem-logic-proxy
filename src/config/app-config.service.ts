@@ -77,6 +77,10 @@ export class AppConfigService {
         return this.value.limits;
     }
 
+    get portal(): AppConfig['portal'] {
+        return this.value.portal;
+    }
+
     get stats(): AppConfig['stats'] {
         return this.value.stats;
     }

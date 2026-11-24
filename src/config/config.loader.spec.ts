@@ -295,6 +295,44 @@ describe('request size configuration', () => {
         expect(load({ BAE_HTTP__UPLOAD_LIMIT: '100mb' }).http.uploadLimit).toBe('100mb');
     });
 
+    it('takes the links of the portal from the legacy variables, and anything else it sends from portal.extra', () => {
+        const config = load({ BAE_LP_CHAT_URL: 'https://chat.example.org', BAE_LP_THEME: 'dark', BAE_PORTAL__EXTRA__DOME_ABOUT: 'https://about.example.org', BAE_PORTAL__EXTRA__SIOP: '{"enabled":true}' });
+
+        expect(config.portal).toMatchObject({ chatUrl: 'https://chat.example.org', knowledgeBaseUrl: '', ticketingUrl: '', matomoId: '', matomoUrl: '', googleTagManagerId: '', theme: 'dark', extra: { domeAbout: 'https://about.example.org', siop: { enabled: true } } });
+    });
+
+    // TO REMOVE with the variables themselves (see legacy-env.ts)
+    it('still reads the variables of the portal that are not the core\'s into portal.extra, until they are removed', () => {
+        const config = load({
+            BAE_LP_DOME_TRUST: 'https://trust.example.org',
+            BAE_LP_DOME_ABOUT: 'https://about.example.org',
+            BAE_LP_DOME_REGISTER: 'https://register.example.org',
+            BAE_LP_DOME_PUBLISH: 'https://publish.example.org',
+            BAE_LP_LEAR_URL: 'https://lear.example.org',
+            BAE_LP_OAUTH2_ORG_CERTIFIER_ROLE: 'certifier'
+        });
+
+        expect(config.portal.extra).toEqual({
+            domeTrust: 'https://trust.example.org',
+            domeAbout: 'https://about.example.org',
+            domeRegister: 'https://register.example.org',
+            domeRegisterCustomer: 'https://register.example.org',
+            domePublish: 'https://publish.example.org',
+            learUrl: 'https://lear.example.org',
+            roles: { certifier: 'certifier' }
+        });
+        // The addresses that v11 gave by default, when there is no variable
+        expect(load({}).portal.extra).toEqual({
+            domeAbout: 'https://dome-marketplace.eu/about/',
+            domeRegister: 'https://dome-marketplace.github.io/onboarding/',
+            domeRegisterCustomer: 'https://dome-marketplace.github.io/onboarding/',
+            domePublish: 'https://knowledgebase.dome-marketplace.org/shelves/company-onboarding-process'
+        });
+        expect(load({ BAE_LP_DOME_REGISTER: 'https://a', BAE_LP_DOME_REGISTER_CUSTOMER: 'https://b' }).portal.extra).toMatchObject({ domeRegister: 'https://a', domeRegisterCustomer: 'https://b' });
+        // What is set in portal.extra wins over the legacy variable
+        expect(load({ BAE_LP_DOME_ABOUT: 'https://old', BAE_PORTAL__EXTRA__DOME_ABOUT: 'https://new' }).portal.extra).toMatchObject({ domeAbout: 'https://new' });
+    });
+
     it('keeps the figures of the landing page for a day, waits ten minutes after a read that failed, and can change them', () => {
         expect(load({}).stats).toEqual({ ttlMs: 86400000, retryDelayMs: 600000, providerTtlMs: 60000 });
         expect(load({ BAE_STATS__TTL_MS: '3600000' }).stats.ttlMs).toBe(3600000);
