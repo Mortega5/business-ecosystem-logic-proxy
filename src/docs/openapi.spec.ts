@@ -26,6 +26,7 @@ import { FakeFeaturesModule } from '../testing/fake-features';
 import { cartItems, FakeCartModule } from '../testing/fake-cart';
 import { FakeStatsModule } from '../testing/fake-stats';
 import { PaymentModule } from '../payment/payment.module';
+import { FakePortalModule } from '../testing/fake-portal';
 import { CatalogModule } from '../tmf/catalog/catalog.module';
 import { OrderingModule } from '../tmf/ordering/ordering.module';
 import { UsageModule } from '../tmf/usage/usage.module';
@@ -69,7 +70,10 @@ const mongo = { ping: vi.fn<(timeoutMs: number) => Promise<boolean>>() };
                 http: { bodyLimit: '1kb', uploadLimit: '1kb' },
                 party: { editEnabled: true },
                 search: { enabled: false },
-                catalog: { partyLocation: 'https://schemas.example.org/party.json', defaultCatalogId: '' },
+                catalog: { partyLocation: 'https://schemas.example.org/party.json', defaultCatalogId: '', blueprintSchema: 'https://schemas.example.org/blueprint.json', systemCategories: [{ key: 'api', name: 'API', description: 'APIs' }] },
+                quotes: { api: '/quote/quoteManagement' },
+                dsp: {},
+                portal: { chatUrl: '', knowledgeBaseUrl: '', ticketingUrl: '', matomoId: '', matomoUrl: '', googleTagManagerId: '', theme: '', extra: { siop: { enabled: false } } },
                 limits: { orderItems: 50, cartItems: 100, noteLength: 10000, notesPerRequest: 20, nameLength: 100, descriptionLength: 100000, plansPerQuery: 20, providersPerQuery: 50, providerCacheMs: 300000, readAll: { pageSize: 100, maxPages: 100 } },
                 stats: { ttlMs: 86400000, retryDelayMs: 600000, providerTtlMs: 60000 },
                 purchase: { enabled: true, paymentProvider: 'dpas', get paymentGateway() { return `http://127.0.0.1:${tmforum.port}/`; } },
@@ -846,6 +850,7 @@ describe('responses against docs/openapi.yaml', () => {
     const cases: Case[] = [
         { method: 'get', path: '/version', status: '200', arrange: () => undefined },
         ...contactUsCases(),
+        { method: 'get', path: '/config', status: '200', arrange: () => undefined },
         ...statsCases(),
         ...paymentCases(),
         ...cartCases(),
@@ -906,7 +911,7 @@ describe('responses against docs/openapi.yaml', () => {
     beforeAll(async () => {
         await tmforum.start();
 
-        @Module({ imports: [DependenciesStub, FakeFeaturesModule, LoggerModule.forRoot({ pinoHttp: { level: 'silent' } }), HealthModule, VersionModule, ContactUsModule, FakeStatsModule, FakeCartModule, PaymentModule, AuthModule, DocumentModule, RevenueModule, SearchModule, InvoicingModule, QuoteModule, InventoryModule, AccountModule, BillingModule, PartyModule, ResourceModule, ServiceModule, ChargingModule, SoftwareModule, UsageModule, OrderingModule, CatalogModule] })
+        @Module({ imports: [DependenciesStub, FakeFeaturesModule, LoggerModule.forRoot({ pinoHttp: { level: 'silent' } }), HealthModule, VersionModule, ContactUsModule, FakeStatsModule, FakeCartModule, PaymentModule, FakePortalModule, AuthModule, DocumentModule, RevenueModule, SearchModule, InvoicingModule, QuoteModule, InventoryModule, AccountModule, BillingModule, PartyModule, ResourceModule, ServiceModule, ChargingModule, SoftwareModule, UsageModule, OrderingModule, CatalogModule] })
         class Contract {}
 
         app = await createApp(express(), Contract);

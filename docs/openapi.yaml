@@ -17,6 +17,8 @@ tags:
     description: The contact form of the portal.
   - name: stats
     description: The figures of the landing page and the counts of an organisation.
+  - name: config
+    description: The settings that the portal reads when it starts.
   - name: payment
     description: How the party of the caller is paid.
   - name: shopping-cart
@@ -410,6 +412,80 @@ paths:
                 $ref: '#/components/schemas/ErrorResult'
               example:
                 error: The payment gateway could not be reached
+  /config:
+    get:
+      tags: [config]
+      operationId: getPortalConfig
+      summary: The settings that the portal reads when it starts
+      description: |
+        Open to anybody, since the portal reads it before the user has logged in. It has the roles, the links and the settings of the deployment (`portal.*`), the features that are on, the default catalog and the system categories, whether there is a search engine, and the filters of the search that the administrator saved. Whatever the deployment sets in `portal.extra` goes on as it is, with the object `roles` completed by it, and a key that the proxy sets itself is never taken from there. The routes of the administrator under `/config` are not described here yet.
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      responses:
+        '200':
+          description: The settings.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [roles, searchEnabled, quoteApi, defaultId, systemCategories, reservedCatalogNames, searchFilters, blueprintSchema]
+                properties:
+                  roles:
+                    type: object
+                    required: [seller, customer, admin, orgAdmin]
+                    additionalProperties:
+                      type: string
+                  chat:
+                    type: string
+                  knowledgeBaseUrl:
+                    type: string
+                  ticketingUrl:
+                    type: string
+                  matomoId:
+                    type: string
+                  matomoUrl:
+                    type: string
+                  googleTagManagerId:
+                    type: string
+                  theme:
+                    type: string
+                  searchEnabled:
+                    type: boolean
+                  quoteApi:
+                    type: string
+                  defaultId:
+                    type: string
+                  systemCategories:
+                    type: object
+                    additionalProperties:
+                      type: string
+                  reservedCatalogNames:
+                    type: array
+                    items:
+                      type: string
+                  searchFilters:
+                    type: object
+                    additionalProperties: true
+                  blueprintSchema:
+                    type: string
+                  dspContractDefinitionSchema:
+                    type: string
+                additionalProperties: true
+              example:
+                roles: { seller: Seller, customer: Buyer, admin: admin, orgAdmin: orgAdmin }
+                chat: ''
+                theme: ''
+                searchEnabled: false
+                quoteApi: /quote/quoteManagement
+                defaultId: urn:ngsi-ld:catalog:default
+                systemCategories: { api: 'urn:ngsi-ld:category:api' }
+                reservedCatalogNames: [dataset, api, blueprint]
+                searchFilters: { primaryCategoriesMode: catalogFirstLevel, primaryRootName: '', filters: [] }
+                blueprintSchema: https://schemas.example.org/blueprint.json
+                purchaseEnabled: true
   /health/live:
     get:
       tags: [health]
