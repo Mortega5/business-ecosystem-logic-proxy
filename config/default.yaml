@@ -99,6 +99,7 @@ mongo:
 
 limits:
   orderItems: 50
+  cartItems: 100
   noteLength: 10000
   notesPerRequest: 20
   nameLength: 100

@@ -302,7 +302,7 @@ describe('request size configuration', () => {
     });
 
     it('has a default for each limit of what is taken or read at once, that can be changed and has to be a positive number', () => {
-        expect(load({}).limits).toEqual({ orderItems: 50, noteLength: 10000, notesPerRequest: 20, nameLength: 100, descriptionLength: 100000, plansPerQuery: 20, providersPerQuery: 50, providerCacheMs: 300000, readAll: { pageSize: 100, maxPages: 100 } });
+        expect(load({}).limits).toEqual({ orderItems: 50, cartItems: 100, noteLength: 10000, notesPerRequest: 20, nameLength: 100, descriptionLength: 100000, plansPerQuery: 20, providersPerQuery: 50, providerCacheMs: 300000, readAll: { pageSize: 100, maxPages: 100 } });
         expect(load({ BAE_LIMITS__ORDER_ITEMS: '200' }).limits.orderItems).toBe(200);
         expect(load({ BAE_LIMITS__READ_ALL__PAGE_SIZE: '50' }).limits.readAll.pageSize).toBe(50);
         expect(() => load({ BAE_LIMITS__NAME_LENGTH: '0' })).toThrow('limits.nameLength');

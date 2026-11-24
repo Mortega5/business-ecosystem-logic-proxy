@@ -187,6 +187,8 @@ export const ConfigSchema = z.object({
     // service that has to hold it
     limits: z.object({
         orderItems: z.coerce.number().int().positive(),
+        // The items that the shopping cart of a user may hold
+        cartItems: z.coerce.number().int().positive(),
         noteLength: z.coerce.number().int().positive(),
         notesPerRequest: z.coerce.number().int().positive(),
         nameLength: z.coerce.number().int().positive(),
