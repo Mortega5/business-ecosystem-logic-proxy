@@ -302,6 +302,8 @@ describe('authentication configuration', () => {
             oidcKey: 'k'.repeat(16),
             defaultRole: 'Seller'
         });
+        expect(load({ BAE_AUTH__IDP__JWKS_URL: 'https://idp.example.org/jwks' }).auth.idp.jwksUrl).toBe('https://idp.example.org/jwks');
+        expect(() => load({ BAE_AUTH__IDP__JWKS_URL: 'not a url' })).toThrow(/jwksUrl/);
         expect(() => load({ BAE_LP_OIDC_KEY: 'short' })).toThrow(/oidcKey/);
         expect(() => load({ BAE_LP_OAUTH2_PROVIDER: 'unknown' })).toThrow(/provider/);
     });

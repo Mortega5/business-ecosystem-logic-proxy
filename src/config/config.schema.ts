@@ -153,6 +153,8 @@ export const ConfigSchema = z.object({
             clientSecret: z.string().min(1).optional(),
             callbackUrl: z.string().min(1).optional(),
             realm: z.string().min(1).optional(),
+            // Public keys of the identity provider, to check the tokens that are presented without a login
+            jwksUrl: z.url().optional(),
             // fiware and aimarket: the token is a JWT signed with the key (OIDC mode) or it is asked to the identity manager
             oidcEnabled: booleanLike,
             oidcKey: z.string().min(16).optional(),
