@@ -27,6 +27,20 @@ export class FeatureFlagService {
         return { ...(await this.flags()) };
     }
 
+    /**
+     * Saves what an administrator changes, by the names that the database and the portal know, over the overrides that are saved, and gives
+     * the flags that are in force. Unlike a read, a database that fails is an error: the change was not made.
+     */
+    async update(changes: Record<string, boolean>): Promise<Record<string, boolean>> {
+        const features = (await this.documents.findById(FEATURE_FLAGS_DOCUMENT_ID))?.features;
+        const saved = typeof features === 'object' && features !== null && !Array.isArray(features) ? (features as Record<string, unknown>) : {};
+        const kept = Object.fromEntries(Object.entries(saved).filter(([, value]) => typeof value === 'boolean'));
+        await this.documents.upsert(FEATURE_FLAGS_DOCUMENT_ID, { features: { ...kept, ...changes } });
+        this.cached = undefined;
+        const flags = await this.flags();
+        return Object.fromEntries(FEATURE_NAMES.map((feature) => [definitionOf(feature).dbName, flags[feature]]));
+    }
+
     private async flags(): Promise<Flags> {
         if (this.cached !== undefined && this.cached.expiresAt > Date.now()) {
             return this.cached.flags;
