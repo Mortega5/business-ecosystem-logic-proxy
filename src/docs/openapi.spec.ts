@@ -25,6 +25,7 @@ import { SoftwareModule } from '../tmf/software/software.module';
 import { FakeFeaturesModule } from '../testing/fake-features';
 import { cartItems, FakeCartModule } from '../testing/fake-cart';
 import { FakeStatsModule } from '../testing/fake-stats';
+import { PaymentModule } from '../payment/payment.module';
 import { CatalogModule } from '../tmf/catalog/catalog.module';
 import { OrderingModule } from '../tmf/ordering/ordering.module';
 import { UsageModule } from '../tmf/usage/usage.module';
@@ -70,6 +71,8 @@ const mongo = { ping: vi.fn<(timeoutMs: number) => Promise<boolean>>() };
                 search: { enabled: false },
                 catalog: { partyLocation: 'https://schemas.example.org/party.json', defaultCatalogId: '' },
                 limits: { orderItems: 50, cartItems: 100, noteLength: 10000, notesPerRequest: 20, nameLength: 100, descriptionLength: 100000, plansPerQuery: 20, providersPerQuery: 50, providerCacheMs: 300000, readAll: { pageSize: 100, maxPages: 100 } },
+                stats: { ttlMs: 86400000, retryDelayMs: 600000, providerTtlMs: 60000 },
+                purchase: { enabled: true, paymentProvider: 'dpas', get paymentGateway() { return `http://127.0.0.1:${tmforum.port}/`; } },
                 auth: { propagateToken: true, allowLocalEori: false, roles: { admin: 'admin', customer: 'Buyer', seller: 'Seller', orgAdmin: 'orgAdmin' } },
                 hasUpstream: () => false,
                 upstream: (name: string) => ({ baseUrl: `http://127.0.0.1:${tmforum.port}/${name}`, timeoutMs: 300 })
@@ -795,6 +798,20 @@ describe('responses against docs/openapi.yaml', () => {
             refused('patch', id, '502', `${base}/p-1`, '{"description":"x"}', 'not json', AS_SELLER)
         ];
     };
+    const paymentCases = (): Case[] => {
+        const path = '/paymentInfo';
+        return [
+            {
+                method: 'get',
+                path,
+                status: '200',
+                headers: LOGGED_IN,
+                arrange: () => tmforum.answer((res) => (tmforum.seen?.url?.includes('/count') === true ? void res.end('2') : tmforum.json(res, 200, '"token"')))
+            },
+            { method: 'get', path, status: '401', arrange: () => undefined },
+            { method: 'get', path, status: '502', headers: LOGGED_IN, arrange: () => tmforum.answer((res) => tmforum.json(res, 500, '{}')) }
+        ];
+    };
     const cartCases = (): Case[] => {
         const items = '/shoppingCart/item';
         const own = { ...LOGGED_IN, ...json };
@@ -830,6 +847,7 @@ describe('responses against docs/openapi.yaml', () => {
         { method: 'get', path: '/version', status: '200', arrange: () => undefined },
         ...contactUsCases(),
         ...statsCases(),
+        ...paymentCases(),
         ...cartCases(),
         { method: 'get', path: '/health/live', status: '200', arrange: () => mongo.ping.mockResolvedValue(false) },
         { method: 'get', path: '/health/ready', status: '200', arrange: () => mongo.ping.mockResolvedValue(true) },
@@ -888,7 +906,7 @@ describe('responses against docs/openapi.yaml', () => {
     beforeAll(async () => {
         await tmforum.start();
 
-        @Module({ imports: [DependenciesStub, FakeFeaturesModule, LoggerModule.forRoot({ pinoHttp: { level: 'silent' } }), HealthModule, VersionModule, ContactUsModule, FakeStatsModule, FakeCartModule, AuthModule, DocumentModule, RevenueModule, SearchModule, InvoicingModule, QuoteModule, InventoryModule, AccountModule, BillingModule, PartyModule, ResourceModule, ServiceModule, ChargingModule, SoftwareModule, UsageModule, OrderingModule, CatalogModule] })
+        @Module({ imports: [DependenciesStub, FakeFeaturesModule, LoggerModule.forRoot({ pinoHttp: { level: 'silent' } }), HealthModule, VersionModule, ContactUsModule, FakeStatsModule, FakeCartModule, PaymentModule, AuthModule, DocumentModule, RevenueModule, SearchModule, InvoicingModule, QuoteModule, InventoryModule, AccountModule, BillingModule, PartyModule, ResourceModule, ServiceModule, ChargingModule, SoftwareModule, UsageModule, OrderingModule, CatalogModule] })
         class Contract {}
 
         app = await createApp(express(), Contract);

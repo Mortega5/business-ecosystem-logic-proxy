@@ -17,6 +17,8 @@ tags:
     description: The contact form of the portal.
   - name: stats
     description: The figures of the landing page and the counts of an organisation.
+  - name: payment
+    description: How the party of the caller is paid.
   - name: shopping-cart
     description: The shopping cart of the caller.
   - name: document
@@ -367,6 +369,47 @@ paths:
               $ref: '#/components/headers/RequestId'
         '401':
           $ref: '#/components/responses/NotAuthenticated'
+  /paymentInfo:
+    get:
+      tags: [payment]
+      operationId: getPaymentInfo
+      summary: How the party of the caller is paid
+      description: |
+        For who is logged in. With the DPAS payment gateway (`purchase.paymentProvider`) it asks the gateway how many payment gateways the party has, and for the address where the party manages them, which carries a token of the party when the gateway gives one and the id of the party when it does not; it answers 403 when the user has no party. With any other provider there is one gateway and no address.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      responses:
+        '200':
+          description: The payment gateways of the party.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [gatewaysCount, providerUrl]
+                properties:
+                  gatewaysCount:
+                    type: integer
+                  providerUrl:
+                    type: string
+                    nullable: true
+              example:
+                gatewaysCount: 2
+                providerUrl: https://pay.example.org/provider-admin/#/login?productProviderToken=abc
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '502':
+          description: The payment gateway did not answer, or did not answer a count.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: The payment gateway could not be reached
   /health/live:
     get:
       tags: [health]
