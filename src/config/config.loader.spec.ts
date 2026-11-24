@@ -276,7 +276,7 @@ describe('authentication configuration', () => {
             roles: { admin: 'admin', customer: 'Buyer', seller: 'Seller', orgAdmin: 'orgAdmin' },
             replacedTokenGraceMs: 30000,
             idpTimeoutMs: 10000,
-            idp: { provider: 'fiware' },
+            idp: { provider: 'fiware', oidcEnabled: true },
             profileTtlMs: 7200000,
             refreshMarginSeconds: 5,
             defaultTokenLifetimeSeconds: 1800,
@@ -284,10 +284,8 @@ describe('authentication configuration', () => {
         });
     });
 
-    it('reads the main identity provider from the variables of v11, and keycloak asks for all of its settings', () => {
-        expect(load({ BAE_LP_OAUTH2_PROVIDER: 'github', BAE_LP_OAUTH2_CLIENT_ID: 'id' }).auth.idp).toEqual({ provider: 'github', clientId: 'id' });
-        expect(() => load({ BAE_LP_OAUTH2_PROVIDER: 'keycloak', BAE_LP_OAUTH2_SERVER: 'https://kc.example.org' })).toThrow(/auth\.idp\.clientId/);
-
+    it('reads the main identity provider from the variables of v11', () => {
+        expect(load({ BAE_LP_OAUTH2_PROVIDER: 'github', BAE_LP_OAUTH2_CLIENT_ID: 'id' }).auth.idp).toEqual({ provider: 'github', clientId: 'id', oidcEnabled: true });
         expect(
             load({
                 BAE_LP_OAUTH2_PROVIDER: 'keycloak',
@@ -298,6 +296,13 @@ describe('authentication configuration', () => {
                 BAE_LP_OIDC_REALM: 'dome'
             }).auth.idp
         ).toMatchObject({ provider: 'keycloak', realm: 'dome', clientId: 'bae' });
+        expect(load({ BAE_LP_OIDC_KEY: 'k'.repeat(16), BAE_LP_OIDC_ENABLED: 'false', BAE_LP_OAUTH2_DEFAULT_ROLE: 'Seller' }).auth.idp).toEqual({
+            provider: 'fiware',
+            oidcEnabled: false,
+            oidcKey: 'k'.repeat(16),
+            defaultRole: 'Seller'
+        });
+        expect(() => load({ BAE_LP_OIDC_KEY: 'short' })).toThrow(/oidcKey/);
         expect(() => load({ BAE_LP_OAUTH2_PROVIDER: 'unknown' })).toThrow(/provider/);
     });
 

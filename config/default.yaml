@@ -46,6 +46,7 @@ auth:
   idpTimeoutMs: 10000
   idp:
     provider: fiware
+    oidcEnabled: true
   store:
     type: memory
     memoryMaxEntries: 1000

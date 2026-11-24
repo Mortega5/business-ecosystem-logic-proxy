@@ -145,26 +145,20 @@ export const ConfigSchema = z.object({
         defaultTokenLifetimeSeconds: z.coerce.number().int().positive(),
         // How long a call to the identity provider (user info, refresh) may take
         idpTimeoutMs: z.coerce.number().int().positive(),
-        // The main identity provider, the one called `local`. Each provider asks for its own settings
-        idp: z
-            .object({
-                provider: z.enum(['fiware', 'keycloak', 'github', 'i4trust', 'oidc-discover', 'aimarket']),
-                server: z.string().min(1).optional(),
-                clientId: z.string().min(1).optional(),
-                clientSecret: z.string().min(1).optional(),
-                callbackUrl: z.string().min(1).optional(),
-                realm: z.string().min(1).optional()
-            })
-            .superRefine((idp, context) => {
-                const required: Record<string, (keyof typeof idp)[]> = {
-                    keycloak: ['server', 'clientId', 'clientSecret', 'callbackUrl', 'realm']
-                };
-                for (const key of required[idp.provider] ?? []) {
-                    if (idp[key] === undefined) {
-                        context.addIssue({ code: 'custom', path: [key], message: `is required when auth.idp.provider is ${idp.provider}` });
-                    }
-                }
-            }),
+        // The main identity provider, the one called `local`. What each provider needs is checked when it is built, at start-up
+        idp: z.object({
+            provider: z.enum(['fiware', 'keycloak', 'github', 'i4trust', 'oidc-discover', 'aimarket']),
+            server: z.string().min(1).optional(),
+            clientId: z.string().min(1).optional(),
+            clientSecret: z.string().min(1).optional(),
+            callbackUrl: z.string().min(1).optional(),
+            realm: z.string().min(1).optional(),
+            // fiware and aimarket: the token is a JWT signed with the key (OIDC mode) or it is asked to the identity manager
+            oidcEnabled: booleanLike,
+            oidcKey: z.string().min(16).optional(),
+            // Role of a user that arrives without roles
+            defaultRole: z.string().min(1).optional()
+        }),
         // Where the profile of each token is kept: in the process, or in MongoDB so that every instance shares it. The profile
         // holds refresh tokens, so in MongoDB it is sealed with the key, which has to be a random string of its own
         store: z

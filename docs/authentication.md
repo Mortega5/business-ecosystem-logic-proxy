@@ -58,6 +58,13 @@ Profile: `username` and `displayName` from the IdM answer (the display name fall
 `organizations` come as the IdM returns them; `BAE_LP_OAUTH2_DEFAULT_ROLE` is applied when there are no roles. The
 expiry is the `exp` of the token if there is one. It refreshes with the `refresh_token` grant.
 
+In v12 the two modes work like this. With `BAE_LP_OIDC_ENABLED=true` (the default) the access token is a JWT that is checked
+here with `BAE_LP_OIDC_KEY`, only with the HMAC algorithms and without asking the IdM; the key is required, **there is no
+default key** (v11 has a fixed one for development, which a deployment that forgets the variable would inherit). With `BAE_LP_OIDC_ENABLED=false` the IdM is asked at `<server>/user?access_token=<token>`; the token goes in the URL
+because the IdM takes it there, so the access log of the IdM holds it. The refresh sends the client credentials both in the
+`Authorization: Basic` header and in the body, as v11 did, and takes the expiry from `expires_in`. A user the IdM gives no
+`username` is named after the display name, or the id.
+
 ### `keycloak`
 
 OAuth2/OIDC with `passport-keycloak-oauth2-oidc`.
