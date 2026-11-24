@@ -5,6 +5,7 @@ import { FiwareProvider } from './fiware-provider';
 import { GithubProvider } from './github-provider';
 import { createIdentityProvider, type ProviderDependencies } from './identity-provider-factory';
 import { KeycloakProvider } from './keycloak-provider';
+import { OidcDiscoverProvider } from './oidc-discover-provider';
 
 type Idp = AppConfig['auth']['idp'];
 
@@ -17,44 +18,52 @@ const complete = { server: 'https://idp.example.org', clientId: 'bae', clientSec
 
 describe('createIdentityProvider', () => {
     it('builds keycloak, and names every setting that is missing', () => {
-        expect(createIdentityProvider({ provider: 'keycloak', oidcEnabled: true, ...complete, realm: 'dome' }, dependencies)).toBeInstanceOf(KeycloakProvider);
+        expect(createIdentityProvider({ provider: 'keycloak', oidcEnabled: true, tokenAuthMethod: 'client_secret_basic', ...complete, realm: 'dome' }, dependencies)).toBeInstanceOf(KeycloakProvider);
 
-        expect(() => createIdentityProvider({ provider: 'keycloak', oidcEnabled: true, server: complete.server }, dependencies)).toThrow(
+        expect(() => createIdentityProvider({ provider: 'keycloak', oidcEnabled: true, tokenAuthMethod: 'client_secret_basic', server: complete.server }, dependencies)).toThrow(
             'auth.idp.clientId, auth.idp.clientSecret, auth.idp.callbackUrl, auth.idp.realm required when auth.idp.provider is keycloak'
         );
     });
 
     it('builds fiware with the key of its tokens, and does not start without it, as no key is a known key', () => {
-        const idp: Idp = { provider: 'fiware', oidcEnabled: true, ...complete };
+        const idp: Idp = { provider: 'fiware', oidcEnabled: true, tokenAuthMethod: 'client_secret_basic', ...complete };
 
         expect(() => createIdentityProvider(idp, dependencies)).toThrow('auth.idp.oidcKey required when auth.idp.provider is fiware');
         expect(createIdentityProvider({ ...idp, oidcKey: 'k'.repeat(16) }, dependencies)).toBeInstanceOf(FiwareProvider);
     });
 
     it('needs no key when fiware is asked for the user instead of reading the token', () => {
-        expect(createIdentityProvider({ provider: 'fiware', oidcEnabled: false, ...complete }, dependencies)).toBeInstanceOf(FiwareProvider);
+        expect(createIdentityProvider({ provider: 'fiware', oidcEnabled: false, tokenAuthMethod: 'client_secret_basic', ...complete }, dependencies)).toBeInstanceOf(FiwareProvider);
     });
 
     it('builds aimarket with the settings of fiware, key included', () => {
-        const idp: Idp = { provider: 'aimarket', oidcEnabled: true, ...complete };
+        const idp: Idp = { provider: 'aimarket', oidcEnabled: true, tokenAuthMethod: 'client_secret_basic', ...complete };
 
         expect(() => createIdentityProvider(idp, dependencies)).toThrow('auth.idp.oidcKey required when auth.idp.provider is aimarket');
         expect(createIdentityProvider({ ...idp, oidcKey: 'k'.repeat(16) }, dependencies)).toBeInstanceOf(AimarketProvider);
     });
 
     it('gives the provider the id it is registered under', () => {
-        expect(createIdentityProvider({ provider: 'fiware', oidcEnabled: false, ...complete }, dependencies).id).toBe('local');
-        expect(createIdentityProvider({ provider: 'fiware', oidcEnabled: false, ...complete }, dependencies, 'other').id).toBe('other');
+        expect(createIdentityProvider({ provider: 'fiware', oidcEnabled: false, tokenAuthMethod: 'client_secret_basic', ...complete }, dependencies).id).toBe('local');
+        expect(createIdentityProvider({ provider: 'fiware', oidcEnabled: false, tokenAuthMethod: 'client_secret_basic', ...complete }, dependencies, 'other').id).toBe('other');
     });
 
     it('builds github, which needs the credentials of its application', () => {
-        expect(createIdentityProvider({ provider: 'github', oidcEnabled: true, ...complete }, dependencies)).toBeInstanceOf(GithubProvider);
-        expect(() => createIdentityProvider({ provider: 'github', oidcEnabled: true }, dependencies)).toThrow(
+        expect(createIdentityProvider({ provider: 'github', oidcEnabled: true, tokenAuthMethod: 'client_secret_basic', ...complete }, dependencies)).toBeInstanceOf(GithubProvider);
+        expect(() => createIdentityProvider({ provider: 'github', oidcEnabled: true, tokenAuthMethod: 'client_secret_basic' }, dependencies)).toThrow(
             'auth.idp.clientId, auth.idp.clientSecret, auth.idp.callbackUrl required when auth.idp.provider is github'
         );
     });
 
+    it('builds oidc-discover from an issuer or from a discovery URL, and from neither it does not start', () => {
+        const idp: Idp = { provider: 'oidc-discover', oidcEnabled: true, tokenAuthMethod: 'client_secret_basic', clientId: 'bae', clientSecret: 's', callbackUrl: 'https://bae.example.org/cb' };
+
+        expect(createIdentityProvider({ ...idp, server: 'https://idp.example.org' }, dependencies)).toBeInstanceOf(OidcDiscoverProvider);
+        expect(createIdentityProvider({ ...idp, discoveryUrl: 'https://idp.example.org/.well-known/openid-configuration' }, dependencies)).toBeInstanceOf(OidcDiscoverProvider);
+        expect(() => createIdentityProvider(idp, dependencies)).toThrow('auth.idp.server or auth.idp.discoveryUrl required');
+    });
+
     it('says so when the provider is not ported yet', () => {
-        expect(() => createIdentityProvider({ provider: 'i4trust', oidcEnabled: true, ...complete }, dependencies)).toThrow('not available yet');
+        expect(() => createIdentityProvider({ provider: 'i4trust', oidcEnabled: true, tokenAuthMethod: 'client_secret_basic', ...complete }, dependencies)).toThrow('not available yet');
     });
 });

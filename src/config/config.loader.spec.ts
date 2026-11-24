@@ -276,7 +276,7 @@ describe('authentication configuration', () => {
             roles: { admin: 'admin', customer: 'Buyer', seller: 'Seller', orgAdmin: 'orgAdmin' },
             replacedTokenGraceMs: 30000,
             idpTimeoutMs: 10000,
-            idp: { provider: 'fiware', oidcEnabled: true },
+            idp: { provider: 'fiware', oidcEnabled: true, tokenAuthMethod: 'client_secret_basic' },
             profileTtlMs: 7200000,
             refreshMarginSeconds: 5,
             defaultTokenLifetimeSeconds: 1800,
@@ -285,7 +285,7 @@ describe('authentication configuration', () => {
     });
 
     it('reads the main identity provider from the variables of v11', () => {
-        expect(load({ BAE_LP_OAUTH2_PROVIDER: 'github', BAE_LP_OAUTH2_CLIENT_ID: 'id' }).auth.idp).toEqual({ provider: 'github', clientId: 'id', oidcEnabled: true });
+        expect(load({ BAE_LP_OAUTH2_PROVIDER: 'github', BAE_LP_OAUTH2_CLIENT_ID: 'id' }).auth.idp).toEqual({ provider: 'github', clientId: 'id', oidcEnabled: true, tokenAuthMethod: 'client_secret_basic' });
         expect(
             load({
                 BAE_LP_OAUTH2_PROVIDER: 'keycloak',
@@ -299,11 +299,16 @@ describe('authentication configuration', () => {
         expect(load({ BAE_LP_OIDC_KEY: 'k'.repeat(16), BAE_LP_OIDC_ENABLED: 'false', BAE_LP_OAUTH2_DEFAULT_ROLE: 'Seller' }).auth.idp).toEqual({
             provider: 'fiware',
             oidcEnabled: false,
+            tokenAuthMethod: 'client_secret_basic',
             oidcKey: 'k'.repeat(16),
             defaultRole: 'Seller'
         });
         expect(load({ BAE_AUTH__IDP__JWKS_URL: 'https://idp.example.org/jwks' }).auth.idp.jwksUrl).toBe('https://idp.example.org/jwks');
         expect(() => load({ BAE_AUTH__IDP__JWKS_URL: 'not a url' })).toThrow(/jwksUrl/);
+        expect(
+            load({ BAE_LP_OIDC_DISCOVERY_URI: 'https://idp.example.org/.well-known/openid-configuration', BAE_LP_OIDC_TOKEN_AUTH_METHOD: 'client_secret_post', BAE_AUTH__IDP__AUDIENCE: 'bae' }).auth.idp
+        ).toMatchObject({ discoveryUrl: 'https://idp.example.org/.well-known/openid-configuration', tokenAuthMethod: 'client_secret_post', audience: 'bae' });
+        expect(() => load({ BAE_LP_OIDC_TOKEN_AUTH_METHOD: 'private_key_jwt' })).toThrow(/tokenAuthMethod/);
         expect(() => load({ BAE_LP_OIDC_KEY: 'short' })).toThrow(/oidcKey/);
         expect(() => load({ BAE_LP_OAUTH2_PROVIDER: 'unknown' })).toThrow(/provider/);
     });

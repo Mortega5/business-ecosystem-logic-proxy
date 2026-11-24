@@ -5,6 +5,7 @@ import { GithubProvider } from './github-provider';
 import type { IdentityProvider } from './identity-provider';
 import type { Fetcher } from './idp-http';
 import { KeycloakProvider } from './keycloak-provider';
+import { OidcDiscoverProvider } from './oidc-discover-provider';
 
 type IdpSettings = AppConfig['auth']['idp'];
 
@@ -60,6 +61,23 @@ export const createIdentityProvider = (idp: IdpSettings, dependencies: ProviderD
         case 'github': {
             required(idp, ['clientId', 'clientSecret', 'callbackUrl']);
             return new GithubProvider({ ...common, sellerRole: dependencies.roles.seller });
+        }
+        case 'oidc-discover': {
+            const settings = required(idp, ['clientId', 'clientSecret', 'callbackUrl']);
+            if (idp.server === undefined && idp.discoveryUrl === undefined) {
+                throw new Error('auth.idp.server or auth.idp.discoveryUrl required when auth.idp.provider is oidc-discover');
+            }
+            return new OidcDiscoverProvider({
+                ...common,
+                clientId: settings.clientId,
+                clientSecret: settings.clientSecret,
+                tokenAuthMethod: idp.tokenAuthMethod,
+                sellerRole: dependencies.roles.seller,
+                ...(idp.server === undefined ? {} : { issuerUrl: idp.server }),
+                ...(idp.discoveryUrl === undefined ? {} : { discoveryUrl: idp.discoveryUrl }),
+                ...(idp.defaultRole === undefined ? {} : { defaultRole: idp.defaultRole }),
+                ...(idp.audience === undefined ? {} : { audience: idp.audience })
+            });
         }
         default:
             throw new Error(`auth.idp.provider ${idp.provider} is not available yet`);

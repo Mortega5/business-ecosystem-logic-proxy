@@ -47,6 +47,7 @@ auth:
   idp:
     provider: fiware
     oidcEnabled: true
+    tokenAuthMethod: client_secret_basic
   store:
     type: memory
     memoryMaxEntries: 1000

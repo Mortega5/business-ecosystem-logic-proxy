@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
-import type { IdentityClaims, ProfileOrganization, ProfileRole } from '../profile/user-profile';
+import type { IdentityClaims } from '../profile/user-profile';
 import type { IdentityProvider, IdentityTokens } from './identity-provider';
+import { organizationsOf, rolesOf, text } from './claim-readers';
 import { IdpError, requestJson, tokensOf, type Fetcher } from './idp-http';
 
 export interface FiwareOptions {
@@ -18,23 +19,6 @@ export interface FiwareOptions {
 }
 
 type Json = Record<string, unknown>;
-
-const text = (value: unknown): string | undefined => (typeof value === 'string' && value !== '' ? value : undefined);
-
-const rolesOf = (value: unknown): ProfileRole[] =>
-    (Array.isArray(value) ? value : []).flatMap((role: unknown) => {
-        const name = typeof role === 'object' && role !== null ? text((role as Json)['name']) : undefined;
-        const id = typeof role === 'object' && role !== null ? text((role as Json)['id']) : undefined;
-        return name === undefined ? [] : [{ id: id ?? name, name }];
-    });
-
-const organizationsOf = (value: unknown): ProfileOrganization[] =>
-    (Array.isArray(value) ? value : []).flatMap((entry: unknown) => {
-        const org = typeof entry === 'object' && entry !== null ? (entry as Json) : {};
-        const id = text(org['id']);
-        const country = text(org['country']);
-        return id === undefined ? [] : [{ id, name: text(org['name']) ?? id, roles: rolesOf(org['roles']), ...(country === undefined ? {} : { country }) }];
-    });
 
 /**
  * FIWARE identity manager. In OIDC mode the access token is a JWT signed with the key of the manager and is checked here, with no

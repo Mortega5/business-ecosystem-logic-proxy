@@ -30,7 +30,7 @@ const VALUE: AppConfig = {
         roles: { admin: 'admin', customer: 'Buyer', seller: 'Seller', orgAdmin: 'orgAdmin' },
         replacedTokenGraceMs: 30000,
         idpTimeoutMs: 10000,
-        idp: { provider: 'fiware', oidcEnabled: true },
+        idp: { provider: 'fiware', oidcEnabled: true, tokenAuthMethod: 'client_secret_basic' },
         profileTtlMs: 7200000,
         refreshMarginSeconds: 5,
         defaultTokenLifetimeSeconds: 1800,

@@ -153,6 +153,11 @@ export const ConfigSchema = z.object({
             clientSecret: z.string().min(1).optional(),
             callbackUrl: z.string().min(1).optional(),
             realm: z.string().min(1).optional(),
+            // oidc-discover: the discovery document when it is not at the issuer, how the client authenticates, and the audience
+            // that a token presented without a login must be meant for (not checked when it is not set)
+            discoveryUrl: z.url().optional(),
+            tokenAuthMethod: z.enum(['client_secret_basic', 'client_secret_post']),
+            audience: z.string().min(1).optional(),
             // Public keys of the identity provider, to check the tokens that are presented without a login
             jwksUrl: z.url().optional(),
             // fiware and aimarket: the token is a JWT signed with the key (OIDC mode) or it is asked to the identity manager
