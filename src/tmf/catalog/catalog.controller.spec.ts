@@ -86,6 +86,8 @@ beforeEach(() => {
             reply = request?.method === 'POST' ? written : target.searchParams.has('name') ? same : { status: 200, body: '[]' };
         } else if (target.pathname.startsWith(`${CATALOG}/category/`)) {
             reply = request?.method === 'PATCH' ? written : stored[id] === undefined ? reply : { status: 200, body: JSON.stringify(stored[id]) };
+        } else if (target.pathname === `${CATALOG}/catalog`) {
+            reply = same;
         } else if (target.pathname.startsWith(`${CATALOG}/catalog/`)) {
             reply = request?.method === 'PATCH' ? catalogWrite : stored[id] === undefined ? reply : { status: 200, body: JSON.stringify(stored[id]) };
         }
@@ -254,6 +256,59 @@ describe('PATCH /catalog/category/:id', () => {
 
         expect(res.status).toBe(502);
         expect(((await res.json()) as { error: string }).error).toBe('The category c-1 was changed and could not be removed from the default catalog');
+    });
+});
+
+describe('PATCH /admin/catalog/catalog/:id', () => {
+    const edit = (id: string, body: object | string, headers: Record<string, string> = admin()) => call(`/admin/catalog/catalog/${id}`, { method: 'PATCH', headers, body: typeof body === 'string' ? body : JSON.stringify(body) });
+
+    it('changes the name and the description of the default catalog, which has no owner, and sends nothing else', async () => {
+        const res = await edit('cat-default', { name: 'Marketplace', description: 'All of it' });
+
+        expect(res.status).toBe(200);
+        expect(bodyOf(sentTo('PATCH', '/catalog/cat-default'))).toEqual({ name: 'Marketplace', description: 'All of it' });
+        expect(writes()).toEqual(['PATCH /catalog/cat-default']);
+    });
+
+    it('is for an administrator', async () => {
+        expect((await edit('cat-default', { name: 'x' }, { ...LOGGED_IN, ...JSON_HEADERS })).status).toBe(403);
+        expect((await edit('cat-default', { name: 'x' }, JSON_HEADERS)).status).toBe(401);
+        expect(seen).toEqual([]);
+    });
+
+    it('changes only the name and the description', async () => {
+        for (const body of [{}, { lifecycleStatus: 'Retired' }, { name: 'x', catalogType: 'default' }, { relatedParty: [] }, { category: [] }]) {
+            expect((await edit('cat-default', body)).status, JSON.stringify(body)).toBe(400);
+        }
+        expect(seen).toEqual([]);
+    });
+
+    it('refuses a name that is taken by another catalog, one that is reserved to a system category and one with characters that are not allowed', async () => {
+        same = { status: 200, body: JSON.stringify([{ id: 'cat-other' }]) };
+        expect((await edit('cat-default', { name: 'Taken' })).status).toBe(409);
+        same = { status: 200, body: '[]' };
+        expect((await edit('cat-default', { name: ' api ' })).status).toBe(409);
+        expect((await edit('cat-default', { name: 'a<b' })).status).toBe(400);
+        expect(writes()).toEqual([]);
+    });
+
+    it('keeps the name that it has, and refuses sizes that are too big and ids that are not ids', async () => {
+        same = { status: 200, body: JSON.stringify([{ id: 'cat-default' }]) };
+        expect((await edit('cat-default', { name: 'default' })).status).toBe(200);
+        expect((await edit('cat-default', { name: 'x'.repeat(101) })).status).toBe(422);
+        expect((await edit('a%20b', { name: 'x' })).status).toBe(400);
+    });
+
+    it('says the catalog is not there, and that it could not be read', async () => {
+        expect((await edit('cat-missing', { name: 'x' })).status).toBe(404);
+        stored['cat-broken'] = { id: 'cat-broken' };
+        const broken = upstream;
+        broken.answer((res) => broken.json(res, 500, '{}'));
+        expect((await edit('cat-broken', { name: 'x' })).status).toBe(502);
+    });
+
+    it('leaves the other routes under /admin to the legacy application', async () => {
+        expect((await call('/admin/catalog/catalog', { method: 'POST', headers: admin(), body: '{}' })).status).toBe(404);
     });
 });
 

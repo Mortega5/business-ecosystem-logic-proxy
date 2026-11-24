@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import express from 'express';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, onTestFinished } from 'vitest';
 import { AuthModule } from '../../auth/auth.module';
 import { createApp } from '../../bootstrap';
 import { AppConfigModule } from '../../config/app-config.module';
@@ -10,6 +10,7 @@ import { LoggingModule } from '../../logging/logging.module';
 import { AS_SELLER, fakeLogin, LOGGED_IN } from '../../testing/fake-login';
 import { FakeFeaturesModule } from '../../testing/fake-features';
 import { FakeUpstream } from '../../testing/fake-upstream';
+import { CatalogDefaults } from './catalog-defaults';
 import { CatalogModule } from './catalog.module';
 
 const upstream = new FakeUpstream();
@@ -186,6 +187,27 @@ describe('changing a catalog', () => {
         expect(writes()).toEqual([]);
         offerings = { status: 200, body: JSON.stringify([{ id: 'o-1', lifecycleStatus: 'Retired' }]) };
         expect((await send('PATCH', '/catalog/catalog/cat-1', AS_SELLER, { lifecycleStatus: 'Retired' })).status).toBe(201);
+    });
+});
+
+describe('what the platform keeps', () => {
+    it('does not give a catalog the name of a system category, nor the catalog type of the default one', async () => {
+        expect((await send('POST', '/catalog/catalog', AS_SELLER, make({ name: ' Dataset ' }))).status).toBe(409);
+        expect((await send('POST', '/catalog/catalog', AS_SELLER, make({ catalogType: 'Default' }))).status).toBe(403);
+        expect((await send('PATCH', '/catalog/catalog/cat-1', AS_SELLER, { name: 'API' })).status).toBe(409);
+        expect((await send('PATCH', '/catalog/catalog/cat-1', AS_SELLER, { catalogType: 'default' })).status).toBe(403);
+        expect(writes()).toEqual([]);
+    });
+
+    it('does not take the default catalog out, even for its owner', async () => {
+        const defaults = app.get(CatalogDefaults);
+        defaults.set('cat-1', {});
+        onTestFinished(() => defaults.set('', {}));
+
+        expect((await send('DELETE', '/catalog/catalog/cat-1', AS_SELLER)).status).toBe(403);
+        expect((await send('PATCH', '/catalog/catalog/cat-1', AS_SELLER, { lifecycleStatus: 'Retired' })).status).toBe(403);
+        expect((await send('PATCH', '/catalog/catalog/cat-1', AS_SELLER, { catalogType: 'other' })).status).toBe(403);
+        expect(writes()).toEqual([]);
     });
 });
 

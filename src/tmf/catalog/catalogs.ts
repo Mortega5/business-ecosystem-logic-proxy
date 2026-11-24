@@ -1,14 +1,17 @@
 import { Injectable } from '@nestjs/common';
-import type { Request } from 'express';
-import { BadGatewayError, DomainError } from '../../common/domain-error';
+import type { Request, Response } from 'express';
+import { BadGatewayError, DomainError, ForbiddenError, NotFoundError } from '../../common/domain-error';
 import { AppConfigService } from '../../config/app-config.service';
 import { AS_JSON } from '../http-options';
 import { OwnedResources } from '../owned-resources';
 import { isRecord } from '../related-party';
 import { SellerParties } from '../seller-parties';
 import { parseJson, Specifications, type SpecificationApi, type Undo } from '../specification/specifications';
+import { validateNameAndDescription } from '../specification/specification-rules';
 import { TmfProxy } from '../tmf-proxy';
 import type { UpstreamUser } from '../upstream-headers';
+import { CatalogDefaults } from './catalog-defaults';
+import { DEFAULT_CATALOG_TYPE, systemEntityViolation } from './category-rules';
 
 // What a catalog name cannot have; it goes to the search of the portal and to the queries of the API
 const INVALID_NAME = /[<>%'"|]/;
@@ -39,11 +42,64 @@ const categoryIds = (catalog: Record<string, unknown>): string[] =>
  */
 @Injectable()
 export class Catalogs extends Specifications {
-    constructor(proxy: TmfProxy, owned: OwnedResources, config: AppConfigService, sellers: SellerParties) {
+    constructor(proxy: TmfProxy, owned: OwnedResources, config: AppConfigService, sellers: SellerParties, private readonly defaults: CatalogDefaults) {
         super(proxy, owned, config, sellers, CATALOG);
     }
 
+    /**
+     * The name and the description of a catalog, changed by an administrator, who needs not be the owner: it is how the default catalog,
+     * which has no owner, is edited. What the platform keeps and the names that are reserved are protected as for anybody else.
+     */
+    async updateAsAdministrator(req: Request, res: Response, id: string, body: string): Promise<void> {
+        const changes = JSON.parse(body) as Record<string, unknown>;
+        if (Object.keys(changes).length === 0 || Object.keys(changes).some((field) => field !== 'name' && field !== 'description')) {
+            throw new DomainError('Only the name and the description of a catalog can be changed here', 400);
+        }
+        const read = await this.proxy.send(req, { upstream: 'tmforum.catalog', path: this.path(id), method: 'GET', search: '' });
+        if (read.status === 404) {
+            throw new NotFoundError('The required resource does not exist');
+        }
+        const current = parseJson(read.body);
+        if (read.status >= 400 || !isRecord(current)) {
+            throw new BadGatewayError('The catalog could not be read');
+        }
+        validateNameAndDescription(changes, 'Catalog', false, this.config.limits);
+        await this.beforeUpdate(req, id, current, changes);
+        await this.proxy.forward(req, res, { upstream: 'tmforum.catalog', path: this.path(id), body: JSON.stringify(changes), ...AS_JSON, search: '' });
+    }
+
+    /** The default catalog and the system categories are the platform's: nobody else can make a catalog the default one, and a catalog cannot be named as a system category. */
+    private assertNotReserved(changes: Record<string, unknown>, previous: Record<string, unknown> | undefined): void {
+        const type = changes['catalogType'];
+        if (typeof type === 'string' && type.toLowerCase() === DEFAULT_CATALOG_TYPE && previous?.['catalogType'] !== DEFAULT_CATALOG_TYPE) {
+            throw new ForbiddenError(`The catalog type ${DEFAULT_CATALOG_TYPE} is reserved to the default catalog of the platform`);
+        }
+        const name = changes['name'];
+        if (typeof name === 'string' && this.config.catalog.systemCategories.some((category) => category.name.trim().toLowerCase() === name.trim().toLowerCase())) {
+            throw new DomainError('This catalog name is reserved', 409);
+        }
+    }
+
+    private assertNotPlatform(method: string, id: string, body: unknown): void {
+        const violation = systemEntityViolation(this.defaults, 'catalog', method, id, body);
+        if (violation !== undefined) {
+            throw new ForbiddenError(violation);
+        }
+    }
+
+    /** What the platform keeps is checked first, so that retiring the default catalog is refused as such and not for the state it is in. */
+    override async update(req: Request, res: Response, id: string, body: string): Promise<void> {
+        this.assertNotPlatform('PATCH', id, parseJson(body));
+        await super.update(req, res, id, body);
+    }
+
+    protected override beforeRetire(_req: Request, current: Record<string, unknown>): Promise<Undo | undefined> {
+        this.assertNotPlatform('DELETE', String(current['id']), undefined);
+        return Promise.resolve(undefined);
+    }
+
     protected override async beforeCreate(req: Request, catalog: Record<string, unknown>): Promise<Undo | undefined> {
+        this.assertNotReserved(catalog, undefined);
         await this.assertNameFree(req, catalog['name'], undefined);
         catalog['validFor'] ??= { startDateTime: new Date().toISOString() };
         const [seller] = catalog['relatedParty'] as Record<string, unknown>[];
@@ -77,6 +133,8 @@ export class Catalogs extends Specifications {
     }
 
     protected override async beforeUpdate(req: Request, id: string, current: Record<string, unknown>, changes: Record<string, unknown>): Promise<Undo | undefined> {
+        this.assertNotPlatform('PATCH', id, changes);
+        this.assertNotReserved(changes, current);
         if ('category' in changes && categoryIds(changes).toSorted().join() !== categoryIds(current).toSorted().join()) {
             throw new DomainError('The field "category" can not be modified', 409);
         }
