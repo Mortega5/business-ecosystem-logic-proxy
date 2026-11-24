@@ -803,6 +803,30 @@ describe('responses against docs/openapi.yaml', () => {
             refused('patch', id, '502', `${base}/p-1`, '{"description":"x"}', 'not json', AS_SELLER)
         ];
     };
+    const adminConfigCases = (): Case[] => {
+        const admin = { ...AS_ADMIN, ...json };
+        const asUser = { ...LOGGED_IN, ...json };
+        const patch = (path: string, body: string): Case[] => [
+            { method: 'patch', path, status: '200', headers: admin, body: bodyFor[path] ?? body, arrange: () => undefined },
+            { method: 'patch', path, status: '400', headers: admin, body: '{"nothing":true}', arrange: () => undefined },
+            { method: 'patch', path, status: '401', headers: json, body, arrange: () => undefined },
+            { method: 'patch', path, status: '403', headers: asUser, body, arrange: () => undefined },
+            { method: 'patch', path, status: '413', headers: admin, body: JSON.stringify({ filler: 'x'.repeat(2000) }), arrange: () => undefined }
+        ];
+        const bodyFor: Record<string, string> = {
+            '/config/features': '{"quotesEnabled":true}',
+            '/config/filters': '{"primaryCategoriesMode":"catalogFirstLevel","primaryRootName":"","filters":[]}',
+            '/config/search': '{"searchUrl":"","useQueryKeyword":true}'
+        };
+        return [
+            ...patch('/config/features', '{"quotesEnabled":true}'),
+            ...patch('/config/filters', '{}'),
+            ...patch('/config/search', '{}'),
+            { method: 'get', path: '/config/search', status: '200', headers: AS_ADMIN, arrange: () => undefined },
+            { method: 'get', path: '/config/search', status: '401', arrange: () => undefined },
+            { method: 'get', path: '/config/search', status: '403', headers: LOGGED_IN, arrange: () => undefined }
+        ];
+    };
     const paymentCases = (): Case[] => {
         const path = '/paymentInfo';
         return [
@@ -852,6 +876,7 @@ describe('responses against docs/openapi.yaml', () => {
         { method: 'get', path: '/version', status: '200', arrange: () => undefined },
         ...contactUsCases(),
         { method: 'get', path: '/config', status: '200', arrange: () => undefined },
+        ...adminConfigCases(),
         { method: 'post', path: '/feedback', status: '200', headers: json, body: '{"rating":4,"type":"campaign","description":"Nice"}', arrange: () => undefined },
         { method: 'post', path: '/feedback', status: '400', headers: json, body: '{"rating":9}', arrange: () => undefined },
         { method: 'post', path: '/feedback', status: '413', headers: json, body: JSON.stringify({ rating: 4, filler: 'x'.repeat(2000) }), arrange: () => undefined },

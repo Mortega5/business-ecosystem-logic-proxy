@@ -550,6 +550,204 @@ paths:
                 searchFilters: { primaryCategoriesMode: catalogFirstLevel, primaryRootName: '', filters: [] }
                 blueprintSchema: https://schemas.example.org/blueprint.json
                 purchaseEnabled: true
+  /config/features:
+    patch:
+      tags: [config]
+      operationId: updateFeatureFlags
+      summary: Turn some features on or off
+      description: |
+        For administrators. Each key is the name of a feature as `GET /config` sends it (`purchaseEnabled`, `quotesEnabled`...) and its value a boolean; the ones that are not sent keep what they had. It answers the features that are in force, which are not the ones that were asked for when a feature needs something that is not configured.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties:
+                type: boolean
+            example:
+              quotesEnabled: true
+      responses:
+        '200':
+          description: The features that are in force.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: boolean
+              example:
+                purchaseEnabled: true
+                quotesEnabled: true
+        '400':
+          $ref: '#/components/responses/InvalidBody'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/NotAnAdministrator'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+  /config/filters:
+    patch:
+      tags: [config]
+      operationId: updateSearchFilters
+      summary: Save the filters of the search
+      description: |
+        For administrators. With `primaryCategoriesMode` `catalogFirstLevel` the default filters are kept, whatever else is sent. With `rooted` the filters are checked (a filter is `configured`, with children that have a name and a label, or `categoryRoot`, which takes its values from the children of a root category; only one may be shown in the general information of the offer form) and saved in their normal form. What is wrong is told in the message.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [primaryCategoriesMode, primaryRootName, filters]
+              properties:
+                primaryCategoriesMode:
+                  type: string
+                  enum: [catalogFirstLevel, rooted]
+                primaryRootName:
+                  type: string
+                filters:
+                  type: array
+                  items:
+                    type: object
+                    additionalProperties: true
+            example:
+              primaryCategoriesMode: rooted
+              primaryRootName: Root
+              filters:
+                - { name: Type, source: categoryRoot, rootName: Types, offerFormPlacement: none }
+      responses:
+        '200':
+          description: The filters that were saved.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [primaryCategoriesMode, primaryRootName, filters]
+                properties:
+                  primaryCategoriesMode:
+                    type: string
+                  primaryRootName:
+                    type: string
+                  filters:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+              example:
+                primaryCategoriesMode: rooted
+                primaryRootName: Root
+                filters:
+                  - { name: Type, source: categoryRoot, rootName: Types, offerFormPlacement: none }
+        '400':
+          $ref: '#/components/responses/InvalidBody'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/NotAnAdministrator'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+  /config/search:
+    get:
+      tags: [config]
+      operationId: getSearchConfig
+      summary: The settings of the search engine
+      description: |
+        For administrators. The address of the search engine, which is the one of the configuration (`upstreams.search`; empty when there is none), and whether the keyword goes in the query of the engine (`?query=`) and not in its path.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      responses:
+        '200':
+          description: The settings.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [searchUrl, useQueryKeyword]
+                properties:
+                  searchUrl:
+                    type: string
+                  useQueryKeyword:
+                    type: boolean
+              example:
+                searchUrl: ''
+                useQueryKeyword: false
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/NotAnAdministrator'
+    patch:
+      tags: [config]
+      operationId: updateSearchConfig
+      summary: Change how the keyword is given to the search engine
+      description: |
+        For administrators. Both fields are required. The address of the engine is a setting of the deployment: it can be sent back as it is and it is refused (400) when it is another one.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [searchUrl, useQueryKeyword]
+              properties:
+                searchUrl:
+                  type: string
+                useQueryKeyword:
+                  type: boolean
+            example:
+              searchUrl: ''
+              useQueryKeyword: true
+      responses:
+        '200':
+          description: The settings that are in force.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [searchUrl, useQueryKeyword]
+                properties:
+                  searchUrl:
+                    type: string
+                  useQueryKeyword:
+                    type: boolean
+              example:
+                searchUrl: ''
+                useQueryKeyword: true
+        '400':
+          $ref: '#/components/responses/InvalidBody'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/NotAnAdministrator'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
   /health/live:
     get:
       tags: [health]
