@@ -17,6 +17,8 @@ tags:
     description: The contact form of the portal.
   - name: stats
     description: The figures of the landing page and the counts of an organisation.
+  - name: feedback
+    description: The feedback that the portal asks of its visitors.
   - name: config
     description: The settings that the portal reads when it starts.
   - name: payment
@@ -412,6 +414,68 @@ paths:
                 $ref: '#/components/schemas/ErrorResult'
               example:
                 error: The payment gateway could not be reached
+  /feedback:
+    post:
+      tags: [feedback]
+      operationId: sendFeedback
+      summary: Send feedback about the marketplace
+      description: |
+        Open to anybody. Only the rating, the kind and the comment are kept; the id and the date are the proxy's. The rating is a whole number from 1 to 5; the kind is as long as a name may be (`limits.nameLength`) and the comment as a note (`limits.noteLength`).
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rating]
+              properties:
+                rating:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+                type:
+                  type: string
+                description:
+                  type: string
+            example:
+              rating: 4
+              type: campaign
+              description: Nice
+      responses:
+        '200':
+          description: The feedback that was kept.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, rating, creation_date]
+                properties:
+                  id:
+                    type: string
+                  rating:
+                    type: integer
+                  type:
+                    type: string
+                  description:
+                    type: string
+                  creation_date:
+                    type: string
+                    format: date-time
+              example:
+                id: 4f2c3d1e-6c1a-4a3b-9a55-0c9c8d7f1e22
+                rating: 4
+                type: campaign
+                description: Nice
+                creation_date: '2026-11-24T10:00:00.000Z'
+        '400':
+          $ref: '#/components/responses/InvalidBody'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
   /config:
     get:
       tags: [config]

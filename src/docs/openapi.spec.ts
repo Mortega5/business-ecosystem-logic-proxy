@@ -27,6 +27,7 @@ import { cartItems, FakeCartModule } from '../testing/fake-cart';
 import { FakeStatsModule } from '../testing/fake-stats';
 import { PaymentModule } from '../payment/payment.module';
 import { FakePortalModule } from '../testing/fake-portal';
+import { FakeFeedbackModule } from '../testing/fake-feedback';
 import { CatalogModule } from '../tmf/catalog/catalog.module';
 import { OrderingModule } from '../tmf/ordering/ordering.module';
 import { UsageModule } from '../tmf/usage/usage.module';
@@ -851,6 +852,9 @@ describe('responses against docs/openapi.yaml', () => {
         { method: 'get', path: '/version', status: '200', arrange: () => undefined },
         ...contactUsCases(),
         { method: 'get', path: '/config', status: '200', arrange: () => undefined },
+        { method: 'post', path: '/feedback', status: '200', headers: json, body: '{"rating":4,"type":"campaign","description":"Nice"}', arrange: () => undefined },
+        { method: 'post', path: '/feedback', status: '400', headers: json, body: '{"rating":9}', arrange: () => undefined },
+        { method: 'post', path: '/feedback', status: '413', headers: json, body: JSON.stringify({ rating: 4, filler: 'x'.repeat(2000) }), arrange: () => undefined },
         ...statsCases(),
         ...paymentCases(),
         ...cartCases(),
@@ -911,7 +915,7 @@ describe('responses against docs/openapi.yaml', () => {
     beforeAll(async () => {
         await tmforum.start();
 
-        @Module({ imports: [DependenciesStub, FakeFeaturesModule, LoggerModule.forRoot({ pinoHttp: { level: 'silent' } }), HealthModule, VersionModule, ContactUsModule, FakeStatsModule, FakeCartModule, PaymentModule, FakePortalModule, AuthModule, DocumentModule, RevenueModule, SearchModule, InvoicingModule, QuoteModule, InventoryModule, AccountModule, BillingModule, PartyModule, ResourceModule, ServiceModule, ChargingModule, SoftwareModule, UsageModule, OrderingModule, CatalogModule] })
+        @Module({ imports: [DependenciesStub, FakeFeaturesModule, LoggerModule.forRoot({ pinoHttp: { level: 'silent' } }), HealthModule, VersionModule, ContactUsModule, FakeStatsModule, FakeCartModule, PaymentModule, FakePortalModule, FakeFeedbackModule, AuthModule, DocumentModule, RevenueModule, SearchModule, InvoicingModule, QuoteModule, InventoryModule, AccountModule, BillingModule, PartyModule, ResourceModule, ServiceModule, ChargingModule, SoftwareModule, UsageModule, OrderingModule, CatalogModule] })
         class Contract {}
 
         app = await createApp(express(), Contract);
