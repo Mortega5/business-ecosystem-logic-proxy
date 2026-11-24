@@ -17,6 +17,8 @@ tags:
     description: The contact form of the portal.
   - name: stats
     description: The figures of the landing page and the counts of an organisation.
+  - name: shopping-cart
+    description: The shopping cart of the caller.
   - name: document
     description: The TMForum document API, as far as the portal uses it.
   - name: revenue
@@ -240,6 +242,131 @@ paths:
                 $ref: '#/components/schemas/ErrorResult'
               example:
                 error: /productOffering could not be read (http 500)
+  /shoppingCart/item:
+    get:
+      tags: [shopping-cart]
+      operationId: getCartItems
+      summary: The items of the shopping cart of the caller
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      responses:
+        '200':
+          description: The items, as the portal sent them.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CartItem'
+              example:
+                - id: urn:ngsi-ld:product-offering:1
+                  name: Weather API
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+    post:
+      tags: [shopping-cart]
+      operationId: addCartItem
+      summary: Add an item to the shopping cart of the caller
+      description: |
+        The item is kept as it comes and is known by its `id`, which is the one of the offering. The cart of a user holds at most `limits.cartItems` items and each `id` once. The `location` header is the address of the item.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CartItem'
+            example:
+              id: urn:ngsi-ld:product-offering:1
+              name: Weather API
+      responses:
+        '201':
+          description: The item is in the cart.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+            Location:
+              description: The address of the item.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status:
+                    type: string
+              example:
+                status: ok
+        '400':
+          $ref: '#/components/responses/InvalidBody'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '409':
+          description: The item is already in the cart, or the cart is full.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: This item is already in your shopping cart
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+  /shoppingCart/item/{id}:
+    delete:
+      tags: [shopping-cart]
+      operationId: removeCartItem
+      summary: Remove an item from the shopping cart of the caller
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '204':
+          description: The item is no longer in the cart.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+        '400':
+          $ref: '#/components/responses/InvalidId'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '404':
+          description: The item was not in the cart.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: The given ordering item cannot be deleted since it was not present in your cart
+  /shoppingCart/empty:
+    post:
+      tags: [shopping-cart]
+      operationId: emptyCart
+      summary: Remove every item from the shopping cart of the caller
+      description: The body, if there is one, is not read.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      responses:
+        '204':
+          description: The cart is empty.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
   /health/live:
     get:
       tags: [health]
@@ -4931,6 +5058,15 @@ components:
       schema:
         type: string
   schemas:
+    CartItem:
+      type: object
+      required: [id]
+      description: What the portal keeps of an offering that is to be bought, with the options chosen. Only the `id` is read by the proxy.
+      properties:
+        id:
+          type: string
+          pattern: '^(?!\.+$)[A-Za-z0-9:._-]{1,200}$'
+      additionalProperties: true
     LifecycleCounts:
       type: object
       required: [Active, Launched, Retired, Obsolete]

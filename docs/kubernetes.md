@@ -267,6 +267,7 @@ Keys read by the application:
 | `upstreams.tmforum.apis.<api>.host`, `.port`, `.scheme`, `.path`, `.timeoutMs` | | the standard TMForum paths | What one API sets itself; see [Upstreams](#upstreams) |
 | `upstreams.charging`, `.revenue`, `.search` | `host`, `port`, `scheme`, `path`, `timeoutMs` | not set (`revenue.path` is `/revenue`) | The services that are not TMForum APIs |
 | `limits.orderItems` | integer | `50` | Items that one product order may have |
+| `limits.cartItems` | integer | `100` | Items that the shopping cart of a user may hold |
 | `limits.noteLength`, `limits.notesPerRequest` | integer | `10000`, `20` | Characters of a note of an order, and notes that one request adds |
 | `limits.nameLength`, `limits.descriptionLength` | integer | `100`, `100000` | Characters of the name and of the description of a specification or a category |
 | `limits.plansPerQuery` | integer | `20` | Price plans that one query to the catalog asks for, when the proxy looks for the offers that use a usage specification |

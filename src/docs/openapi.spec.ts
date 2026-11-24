@@ -23,6 +23,7 @@ import { DocumentModule } from '../tmf/document/document.module';
 import { ChargingModule } from '../tmf/charging/charging.module';
 import { SoftwareModule } from '../tmf/software/software.module';
 import { FakeFeaturesModule } from '../testing/fake-features';
+import { cartItems, FakeCartModule } from '../testing/fake-cart';
 import { FakeStatsModule } from '../testing/fake-stats';
 import { CatalogModule } from '../tmf/catalog/catalog.module';
 import { OrderingModule } from '../tmf/ordering/ordering.module';
@@ -68,7 +69,7 @@ const mongo = { ping: vi.fn<(timeoutMs: number) => Promise<boolean>>() };
                 party: { editEnabled: true },
                 search: { enabled: false },
                 catalog: { partyLocation: 'https://schemas.example.org/party.json', defaultCatalogId: '' },
-                limits: { orderItems: 50, noteLength: 10000, notesPerRequest: 20, nameLength: 100, descriptionLength: 100000, plansPerQuery: 20, providersPerQuery: 50, providerCacheMs: 300000, readAll: { pageSize: 100, maxPages: 100 } },
+                limits: { orderItems: 50, cartItems: 100, noteLength: 10000, notesPerRequest: 20, nameLength: 100, descriptionLength: 100000, plansPerQuery: 20, providersPerQuery: 50, providerCacheMs: 300000, readAll: { pageSize: 100, maxPages: 100 } },
                 auth: { propagateToken: true, allowLocalEori: false, roles: { admin: 'admin', customer: 'Buyer', seller: 'Seller', orgAdmin: 'orgAdmin' } },
                 hasUpstream: () => false,
                 upstream: (name: string) => ({ baseUrl: `http://127.0.0.1:${tmforum.port}/${name}`, timeoutMs: 300 })
@@ -794,6 +795,25 @@ describe('responses against docs/openapi.yaml', () => {
             refused('patch', id, '502', `${base}/p-1`, '{"description":"x"}', 'not json', AS_SELLER)
         ];
     };
+    const cartCases = (): Case[] => {
+        const items = '/shoppingCart/item';
+        const own = { ...LOGGED_IN, ...json };
+        return [
+            { method: 'get', path: items, status: '200', headers: LOGGED_IN, arrange: () => undefined },
+            { method: 'get', path: items, status: '401', arrange: () => undefined },
+            { method: 'post', path: items, status: '201', headers: own, body: '{"id":"o-new","name":"Offer"}', arrange: () => undefined },
+            { method: 'post', path: items, status: '400', headers: own, body: 'not json', arrange: () => undefined },
+            { method: 'post', path: items, status: '401', headers: json, body: '{"id":"o-new"}', arrange: () => undefined },
+            { method: 'post', path: items, status: '409', headers: own, body: '{"id":"o-kept"}', arrange: () => void cartItems.create({ user: 'u-ana', itemId: 'o-kept', itemObject: { id: 'o-kept' } }) },
+            { method: 'post', path: items, status: '413', headers: own, body: JSON.stringify({ id: 'o-big', filler: 'x'.repeat(2000) }), arrange: () => undefined },
+            { method: 'delete', path: `${items}/{id}`, status: '204', url: `${items}/o-del`, headers: LOGGED_IN, arrange: () => void cartItems.create({ user: 'u-ana', itemId: 'o-del', itemObject: { id: 'o-del' } }) },
+            { method: 'delete', path: `${items}/{id}`, status: '400', url: `${items}/a%20b`, headers: LOGGED_IN, arrange: () => undefined },
+            { method: 'delete', path: `${items}/{id}`, status: '401', url: `${items}/o-del`, arrange: () => undefined },
+            { method: 'delete', path: `${items}/{id}`, status: '404', url: `${items}/o-none`, headers: LOGGED_IN, arrange: () => undefined },
+            { method: 'post', path: '/shoppingCart/empty', status: '204', headers: LOGGED_IN, arrange: () => undefined },
+            { method: 'post', path: '/shoppingCart/empty', status: '401', arrange: () => undefined }
+        ];
+    };
     const statsCases = (): Case[] => {
         const path = '/stats/provider/{organizationId}';
         const own = '/stats/provider/p-acme';
@@ -810,6 +830,7 @@ describe('responses against docs/openapi.yaml', () => {
         { method: 'get', path: '/version', status: '200', arrange: () => undefined },
         ...contactUsCases(),
         ...statsCases(),
+        ...cartCases(),
         { method: 'get', path: '/health/live', status: '200', arrange: () => mongo.ping.mockResolvedValue(false) },
         { method: 'get', path: '/health/ready', status: '200', arrange: () => mongo.ping.mockResolvedValue(true) },
         { method: 'get', path: '/health/ready', status: '503', arrange: () => mongo.ping.mockResolvedValue(false) },
@@ -867,7 +888,7 @@ describe('responses against docs/openapi.yaml', () => {
     beforeAll(async () => {
         await tmforum.start();
 
-        @Module({ imports: [DependenciesStub, FakeFeaturesModule, LoggerModule.forRoot({ pinoHttp: { level: 'silent' } }), HealthModule, VersionModule, ContactUsModule, FakeStatsModule, AuthModule, DocumentModule, RevenueModule, SearchModule, InvoicingModule, QuoteModule, InventoryModule, AccountModule, BillingModule, PartyModule, ResourceModule, ServiceModule, ChargingModule, SoftwareModule, UsageModule, OrderingModule, CatalogModule] })
+        @Module({ imports: [DependenciesStub, FakeFeaturesModule, LoggerModule.forRoot({ pinoHttp: { level: 'silent' } }), HealthModule, VersionModule, ContactUsModule, FakeStatsModule, FakeCartModule, AuthModule, DocumentModule, RevenueModule, SearchModule, InvoicingModule, QuoteModule, InventoryModule, AccountModule, BillingModule, PartyModule, ResourceModule, ServiceModule, ChargingModule, SoftwareModule, UsageModule, OrderingModule, CatalogModule] })
         class Contract {}
 
         app = await createApp(express(), Contract);
@@ -910,7 +931,10 @@ describe('responses against docs/openapi.yaml', () => {
 
         expect(res.status).toBe(Number(status));
         const types = Object.keys(response?.content ?? {});
-        if (types.includes('application/json')) {
+        if (types.length === 0) {
+            // No content: the answer has no body
+            expect(await res.text()).toBe('');
+        } else if (types.includes('application/json')) {
             const schema = response?.content?.['application/json']?.schema;
             const validate = ajv.compile(schema ?? {});
             const body: unknown = await res.json();
