@@ -51,7 +51,9 @@ Each provider page says which of these it needs. The v11 variable is still read;
 | `BAE_LP_OIDC_REALM` | `auth.idp.realm` | Realm (`keycloak`) |
 | `BAE_LP_OIDC_ENABLED`, `BAE_LP_OIDC_KEY` | `auth.idp.oidcEnabled`, `auth.idp.oidcKey` | JWT mode and its key (`fiware`, `aimarket`) |
 | `BAE_LP_OAUTH2_DEFAULT_ROLE` | `auth.idp.defaultRole` | Role given to a user that arrives without roles |
-| | `auth.idp.jwksUrl` | Public keys of the provider, to check tokens presented without a login |
+| | `auth.idp.jwksUrl` | Public keys of the provider, to check tokens presented without a login (`i4trust`) |
+| `BAE_LP_OIDC_DISCOVERY_URI`, `BAE_LP_OIDC_TOKEN_AUTH_METHOD` | `auth.idp.discoveryUrl`, `auth.idp.tokenAuthMethod` | Discovery document and client authentication (`oidc-discover`) |
+| | `auth.idp.audience` | Audience that a token presented without a login must have (`oidc-discover`); not checked when not set |
 | `BAE_LP_OAUTH2_ADMIN_ROLE`, `_SELLER_ROLE`, `_CUSTOMER_ROLE`, `_ORG_ADMIN_ROLE`, `_ORG_CERTIFIER_ROLE` | `auth.roles.*` | Names of the roles of the platform, matched against the roles of the profile |
 | `BAE_LP_EXTERNAL_PORTAL` | | If set, the callback redirects to `<portal>/dashboard?token=<accessToken>` instead of `/dashboard?token=local` |
 
