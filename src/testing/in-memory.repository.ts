@@ -17,6 +17,10 @@ export class InMemoryRepository<T extends object> extends Repository<T> {
         return (await this.find(filter))[0];
     }
 
+    async count(filter: Filter<T> = {}): Promise<number> {
+        return (await this.find(filter)).length;
+    }
+
     async create(entity: T): Promise<T> {
         this.entities.push({ ...entity });
         return { ...entity };

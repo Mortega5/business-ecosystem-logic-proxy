@@ -25,6 +25,11 @@ export abstract class MongooseRepository<T extends object> extends Repository<T>
         return found === null ? undefined : withoutMongoId<T>(found);
     }
 
+    async count(filter: Filter<T> = {}): Promise<number> {
+        assertSafeFilter(filter);
+        return this.model.countDocuments(filter);
+    }
+
     async create(entity: T): Promise<T> {
         const created = await this.model.create(entity);
         return withoutMongoId<T>(created.toObject() as Record<string, unknown>);

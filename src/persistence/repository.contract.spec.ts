@@ -63,6 +63,17 @@ describe.each(implementations)('repository contract (%s)', (_name, build) => {
         expect(await repository.find()).toHaveLength(3);
     });
 
+    it('counts what matches, or everything', async () => {
+        const repository = build();
+        await repository.create({ user: 'ana', itemId: '1', quantity: 2 });
+        await repository.create({ user: 'ana', itemId: '2', quantity: 1 });
+        await repository.create({ user: 'bob', itemId: '1', quantity: 5 });
+
+        expect(await repository.count({ user: 'ana' })).toBe(2);
+        expect(await repository.count()).toBe(3);
+        await expect(repository.count({ user: { $ne: 'x' } } as unknown as { user: string })).rejects.toThrow('plain value');
+    });
+
     it('updates the first match and reports whether there was one', async () => {
         const repository = build();
         await repository.create({ user: 'ana', itemId: '1', quantity: 2 });

@@ -7,6 +7,8 @@ export type Filter<T> = { [K in keyof T]?: Extract<T[K], Scalar> };
 export abstract class Repository<T extends object> {
     abstract find(filter?: Filter<T>): Promise<T[]>;
     abstract findOne(filter: Filter<T>): Promise<T | undefined>;
+    /** How many entities match; no filter counts them all. */
+    abstract count(filter?: Filter<T>): Promise<number>;
     abstract create(entity: T): Promise<T>;
     /** Merges the fields into the first match; false when nothing matched. */
     abstract updateOne(filter: Filter<T>, fields: Partial<T>): Promise<boolean>;
