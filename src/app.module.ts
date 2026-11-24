@@ -6,6 +6,7 @@ import { ContactUsModule } from './contact-us/contact-us.module';
 import { CartModule } from './cart/cart.module';
 import { PaymentModule } from './payment/payment.module';
 import { PortalModule } from './portal/portal.module';
+import { FeedbackModule } from './feedback/feedback.module';
 import { StatsModule } from './stats/stats.module';
 import { VersionModule } from './version/version.module';
 import { AccountModule } from './tmf/account/account.module';
@@ -29,5 +30,5 @@ import { HealthModule } from './health/health.module';
 import { LoggingModule } from './logging/logging.module';
 import { MongoPersistenceModule } from './persistence/mongo-persistence.module';
 
-@Module({ imports: [AppConfigModule, VersionModule, ContactUsModule, StatsModule, CartModule, PaymentModule, PortalModule, AuthModule, LoggingModule, MongoPersistenceModule, FeaturesModule, HealthModule, DocumentModule, RevenueModule, SearchModule, InvoicingModule, QuoteModule, InventoryModule, AccountModule, BillingModule, PartyModule, ResourceModule, ServiceModule, ChargingModule, SoftwareModule, UsageModule, OrderingModule, CatalogModule, CatalogBootstrapModule] })
+@Module({ imports: [AppConfigModule, VersionModule, ContactUsModule, StatsModule, CartModule, PaymentModule, PortalModule, FeedbackModule, AuthModule, LoggingModule, MongoPersistenceModule, FeaturesModule, HealthModule, DocumentModule, RevenueModule, SearchModule, InvoicingModule, QuoteModule, InventoryModule, AccountModule, BillingModule, PartyModule, ResourceModule, ServiceModule, ChargingModule, SoftwareModule, UsageModule, OrderingModule, CatalogModule, CatalogBootstrapModule] })
 export class AppModule {}
