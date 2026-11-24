@@ -3,12 +3,13 @@ import { APP_GUARD } from '@nestjs/core';
 import { ConfigStoreModule } from '../persistence/config-store/config-store.module';
 import { FeatureFlagService } from './feature-flag.service';
 import { FeatureGuard } from './feature.guard';
+import { SearchSettings } from './search-settings';
 
 // The flags are asked from any module that has something to switch
 @Global()
 @Module({
     imports: [ConfigStoreModule],
-    providers: [FeatureFlagService, { provide: APP_GUARD, useClass: FeatureGuard }],
-    exports: [FeatureFlagService]
+    providers: [FeatureFlagService, SearchSettings, { provide: APP_GUARD, useClass: FeatureGuard }],
+    exports: [FeatureFlagService, SearchSettings]
 })
 export class FeaturesModule {}

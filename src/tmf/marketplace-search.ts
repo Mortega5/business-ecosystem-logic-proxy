@@ -1,7 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import type { Request } from 'express';
 import { BadGatewayError, DomainError } from '../common/domain-error';
 import { AppConfigService } from '../config/app-config.service';
+import { SearchSettings } from '../features/search-settings';
 import { AS_JSON } from './http-options';
 import { isRecord } from './related-party';
 import { isResourceId } from './resource-id.pipe';
@@ -38,8 +39,14 @@ export class MarketplaceSearch {
 
     constructor(
         private readonly proxy: TmfProxy,
-        private readonly config: AppConfigService
+        private readonly config: AppConfigService,
+        // Where the keyword goes is a setting of the administrator; without the setting (a module that has no database) it goes in the path
+        @Optional() private readonly settings?: SearchSettings
     ) {}
+
+    private byQuery(): Promise<boolean> {
+        return this.settings?.useQueryKeyword() ?? Promise.resolve(false);
+    }
 
     /** Whether the marketplace has a search engine; without one a keyword is not looked at, as v11 did. */
     get enabled(): boolean {
@@ -51,7 +58,11 @@ export class MarketplaceSearch {
         const keyword = query.keyword?.trim() ?? '';
         const params = new URLSearchParams(this.pageOf({ keyword, categories: undefined, sort: undefined, offset: query.offset, limit: query.limit, organizationId: undefined }).replace(/^\?/, ''));
         params.set('considerAllOrgs', 'false');
-        const path = keyword === '' ? '/api/searchOrganizations' : `/api/searchOrganizations/${encodeURIComponent(keyword)}`;
+        const inQuery = keyword !== '' && (await this.byQuery());
+        if (inQuery) {
+            params.set('query', keyword);
+        }
+        const path = keyword === '' || inQuery ? '/api/searchOrganizations' : `/api/searchOrganizations/${encodeURIComponent(keyword)}`;
         const body = JSON.stringify({ categories: [], countries: [], complianceLevels: [] });
         const response = await this.proxy.send(req, { upstream: 'search', path, method: 'POST', body, ...AS_JSON, search: `?${params.toString()}` });
         return this.idsOf(response.status, response.body, 'organisations');
@@ -65,8 +76,11 @@ export class MarketplaceSearch {
         if (query.organizationId !== undefined && query.organizationId.trim() !== '') {
             body['organizationId'] = query.organizationId;
         }
-        const path = keyword === '' ? '/api/SearchProduct' : `/api/SearchProduct/${encodeURIComponent(keyword)}`;
-        const response = await this.proxy.send(req, { upstream: 'search', path, method: 'POST', body: JSON.stringify(body), ...AS_JSON, search: this.pageOf(query) });
+        const inQuery = keyword !== '' && (await this.byQuery());
+        const path = keyword === '' || inQuery ? '/api/SearchProduct' : `/api/SearchProduct/${encodeURIComponent(keyword)}`;
+        const page = this.pageOf(query);
+        const search = inQuery ? `${page === '' ? '?' : `${page}&`}query=${encodeURIComponent(keyword)}` : page;
+        const response = await this.proxy.send(req, { upstream: 'search', path, method: 'POST', body: JSON.stringify(body), ...AS_JSON, search });
         return this.idsOf(response.status, response.body, 'offerings');
     }
 
