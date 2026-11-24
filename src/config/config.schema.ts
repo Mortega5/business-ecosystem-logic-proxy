@@ -199,6 +199,13 @@ export const ConfigSchema = z.object({
         // When the proxy reads everything that a collection has: the items of a page, and how many pages at most
         readAll: z.object({ pageSize: z.coerce.number().int().positive(), maxPages: z.coerce.number().int().positive() })
     }),
+    // The figures of the landing page (offerings and providers) are kept in Mongo and read again, in the background, when they are this old; a read
+    // that fails is not tried again before retryDelayMs. The counts of an organisation are kept in memory for providerTtlMs
+    stats: z.object({
+        ttlMs: z.coerce.number().int().positive(),
+        retryDelayMs: z.coerce.number().int().positive(),
+        providerTtlMs: z.coerce.number().int().positive()
+    }),
     health: z.object({
         mongoPingTimeoutMs: z.coerce.number().int().positive()
     }),

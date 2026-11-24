@@ -77,6 +77,10 @@ export class AppConfigService {
         return this.value.limits;
     }
 
+    get stats(): AppConfig['stats'] {
+        return this.value.stats;
+    }
+
     get health(): AppConfig['health'] {
         return this.value.health;
     }

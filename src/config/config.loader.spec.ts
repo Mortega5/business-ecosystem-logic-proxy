@@ -295,6 +295,12 @@ describe('request size configuration', () => {
         expect(load({ BAE_HTTP__UPLOAD_LIMIT: '100mb' }).http.uploadLimit).toBe('100mb');
     });
 
+    it('keeps the figures of the landing page for a day, waits ten minutes after a read that failed, and can change them', () => {
+        expect(load({}).stats).toEqual({ ttlMs: 86400000, retryDelayMs: 600000, providerTtlMs: 60000 });
+        expect(load({ BAE_STATS__TTL_MS: '3600000' }).stats.ttlMs).toBe(3600000);
+        expect(() => load({ BAE_STATS__RETRY_DELAY_MS: '0' })).toThrow('stats.retryDelayMs');
+    });
+
     it('has a default for each limit of what is taken or read at once, that can be changed and has to be a positive number', () => {
         expect(load({}).limits).toEqual({ orderItems: 50, noteLength: 10000, notesPerRequest: 20, nameLength: 100, descriptionLength: 100000, plansPerQuery: 20, providersPerQuery: 50, providerCacheMs: 300000, readAll: { pageSize: 100, maxPages: 100 } });
         expect(load({ BAE_LIMITS__ORDER_ITEMS: '200' }).limits.orderItems).toBe(200);

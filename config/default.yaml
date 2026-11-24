@@ -110,6 +110,11 @@ limits:
     pageSize: 100
     maxPages: 100
 
+stats:
+  ttlMs: 86400000
+  retryDelayMs: 600000
+  providerTtlMs: 60000
+
 health:
   mongoPingTimeoutMs: 1000
 
