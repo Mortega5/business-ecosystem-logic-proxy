@@ -6,7 +6,7 @@ import { isResourceId } from './resource-id.pipe';
 import type { UpstreamUser } from './upstream-headers';
 
 /**
- * For a route whose path names a party as `:userId`: it may only be the party of the caller (the individual's or,
+ * For a route whose path names a party as `:userId` or `:organizationId`: it may only be the party of the caller (the individual's or,
  * when acting for an organisation, the organisation's) unless the caller is an administrator. It runs after the
  * authentication, so there is always a user.
  */
@@ -16,7 +16,7 @@ export class OwnPartyGuard implements CanActivate {
 
     canActivate(context: ExecutionContext): boolean {
         const req = context.switchToHttp().getRequest<Request & { user?: UpstreamUser }>();
-        const id = req.params['userId'];
+        const id = req.params['userId'] ?? req.params['organizationId'];
         if (typeof id !== 'string' || !isResourceId(id)) {
             throw new DomainError('Invalid id', 400);
         }
