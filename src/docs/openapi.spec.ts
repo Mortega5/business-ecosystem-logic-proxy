@@ -23,6 +23,7 @@ import { DocumentModule } from '../tmf/document/document.module';
 import { ChargingModule } from '../tmf/charging/charging.module';
 import { SoftwareModule } from '../tmf/software/software.module';
 import { FakeFeaturesModule } from '../testing/fake-features';
+import { FakeStatsModule } from '../testing/fake-stats';
 import { CatalogModule } from '../tmf/catalog/catalog.module';
 import { OrderingModule } from '../tmf/ordering/ordering.module';
 import { UsageModule } from '../tmf/usage/usage.module';
@@ -793,9 +794,22 @@ describe('responses against docs/openapi.yaml', () => {
             refused('patch', id, '502', `${base}/p-1`, '{"description":"x"}', 'not json', AS_SELLER)
         ];
     };
+    const statsCases = (): Case[] => {
+        const path = '/stats/provider/{organizationId}';
+        const own = '/stats/provider/p-acme';
+        return [
+            { method: 'get', path: '/stats', status: '200', arrange: () => undefined },
+            { method: 'get', path, status: '200', url: own, headers: AS_ORGANISATION, arrange: () => tmforum.answer((res) => tmforum.json(res, 200, '[{"lifecycleStatus":"Launched"}]')) },
+            { method: 'get', path, status: '400', url: '/stats/provider/..%2Fx', headers: AS_ADMIN, arrange: () => undefined },
+            { method: 'get', path, status: '401', url: own, arrange: () => undefined },
+            { method: 'get', path, status: '403', url: '/stats/provider/p-other', headers: LOGGED_IN, arrange: () => undefined },
+            { method: 'get', path, status: '502', url: '/stats/provider/p-broken', headers: AS_ADMIN, arrange: () => tmforum.answer((res) => tmforum.json(res, 500, '{}')) }
+        ];
+    };
     const cases: Case[] = [
         { method: 'get', path: '/version', status: '200', arrange: () => undefined },
         ...contactUsCases(),
+        ...statsCases(),
         { method: 'get', path: '/health/live', status: '200', arrange: () => mongo.ping.mockResolvedValue(false) },
         { method: 'get', path: '/health/ready', status: '200', arrange: () => mongo.ping.mockResolvedValue(true) },
         { method: 'get', path: '/health/ready', status: '503', arrange: () => mongo.ping.mockResolvedValue(false) },
@@ -853,7 +867,7 @@ describe('responses against docs/openapi.yaml', () => {
     beforeAll(async () => {
         await tmforum.start();
 
-        @Module({ imports: [DependenciesStub, FakeFeaturesModule, LoggerModule.forRoot({ pinoHttp: { level: 'silent' } }), HealthModule, VersionModule, ContactUsModule, AuthModule, DocumentModule, RevenueModule, SearchModule, InvoicingModule, QuoteModule, InventoryModule, AccountModule, BillingModule, PartyModule, ResourceModule, ServiceModule, ChargingModule, SoftwareModule, UsageModule, OrderingModule, CatalogModule] })
+        @Module({ imports: [DependenciesStub, FakeFeaturesModule, LoggerModule.forRoot({ pinoHttp: { level: 'silent' } }), HealthModule, VersionModule, ContactUsModule, FakeStatsModule, AuthModule, DocumentModule, RevenueModule, SearchModule, InvoicingModule, QuoteModule, InventoryModule, AccountModule, BillingModule, PartyModule, ResourceModule, ServiceModule, ChargingModule, SoftwareModule, UsageModule, OrderingModule, CatalogModule] })
         class Contract {}
 
         app = await createApp(express(), Contract);

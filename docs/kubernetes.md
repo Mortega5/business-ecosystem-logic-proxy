@@ -272,6 +272,8 @@ Keys read by the application:
 | `limits.plansPerQuery` | integer | `20` | Price plans that one query to the catalog asks for, when the proxy looks for the offers that use a usage specification |
 | `limits.providersPerQuery`, `limits.providerCacheMs` | integer | `50`, `300000` | The directory of providers, when the marketplace has no search engine: the organisations that one query to the party API asks for, and the milliseconds that the organisations with launched offerings are kept before they are looked for again |
 | `limits.readAll.pageSize`, `limits.readAll.maxPages` | integer | `100`, `100` | When the proxy reads everything that a TMForum collection has (what uses a specification, the catalogs of the start-up): the items it asks for in a page, and the pages it reads at most before it gives up |
+| `stats.ttlMs`, `stats.retryDelayMs` | integer | `86400000`, `600000` | The figures of the landing page (`GET /stats`): the milliseconds that they are kept in Mongo before a request makes the proxy read them again, in the background (the request is answered with what is kept), and the ones to wait before trying again when that read failed |
+| `stats.providerTtlMs` | integer | `60000` | The milliseconds that the counts of an organisation (`GET /stats/provider/{organizationId}`) are kept in memory |
 | `health.mongoPingTimeoutMs` | integer | `1000` | |
 
 ## Logging

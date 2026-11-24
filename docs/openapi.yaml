@@ -15,6 +15,8 @@ tags:
     description: What is running.
   - name: contact-us
     description: The contact form of the portal.
+  - name: stats
+    description: The figures of the landing page and the counts of an organisation.
   - name: document
     description: The TMForum document API, as far as the portal uses it.
   - name: revenue
@@ -154,6 +156,90 @@ paths:
                 $ref: '#/components/schemas/ErrorResult'
               example:
                 error: The message could not be sent
+  /stats:
+    get:
+      tags: [stats]
+      operationId: getStats
+      summary: The figures of the landing page
+      description: |
+        Open to anybody. The names of the launched offerings and of the organisations that sell them. They are kept with the date they were read, and when they are older than `stats.ttlMs` the answer is still what is kept while the proxy reads them again in the background. Until they have been read once the lists are empty.
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      responses:
+        '200':
+          description: The figures that are kept.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [services, organizations]
+                properties:
+                  services:
+                    type: array
+                    items:
+                      type: string
+                  organizations:
+                    type: array
+                    items:
+                      type: string
+              example:
+                services: [Weather API, Maps API]
+                organizations: [Acme]
+  /stats/provider/{organizationId}:
+    get:
+      tags: [stats]
+      operationId: getProviderStats
+      summary: Count what an organisation has, by lifecycle status
+      description: |
+        For the members of the organisation and for the administrators. How many product offerings, catalogs, product, service, resource and usage specifications the organisation is a party of, in each lifecycle status. The counts are kept in memory for `stats.providerTtlMs`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - name: organizationId
+          in: path
+          required: true
+          description: 'Identifier of an organisation: letters, digits and the marks : . _ -, up to 200 characters.'
+          schema:
+            type: string
+            pattern: '^(?!\.+$)[A-Za-z0-9:._-]{1,200}$'
+      responses:
+        '200':
+          description: The counts of each collection.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [productOffering, catalog, productSpecification, serviceSpecification, resourceSpecification, usageSpecification]
+                additionalProperties:
+                  $ref: '#/components/schemas/LifecycleCounts'
+              example:
+                productOffering: { Active: 1, Launched: 3, Retired: 0, Obsolete: 0 }
+                catalog: { Active: 0, Launched: 1, Retired: 0, Obsolete: 0 }
+                productSpecification: { Active: 2, Launched: 3, Retired: 1, Obsolete: 0 }
+                serviceSpecification: { Active: 0, Launched: 0, Retired: 0, Obsolete: 0 }
+                resourceSpecification: { Active: 0, Launched: 0, Retired: 0, Obsolete: 0 }
+                usageSpecification: { Active: 1, Launched: 0, Retired: 0, Obsolete: 0 }
+        '400':
+          $ref: '#/components/responses/InvalidId'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '502':
+          description: One of the APIs that were asked did not answer a list, or has more items than `limits.readAll` reads.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: /productOffering could not be read (http 500)
   /health/live:
     get:
       tags: [health]
@@ -4845,6 +4931,18 @@ components:
       schema:
         type: string
   schemas:
+    LifecycleCounts:
+      type: object
+      required: [Active, Launched, Retired, Obsolete]
+      properties:
+        Active:
+          type: integer
+        Launched:
+          type: integer
+        Retired:
+          type: integer
+        Obsolete:
+          type: integer
     ErrorResult:
       type: object
       required: [error]
