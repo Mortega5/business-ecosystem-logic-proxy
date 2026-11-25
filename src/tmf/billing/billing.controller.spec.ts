@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
-import express from 'express';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { AuthModule } from '../../auth/auth.module';
 import { createApp } from '../../bootstrap';
@@ -14,12 +13,6 @@ const upstream = new FakeUpstream();
 
 @Module({ imports: [AppConfigModule, LoggingModule, AuthModule, BillingModule] })
 class Root {}
-
-// The legacy application answers anything under /billing
-const legacy = express();
-legacy.all('/billing/*path', (_req, res) => {
-    res.json({ from: 'legacy' });
-});
 
 const TARGET = '/tmf-api/customerBillManagement/v4';
 const JSON_HEADERS = { 'content-type': 'application/json' };
@@ -38,7 +31,7 @@ const answerWith = (status: number, body: string): void =>
 beforeAll(async () => {
     await upstream.start();
     Object.assign(process.env, { BAE_UPSTREAMS__TMFORUM__HOST: '127.0.0.1', BAE_UPSTREAMS__TMFORUM__PORT: String(upstream.port) });
-    app = await createApp(legacy, Root);
+    app = await createApp(Root);
     useFakeLogin(app);
     await app.listen(0);
     url = await app.getUrl();
@@ -213,7 +206,6 @@ describe('the rest of /billing', () => {
     ])('is closed: %s %s', async (method, path) => {
         const res = await call(path, { method, ...(method === 'GET' || method === 'DELETE' ? {} : { headers: JSON_HEADERS, body: '{}' }) });
         expect(res.status).toBe(404);
-        expect(await res.json()).not.toEqual({ from: 'legacy' });
         expect(upstream.seen).toBeUndefined();
     });
 });

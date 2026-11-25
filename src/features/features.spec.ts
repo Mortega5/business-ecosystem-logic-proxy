@@ -1,6 +1,5 @@
 import { Controller, Get, Module } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
-import express from 'express';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createApp } from '../bootstrap';
 import { AppConfigModule } from '../config/app-config.module';
@@ -156,11 +155,7 @@ describe('@RequireFeature', () => {
             ]
         })
         class Root {}
-        const legacy = express();
-        legacy.get('/legacy', (_req, res) => {
-            res.json({ from: 'legacy' });
-        });
-        app = await createApp(legacy, Root);
+        app = await createApp(Root);
         await app.listen(0);
         url = await app.getUrl();
     });
@@ -174,7 +169,7 @@ describe('@RequireFeature', () => {
         expect(res.status).toBe(200);
     });
 
-    it('answers 404 without handing the request to the legacy app when the flag is off', async () => {
+    it('answers 404 when the flag is off', async () => {
         const res = await fetch(`${url}/gated/off`);
         expect(res.status).toBe(404);
         expect(await res.json()).toEqual({ error: 'Not found' });

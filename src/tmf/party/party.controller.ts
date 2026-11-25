@@ -7,7 +7,6 @@ import { pagination, queryParams, sorting } from '../schemas/pagination';
 import { parseRequest } from '../schemas/parse';
 import { BadGatewayError, DomainError, ForbiddenError, NotFoundError } from '../../common/domain-error';
 import { AppConfigService } from '../../config/app-config.service';
-import { LegacyPartyCache } from '../../legacy/legacy-party-cache';
 import { PRIVATE } from '../http-options';
 import { JsonBodyPipe } from '../json-body.pipe';
 import { isRecord } from '../related-party';
@@ -45,7 +44,6 @@ export class PartyController {
     constructor(
         private readonly proxy: TmfProxy,
         private readonly config: AppConfigService,
-        private readonly cache: LegacyPartyCache,
         private readonly directory: ProviderDirectory
     ) {}
 
@@ -102,7 +100,7 @@ export class PartyController {
         if (id !== user.partyId || this.actsForOrganization(user)) {
             throw new ForbiddenError(NOT_ALLOWED);
         }
-        return this.write(req, res, `/individual/${encodeURIComponent(id)}`, id, changes);
+        return this.proxy.forward(req, res, { upstream: 'tmforum.party', path: `/individual/${encodeURIComponent(id)}`, body: JSON.stringify(changes) });
     }
 
     @Patch('organization/:id')
@@ -114,7 +112,7 @@ export class PartyController {
             throw new ForbiddenError(NOT_ALLOWED);
         }
         validateOrganizationChanges(changes);
-        return this.write(req, res, `/organization/${encodeURIComponent(id)}`, id, changes);
+        return this.proxy.forward(req, res, { upstream: 'tmforum.party', path: `/organization/${encodeURIComponent(id)}`, body: JSON.stringify(changes) });
     }
 
     private editable(body: string): Record<string, unknown> {
@@ -127,15 +125,6 @@ export class PartyController {
     // The user is logged in as an organisation when the individual behind it is known
     private actsForOrganization(user: UpstreamUser): boolean {
         return typeof user.userId === 'string' && user.userId !== '';
-    }
-
-    /** The party is forgotten by the legacy application once the change is made, so nobody reads it again in between. */
-    private async write(req: Request, res: Response, path: string, id: string, changes: Record<string, unknown>): Promise<void> {
-        try {
-            await this.proxy.forward(req, res, { upstream: 'tmforum.party', path, body: JSON.stringify(changes) });
-        } finally {
-            this.cache.clear(id);
-        }
     }
 
     @All(['', '{*path}'])

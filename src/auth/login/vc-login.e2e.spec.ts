@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
-import express from 'express';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { createApp } from '../../bootstrap';
 import { AppConfigModule } from '../../config/app-config.module';
@@ -17,10 +16,6 @@ class Root {}
 const CERT_ISSUER = 'did:web:certifier.example.org';
 const STATE = 'state-of-the-browser-0001';
 const CERT_STATE = 'cert:state-of-the-upload-01';
-const legacy = express();
-legacy.use((_req, res) => {
-    res.json({ from: 'legacy' });
-});
 
 const verifier = new FakeUpstream();
 let token = '';
@@ -50,7 +45,7 @@ const start = async (redirection: boolean): Promise<void> => {
         BAE_AUTH__SESSION__SECRET: 's'.repeat(32),
         BAE_AUTH__SESSION__COOKIE_SECURE: 'false'
     });
-    app = await createApp(legacy, Root);
+    app = await createApp(Root);
     // TMForum is not part of this test: the party of the user is whoever it says
     Object.assign(app.get(PartyRegistry), {
         individualFor: () => Promise.resolve('p-ana'),

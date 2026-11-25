@@ -10,7 +10,7 @@ describe('VcEnabledGuard', () => {
         expect(guard(true).canActivate()).toBe(true);
     });
 
-    it('answers 404, not handed to the legacy application, while it is off', () => {
+    it('answers 404 while it is off', () => {
         expect(() => guard(false).canActivate()).toThrow(NotFoundError);
     });
 });

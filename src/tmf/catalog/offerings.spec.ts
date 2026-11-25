@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
-import express from 'express';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { AuthModule } from '../../auth/auth.module';
 import { createApp } from '../../bootstrap';
@@ -15,8 +14,6 @@ const upstream = new FakeUpstream();
 
 @Module({ imports: [AppConfigModule, LoggingModule, AuthModule, FakeFeaturesModule, CatalogModule] })
 class Root {}
-
-const legacy = express();
 
 const API = '/tmf-api/productCatalogManagement/v4';
 const CHARGING = '/charging/api/assetManagement/assets/offeringJob';
@@ -63,7 +60,7 @@ beforeAll(async () => {
         BAE_UPSTREAMS__SEARCH__PORT: String(upstream.port),
         BAE_SEARCH__ENABLED: 'true'
     });
-    app = await createApp(legacy, Root);
+    app = await createApp(Root);
     useFakeLogin(app);
     await app.listen(0);
     url = await app.getUrl();

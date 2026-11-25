@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
-import express from 'express';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { AuthModule } from '../auth/auth.module';
 import { createApp } from '../bootstrap';
@@ -18,11 +17,6 @@ import { FilesModule } from './files.module';
     providers: [{ provide: APP_GUARD, useClass: FeatureGuard }]
 })
 class Root {}
-
-const legacy = express();
-legacy.use((_req, res) => {
-    res.json({ from: 'legacy' });
-});
 
 const fileService = new FakeUpstream();
 const FILES: Record<string, { fileId: string, labels: Record<string, string>, visibility: string, size: number }> = {
@@ -42,7 +36,7 @@ const start = async (env: Record<string, string> = {}): Promise<void> => {
         BAE_FILE_SERVICE__MAX_SIZE_MB: '1',
         ...env
     });
-    app = await createApp(legacy, Root);
+    app = await createApp(Root);
     useFakeLogin(app);
     await app.listen(0);
     url = await app.getUrl();

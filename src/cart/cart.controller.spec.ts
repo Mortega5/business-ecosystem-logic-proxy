@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
-import express from 'express';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { AuthModule } from '../auth/auth.module';
 import { createApp } from '../bootstrap';
@@ -11,11 +10,6 @@ import { AS_ADMIN, useFakeLogin, LOGGED_IN } from '../testing/fake-login';
 
 @Module({ imports: [AppConfigModule, LoggingModule, AuthModule, FakeCartModule] })
 class Root {}
-
-const legacy = express();
-legacy.use((_req, res) => {
-    res.json({ from: 'legacy' });
-});
 
 const JSON_HEADERS = { 'content-type': 'application/json' };
 const ANA = { ...LOGGED_IN, ...JSON_HEADERS };
@@ -35,7 +29,7 @@ const add = (item: unknown, headers = ANA): Promise<Response> => call('/shopping
 
 beforeAll(async () => {
     Object.assign(process.env, { BAE_LIMITS__CART_ITEMS: '3' });
-    app = await createApp(legacy, Root);
+    app = await createApp(Root);
     useFakeLogin(app);
     await app.listen(0);
     url = await app.getUrl();

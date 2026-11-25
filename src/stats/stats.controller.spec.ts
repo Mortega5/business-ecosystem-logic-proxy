@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
-import express from 'express';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { AuthModule } from '../auth/auth.module';
 import { createApp } from '../bootstrap';
@@ -17,12 +16,6 @@ const store = statsStore;
 @Module({ imports: [AppConfigModule, LoggingModule, AuthModule, FakeStatsModule] })
 class Root {}
 
-// The legacy application answers anything else
-const legacy = express();
-legacy.use((_req, res) => {
-    res.json({ from: 'legacy' });
-});
-
 let app: NestExpressApplication;
 let url: string;
 let paths: string[];
@@ -35,7 +28,7 @@ const settle = async (): Promise<void> => {
 beforeAll(async () => {
     await upstream.start();
     Object.assign(process.env, { BAE_UPSTREAMS__TMFORUM__HOST: '127.0.0.1', BAE_UPSTREAMS__TMFORUM__PORT: String(upstream.port) });
-    app = await createApp(legacy, Root);
+    app = await createApp(Root);
     useFakeLogin(app);
     await app.listen(0);
     url = await app.getUrl();

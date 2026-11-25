@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
-import express from 'express';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { AuthModule } from '../../auth/auth.module';
 import { createApp } from '../../bootstrap';
@@ -15,12 +14,6 @@ const upstream = new FakeUpstream();
 
 @Module({ imports: [AppConfigModule, LoggingModule, AuthModule, OrderingModule] })
 class Root {}
-
-// The legacy application answers anything under /ordering
-const legacy = express();
-legacy.all('/ordering/*path', (_req, res) => {
-    res.json({ from: 'legacy' });
-});
 
 const ORDERING = '/tmf-api/productOrderingManagement/v4/productOrder';
 const CATALOG = '/tmf-api/productCatalogManagement/v4';
@@ -79,7 +72,7 @@ beforeAll(async () => {
         BAE_UPSTREAMS__CHARGING__HOST: '127.0.0.1',
         BAE_UPSTREAMS__CHARGING__PORT: String(upstream.port)
     });
-    app = await createApp(legacy, Root);
+    app = await createApp(Root);
     useFakeLogin(app);
     await app.listen(0);
     url = await app.getUrl();

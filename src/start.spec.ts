@@ -1,12 +1,11 @@
 import { Controller, Get, Module } from '@nestjs/common';
 import { Writable } from 'node:stream';
-import express from 'express';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AuthModule } from './auth/auth.module';
 import { Public } from './auth/public.decorator';
 import { AppConfigModule } from './config/app-config.module';
 import { LoggingModule } from './logging/logging.module';
-import { start, type LegacyServer } from './start';
+import { start } from './start';
 import { freePort } from './testing/free-port';
 import { createSelfSignedCertificate } from './testing/self-signed-certificate';
 import { request as httpsRequest } from 'node:https';
@@ -36,20 +35,18 @@ const capture = () => {
     return { lines, logStream };
 };
 
-const legacyApp = express();
-legacyApp.get('/legacy', (_req, res) => {
-    res.json({ from: 'legacy' });
-});
-
-const loadedAfter = (ms: number, onlistening = vi.fn()): (() => Promise<LegacyServer>) => {
-    return () =>
-        new Promise((resolve) =>
-            setTimeout(
-                () => resolve({ app: legacyApp, onlistening, stopBackgroundLoaders: vi.fn(), close: vi.fn() }),
-                ms
-            )
-        );
-};
+@Module({
+    imports: [AppConfigModule, LoggingModule],
+    providers: [
+        {
+            provide: 'FAILS',
+            useFactory: () => {
+                throw new Error('connect ENOTFOUND mongo');
+            }
+        }
+    ]
+})
+class FailingRootModule {}
 
 const envFor = async (extra: Record<string, string> = {}): Promise<NodeJS.ProcessEnv> => ({
     BAE_LOGGING__FORMAT: 'json',
@@ -63,34 +60,20 @@ describe('start', () => {
         vi.restoreAllMocks();
     });
 
-    it('logs while it waits for the legacy application, then loads, listens and starts the legacy loaders', async () => {
+    it('logs that it starts, listens, and serves the routes', async () => {
         const { lines, logStream } = capture();
-        const onlistening = vi.fn();
         const env = await envFor();
 
-        const { app } = await start({
-            env,
-            loadLegacy: loadedAfter(120, onlistening),
-            rootModule: TestRootModule,
-            waitLogIntervalMs: 30,
-            logStream
-        });
+        const { app } = await start({ env, rootModule: TestRootModule, logStream });
 
         const messages = lines.map((l) => l.msg);
         expect(messages[0]).toBe('Starting the server');
-        expect(messages.filter((m) => String(m).startsWith('Still loading the legacy application')).length).toBeGreaterThanOrEqual(2);
-        expect(messages).toContain('Legacy application loaded');
         expect(messages.at(-1)).toBe('Server listening');
         expect(lines[0]).toMatchObject({ context: 'Bootstrap', port: Number(env.BAE_APP__PORT) });
-        expect(onlistening).toHaveBeenCalledTimes(1);
 
         const url = await app.getUrl();
         expect(await (await fetch(`${url}/new`)).json()).toEqual({ from: 'nest' });
-        expect(await (await fetch(`${url}/legacy`)).json()).toEqual({ from: 'legacy' });
-
-        const waitedBefore = lines.length;
-        await new Promise((resolve) => setTimeout(resolve, 100));
-        expect(lines.length).toBe(waitedBefore);
+        expect((await fetch(`${url}/nothing/here`, { headers: { accept: 'application/json' } })).status).toBe(404);
         await app.close();
     });
 
@@ -100,7 +83,6 @@ describe('start', () => {
 
         const { app } = await start({
             env: { BAE_LOGGING__FORMAT: 'json', BAE_APP__HOST: '127.0.0.1', BAE_LP_PORT: String(port) },
-            loadLegacy: loadedAfter(0),
             rootModule: TestRootModule,
             logStream
         });
@@ -116,7 +98,7 @@ describe('start', () => {
         await app.close();
     });
 
-    it('serves both the Nest routes and the legacy ones over HTTPS when it is enabled', async () => {
+    it('serves over HTTPS when it is enabled, and only over HTTPS', async () => {
         const { keyFile, certFile, cert } = createSelfSignedCertificate();
         const { lines, logStream } = capture();
         const port = await freePort();
@@ -127,7 +109,7 @@ describe('start', () => {
             BAE_APP__HTTPS__CERT_FILE: certFile
         });
 
-        const { app } = await start({ env, loadLegacy: loadedAfter(0), rootModule: TestRootModule, logStream });
+        const { app } = await start({ env, rootModule: TestRootModule, logStream });
 
         const get = (path: string): Promise<{ body: string; protocol: string | null }> =>
             new Promise((resolve, reject) => {
@@ -141,10 +123,8 @@ describe('start', () => {
                 req.end();
             });
         const nest = await get('/new');
-        const legacyRoute = await get('/legacy');
 
         expect(JSON.parse(nest.body)).toEqual({ from: 'nest' });
-        expect(JSON.parse(legacyRoute.body)).toEqual({ from: 'legacy' });
         expect(['TLSv1.2', 'TLSv1.3']).toContain(nest.protocol);
         expect(lines[0]).toMatchObject({ msg: 'Starting the server', https: true });
 
@@ -157,18 +137,10 @@ describe('start', () => {
         await app.close();
     });
 
-    it('logs a fatal error and rethrows when the legacy application fails to load', async () => {
+    it('logs a fatal error and rethrows when the application fails to start', async () => {
         const { lines, logStream } = capture();
-        const failure = new Error('connect ENOTFOUND mongo');
 
-        await expect(
-            start({
-                env: await envFor(),
-                loadLegacy: () => Promise.reject(failure),
-                rootModule: TestRootModule,
-                logStream
-            })
-        ).rejects.toBe(failure);
+        await expect(start({ env: await envFor(), rootModule: FailingRootModule, logStream })).rejects.toThrow('ENOTFOUND mongo');
 
         expect(lines.at(-1)).toMatchObject({ level: 60, msg: 'The server could not start', context: 'Bootstrap' });
         expect(JSON.stringify(lines.at(-1))).toContain('ENOTFOUND mongo');
@@ -178,7 +150,7 @@ describe('start', () => {
         const write = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
 
         await expect(
-            start({ env: await envFor({ BAE_APP__PORT: 'not-a-port' }), loadLegacy: loadedAfter(0), rootModule: TestRootModule })
+            start({ env: await envFor({ BAE_APP__PORT: 'not-a-port' }), rootModule: TestRootModule })
         ).rejects.toThrow('Invalid configuration');
 
         expect(write).toHaveBeenCalledWith(expect.stringContaining('app.port'));

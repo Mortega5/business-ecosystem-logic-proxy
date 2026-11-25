@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
-import express from 'express';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { AuthModule } from '../../auth/auth.module';
 import { createApp } from '../../bootstrap';
@@ -14,12 +13,6 @@ const upstream = new FakeUpstream();
 
 @Module({ imports: [AppConfigModule, LoggingModule, AuthModule, InventoryModule] })
 class Root {}
-
-// The legacy application answers anything under these paths
-const legacy = express();
-legacy.all(['/inventory/*path', '/serviceInventory/*path', '/resourceInventory/*path'], (_req, res) => {
-    res.json({ from: 'legacy' });
-});
 
 const APIS = [
     { prefix: '/inventory', resource: 'product', upstream: '/tmf-api/productInventory/v4/product', filter: 'status' },
@@ -35,7 +28,7 @@ const answerWith = (status: number, body: string): void => upstream.answer((res)
 beforeAll(async () => {
     await upstream.start();
     Object.assign(process.env, { BAE_UPSTREAMS__TMFORUM__HOST: '127.0.0.1', BAE_UPSTREAMS__TMFORUM__PORT: String(upstream.port) });
-    app = await createApp(legacy, Root);
+    app = await createApp(Root);
     useFakeLogin(app);
     await app.listen(0);
     url = await app.getUrl();
@@ -202,7 +195,7 @@ describe.each(APIS)('the rest of $prefix', ({ prefix, resource }) => {
         ['GET', '/other'],
         ['GET', ''],
         ['GET', '/']
-    ])('%s %s is not found, neither here nor in the legacy application, and nothing is written', async (method, path) => {
+    ])('%s %s is not found, and nothing is written', async (method, path) => {
         const res = await call(`${prefix}${path}`, { method, headers: { 'content-type': 'application/json' }, ...(method === 'GET' ? {} : { body: '{"status":"terminated"}' }) });
         expect(res.status).toBe(404);
         expect(await res.json()).toEqual({ error: 'Not found' });

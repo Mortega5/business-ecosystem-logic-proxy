@@ -69,7 +69,7 @@ beforeAll(async () => {
         BAE_UPSTREAMS__CHARGING__PORT: String(port),
         BAE_UPSTREAMS__CHARGING__TIMEOUT_MS: '300'
     });
-    app = await createApp(express(), Root);
+    app = await createApp(Root);
     // Stands for the authentication, which has run before the controller
     app.use((req: Request & { user?: object }, _res: Response, next: () => void) => {
         req.user = { id: 'u-ana', username: 'ana', email: 'ana@example.org', partyId: 'p-ana', roles: [{ name: 'Seller' }], accessToken: 'token-1' };

@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
-import express from 'express';
 import { generateKeyPairSync } from 'node:crypto';
 import jwt from 'jsonwebtoken';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -28,10 +27,6 @@ const ENV = [
 const CALLBACK = 'http://localhost:8004/auth/oidc-discover/callback';
 
 const idp = new FakeUpstream();
-const legacy = express();
-legacy.use((_req, res) => {
-    res.json({ from: 'legacy' });
-});
 let app: NestExpressApplication;
 let url: string;
 let nonceOfLogin = '';
@@ -108,7 +103,7 @@ beforeAll(async () => {
         BAE_AUTH__SESSION__SECRET: 's'.repeat(32),
         BAE_AUTH__SESSION__COOKIE_SECURE: 'false'
     });
-    app = await createApp(legacy, Root);
+    app = await createApp(Root);
     // TMForum is not part of this test: the party of the user is whoever it says
     Object.assign(app.get(PartyRegistry), {
         individualFor: () => Promise.resolve('p-ana'),

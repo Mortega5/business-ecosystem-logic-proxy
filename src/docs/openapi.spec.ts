@@ -532,7 +532,7 @@ describe('responses against docs/openapi.yaml', () => {
         ];
     };
 
-    // The categories of the catalog API: open to read and for an administrator to write; the rest of /catalog is the legacy application's
+    // The categories of the catalog API: open to read and for an administrator to write; the rest of /catalog has no route
     const categoryCases = (): Case[] => {
         const base = '/catalog/category';
         const category = '{"id":"c-1","name":"Data","isRoot":true,"lifecycleStatus":"Launched"}';
@@ -975,7 +975,7 @@ describe('responses against docs/openapi.yaml', () => {
         @Module({ imports: [DependenciesStub, FakeFeaturesModule, LoggerModule.forRoot({ pinoHttp: { level: 'silent' } }), HealthModule, VersionModule, ContactUsModule, FakeStatsModule, FakeCartModule, PaymentModule, FakePortalModule, FakeFeedbackModule, AuthModule, DocumentModule, RevenueModule, SearchModule, InvoicingModule, QuoteModule, InventoryModule, AccountModule, BillingModule, PartyModule, ResourceModule, ServiceModule, ChargingModule, SoftwareModule, UsageModule, OrderingModule, CatalogModule] })
         class Contract {}
 
-        app = await createApp(express(), Contract);
+        app = await createApp(Contract);
         useFakeLogin(app);
         await app.listen(0);
         url = await app.getUrl();

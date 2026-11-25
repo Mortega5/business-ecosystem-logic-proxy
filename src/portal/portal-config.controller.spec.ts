@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
-import express from 'express';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { AuthModule } from '../auth/auth.module';
 import { createApp } from '../bootstrap';
@@ -33,11 +32,6 @@ const documents = new Documents();
 })
 class Root {}
 
-const legacy = express();
-legacy.use((_req, res) => {
-    res.json({ from: 'legacy' });
-});
-
 const ENV = {
     BAE_PORTAL__CHAT_URL: 'https://chat.example.org',
     BAE_PORTAL__THEME: 'dark',
@@ -51,7 +45,7 @@ const read = async (): Promise<Record<string, unknown>> => (await (await fetch(`
 
 beforeAll(async () => {
     Object.assign(process.env, ENV);
-    app = await createApp(legacy, Root);
+    app = await createApp(Root);
     await app.listen(0);
     url = await app.getUrl();
     app.get(CatalogDefaults).set('urn:ngsi-ld:catalog:default', { api: 'urn:ngsi-ld:category:api' });
@@ -122,8 +116,8 @@ describe('GET /config', () => {
         documents.broken = false;
     });
 
-    it('leaves the routes under it that are for the administrator to the legacy application', async () => {
-        expect(await (await fetch(`${url}/config/features`)).json()).toEqual({ from: 'legacy' });
-        expect(await (await fetch(`${url}/config`, { method: 'POST' })).json()).toEqual({ from: 'legacy' });
+    it('has no other routes under it', async () => {
+        expect((await fetch(`${url}/config/features`)).status).toBe(404);
+        expect((await fetch(`${url}/config`, { method: 'POST' })).status).toBe(404);
     });
 });

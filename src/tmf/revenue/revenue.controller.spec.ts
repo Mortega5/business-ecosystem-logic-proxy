@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
-import express from 'express';
 import { request } from 'node:http';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { AuthModule } from '../../auth/auth.module';
@@ -16,12 +15,6 @@ const upstream = new FakeUpstream();
 @Module({ imports: [AppConfigModule, LoggingModule, AuthModule, RevenueModule] })
 class Root {}
 
-// The legacy application answers anything under /revenue
-const legacy = express();
-legacy.all('/revenue/*path', (_req, res) => {
-    res.json({ from: 'legacy' });
-});
-
 let app: NestExpressApplication;
 let url: string;
 const ID = 'urn:ngsi-ld:organization:7a1c0f3e';
@@ -29,7 +22,7 @@ const ID = 'urn:ngsi-ld:organization:7a1c0f3e';
 beforeAll(async () => {
     await upstream.start();
     Object.assign(process.env, { BAE_UPSTREAMS__REVENUE__HOST: '127.0.0.1', BAE_UPSTREAMS__REVENUE__PORT: String(upstream.port) });
-    app = await createApp(legacy, Root);
+    app = await createApp(Root);
     useFakeLogin(app);
     await app.listen(0);
     url = await app.getUrl();
@@ -122,7 +115,7 @@ describe('the rest of /revenue', () => {
         ['PATCH', `/revenue/dashboard/${ID}`],
         ['PUT', `/revenue/dashboard/${ID}`],
         ['DELETE', `/revenue/dashboard/${ID}`]
-    ])('%s %s is not found, neither here nor in the legacy application', async (method, path) => {
+    ])('%s %s is not found', async (method, path) => {
         const res = await call(path, { method });
         expect(res.status).toBe(404);
         expect(await res.json()).toEqual({ error: 'Not found' });

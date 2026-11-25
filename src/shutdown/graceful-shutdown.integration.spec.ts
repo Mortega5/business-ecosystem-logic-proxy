@@ -54,12 +54,6 @@ afterAll(async () => {
 describe('shutdown of a running application', () => {
     it('keeps serving during the delay with readiness at 503, finishes the request in flight, then stops listening', async () => {
         const order: string[] = [];
-        const legacy = {
-            stopBackgroundLoaders: vi.fn(() => order.push('legacy.stopBackgroundLoaders')),
-            close: vi.fn(async () => {
-                order.push('legacy.close');
-            })
-        };
         const exit = vi.fn((code: number) => order.push(`exit(${code})`));
         // the typings of INestApplication.close() omit the signal that the implementation accepts
         const originalClose = app.close.bind(app) as (signal?: string) => Promise<void>;
@@ -70,7 +64,7 @@ describe('shutdown of a running application', () => {
         });
         const signals = new EventEmitter();
         installGracefulShutdown(
-            { app, legacy, logger: { info: vi.fn(), fatal: vi.fn() }, timeoutMs: 10_000 },
+            { app, logger: { info: vi.fn(), fatal: vi.fn() }, timeoutMs: 10_000 },
             { signals: signals as unknown as NodeJS.Process, exit }
         );
 
@@ -92,6 +86,6 @@ describe('shutdown of a running application', () => {
         await waitFor(() => exit.mock.calls.length > 0, 10_000);
         expect(Date.now() - signalledAt).toBeGreaterThanOrEqual(SLOW_MS - 100);
         await expect(fetch(`${url}/health/live`)).rejects.toThrow();
-        expect(order).toEqual(['legacy.stopBackgroundLoaders', 'app.close', 'app.closed', 'legacy.close', 'exit(0)']);
+        expect(order).toEqual(['app.close', 'app.closed', 'exit(0)']);
     }, 30_000);
 });

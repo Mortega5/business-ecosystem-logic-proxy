@@ -60,16 +60,11 @@ class ErrorsController {
 @Module({ imports: [AppConfigModule, LoggingModule], controllers: [ErrorsController] })
 class TestRootModule {}
 
-const legacy = express();
-legacy.get('/legacy/hello', (_req, res) => {
-    res.json({ from: 'legacy' });
-});
-
 let app: NestExpressApplication;
 let url: string;
 
 beforeAll(async () => {
-    app = await createApp(legacy, TestRootModule);
+    app = await createApp(TestRootModule);
     await app.listen(0);
     url = await app.getUrl();
 });
@@ -131,7 +126,7 @@ describe('error filter', () => {
         expect(body).toEqual({ error: 'Unexpected error. The error has been notified to the administrators.' });
     });
 
-    it('still hands unknown routes to the legacy app', async () => {
-        expect(await get('/legacy/hello')).toEqual({ status: 200, body: { from: 'legacy' } });
+    it('answers an unknown route with a 404', async () => {
+        expect((await get('/errors/nothing')).status).toBe(404);
     });
 });

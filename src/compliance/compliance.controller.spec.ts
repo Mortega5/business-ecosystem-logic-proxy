@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
-import express from 'express';
 import jwt from 'jsonwebtoken';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { AuthModule } from '../auth/auth.module';
@@ -19,11 +18,6 @@ import { ComplianceModule } from './compliance.module';
     providers: [{ provide: APP_GUARD, useClass: FeatureGuard }]
 })
 class Root {}
-
-const legacy = express();
-legacy.use((_req, res) => {
-    res.json({ from: 'legacy' });
-});
 
 const tmforum = new FakeUpstream();
 const compliance = new FakeUpstream();
@@ -47,7 +41,7 @@ const serve = async (env: Record<string, string> = {}): Promise<string> => {
         BAE_COMPLIANCE__SERVER_URL: `http://127.0.0.1:${compliance.port}`,
         ...env
     });
-    const app = await createApp(legacy, Root);
+    const app = await createApp(Root);
     useFakeLogin(app);
     await app.listen(0);
     apps.push(app);
@@ -184,12 +178,12 @@ describe('PATCH /admin/uploadcertificate/:specId', () => {
         expect((await upload(AS_ADMIN, { vc: credential }, url, '../x')).status).toBe(400);
     });
 
-    it('closes the rest of its prefix and leaves the other admin routes to who serves them', async () => {
+    it('closes the rest of its prefix, and has no other admin routes', async () => {
         expect((await fetch(`${url}/admin/uploadcertificate/${SPEC_ID}/extra`, { headers: AS_ADMIN })).status).toBe(
             404
         );
         const other = await fetch(`${url}/admin/somethingelse`, { headers: AS_ADMIN });
-        expect(await other.json()).toEqual({ from: 'legacy' });
+        expect(other.status).toBe(404);
     });
 });
 

@@ -1,6 +1,5 @@
 import { Controller, Get, Module, Post } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
-import express from 'express';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { createApp } from '../bootstrap';
@@ -25,16 +24,11 @@ class ProbeController {
 @Module({ imports: [AppConfigModule, LoggingModule], controllers: [ProbeController] })
 class Root {}
 
-const legacy = express();
-legacy.get('/legacy', (_req, res) => {
-    res.json({ from: 'legacy' });
-});
-
 const DEFAULTS = join(__dirname, '../../config/default.yaml');
 const apps: NestExpressApplication[] = [];
 
 const serve = async (env: NodeJS.ProcessEnv = {}): Promise<string> => {
-    const app = await createApp(legacy, Root);
+    const app = await createApp(Root);
     configureSecurity(app, loadStaticConfig({ defaultsPath: DEFAULTS, env }));
     await app.listen(0);
     apps.push(app);
@@ -46,15 +40,14 @@ afterEach(async () => {
 });
 
 describe('security headers', () => {
-    it('are on the answers of Nest, of the legacy fallback, of a 404 and of a refusal', async () => {
+    it('are on the answers of Nest, of a 404 and of a refusal', async () => {
         const url = await serve();
         const answers = await Promise.all([
             fetch(`${url}/probe`),
-            fetch(`${url}/legacy`),
             fetch(`${url}/nothing/here`),
             fetch(`${url}/probe`, { method: 'POST', headers: { 'sec-fetch-site': 'cross-site' } })
         ]);
-        expect(answers.map((res) => res.status)).toEqual([200, 200, 404, 403]);
+        expect(answers.map((res) => res.status)).toEqual([200, 404, 403]);
         for (const res of answers) {
             expect(res.headers.get('x-content-type-options')).toBe('nosniff');
             expect(res.headers.get('strict-transport-security')).toBe('max-age=31536000');
@@ -62,8 +55,8 @@ describe('security headers', () => {
             expect(res.headers.get('content-security-policy-report-only')).toContain("default-src 'self'");
             expect(res.headers.get('x-powered-by')).toBeNull();
         }
-        // The 404 page of the legacy fallback brings its own, stricter policy; the others only report
-        expect(answers.map((res) => res.headers.get('content-security-policy'))).toEqual([null, null, "default-src 'none'", null]);
+        // The 404 page brings its own, stricter policy; the others only report
+        expect(answers.map((res) => res.headers.get('content-security-policy'))).toEqual([null, "default-src 'none'", null]);
     });
 
     it('follow the configuration', async () => {

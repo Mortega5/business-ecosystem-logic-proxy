@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
-import express from 'express';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { AuthModule } from '../auth/auth.module';
 import { createApp } from '../bootstrap';
@@ -36,11 +35,6 @@ const documents = new Documents();
 })
 class Root {}
 
-const legacy = express();
-legacy.use((_req, res) => {
-    res.json({ from: 'legacy' });
-});
-
 const JSON_HEADERS = { 'content-type': 'application/json' };
 const ADMIN = { ...AS_ADMIN, ...JSON_HEADERS };
 const USER = { ...LOGGED_IN, ...JSON_HEADERS };
@@ -56,7 +50,7 @@ const call = (path: string, init: { method?: string; headers?: Record<string, st
 const errorOf = async (res: Response): Promise<string> => ((await res.json()) as { error: string }).error;
 
 beforeAll(async () => {
-    app = await createApp(legacy, Root);
+    app = await createApp(Root);
     useFakeLogin(app);
     await app.listen(0);
     url = await app.getUrl();
@@ -78,8 +72,8 @@ describe('every route', () => {
         expect(documents.stored.size).toBe(0);
     });
 
-    it('leaves the settings of the analytics to the legacy application', async () => {
-        expect(await (await call('/config/analytics', { method: 'GET' })).json()).toEqual({ from: 'legacy' });
+    it('does not read the settings of the analytics here', async () => {
+        expect((await call('/config/analytics', { method: 'GET' })).status).toBe(404);
     });
 });
 

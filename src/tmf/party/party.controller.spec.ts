@@ -1,7 +1,5 @@
 import { Module } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
-import express from 'express';
-import { createRequire } from 'node:module';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthModule } from '../../auth/auth.module';
 import { createApp } from '../../bootstrap';
@@ -9,21 +7,14 @@ import { AppConfigModule } from '../../config/app-config.module';
 import { LoggingModule } from '../../logging/logging.module';
 import { AS_MEMBER, AS_ORGANISATION, useFakeLogin, LOGGED_IN } from '../../testing/fake-login';
 import { FakeUpstream } from '../../testing/fake-upstream';
+import { OperatorService } from '../../operator/operator.service';
 import { PartyModule } from './party.module';
 
-const { operator } = createRequire(__filename)('../../../lib/operator') as { operator: { getOperatorId: () => string | undefined } };
-const { partyClient } = createRequire(__filename)('../../../lib/party') as { partyClient: { clearPartyCache: (id: string) => void } };
 
 const upstream = new FakeUpstream();
 
 @Module({ imports: [AppConfigModule, LoggingModule, AuthModule, PartyModule] })
 class Root {}
-
-// The legacy application answers anything under /party
-const legacy = express();
-legacy.all('/party/*path', (_req, res) => {
-    res.json({ from: 'legacy' });
-});
 
 const JSON_HEADERS = { 'content-type': 'application/json' };
 const BASE = '/tmf-api/party/v4';
@@ -39,14 +30,13 @@ const INDIVIDUAL = JSON.stringify({
 const PHONE = (phoneNumber: string) => ({ mediumType: 'TelephoneNumber', characteristic: { contactType: 'Mobile', phoneNumber } });
 
 let url: string;
-let clearCache: ReturnType<typeof vi.spyOn>;
 const apps: NestExpressApplication[] = [];
 
 const answerWith = (status: number, body: string): void => upstream.answer((res) => upstream.json(res, status, body));
 
 const serve = async (env: NodeJS.ProcessEnv = {}): Promise<string> => {
     Object.assign(process.env, { BAE_UPSTREAMS__TMFORUM__HOST: '127.0.0.1', BAE_UPSTREAMS__TMFORUM__PORT: String(upstream.port), ...env });
-    const server = await createApp(legacy, Root);
+    const server = await createApp(Root);
     useFakeLogin(server);
     await server.listen(0);
     apps.push(server);
@@ -66,11 +56,10 @@ afterAll(async () => {
 beforeEach(() => {
     upstream.reset();
     answerWith(200, INDIVIDUAL);
-    clearCache = vi.spyOn(partyClient, 'clearPartyCache').mockImplementation(() => undefined);
 });
 
 afterEach(() => {
-    clearCache.mockRestore();
+    vi.restoreAllMocks();
 });
 
 const call = (path: string, init: { method?: string; headers?: Record<string, string>; body?: string; base?: string } = {}) =>
@@ -199,7 +188,7 @@ describe('the directory of providers', () => {
     });
 
     it('leaves out the operator of the marketplace', async () => {
-        vi.spyOn(operator, 'getOperatorId').mockReturnValue('org-a');
+        vi.spyOn(OperatorService.prototype, 'seller').mockReturnValue({ id: 'org-a' });
         const res = await get('/party/organization?lifecycleStatus=Launched&limit=10');
         expect(await names(res)).toEqual(['Mid', 'Zeta']);
         expect(res.headers.get('x-total-count')).toBe('2');
@@ -341,12 +330,11 @@ describe('PATCH /party/individual/:id', () => {
     const patch = (body: string, headers: Record<string, string> = LOGGED_IN, id = 'p-ana', base?: string) =>
         call(`/party/individual/${id}`, { method: 'PATCH', headers: { ...JSON_HEADERS, ...headers }, body, ...(base === undefined ? {} : { base }) });
 
-    it('changes the individual themselves, without id and href, and then the legacy application forgets them', async () => {
+    it('changes the individual themselves, without id and href', async () => {
         const res = await patch('{"id":"p-victim","href":"x","givenName":"Ana"}');
 
         expect(res.status).toBe(200);
         expect(upstream.seen).toMatchObject({ method: 'PATCH', url: `${BASE}/individual/p-ana`, body: '{"givenName":"Ana"}' });
-        expect(clearCache).toHaveBeenCalledExactlyOnceWith('p-ana');
     });
 
     it('sends what it checked, not a second copy of a key', async () => {
@@ -354,10 +342,9 @@ describe('PATCH /party/individual/:id', () => {
         expect(upstream.seen?.body).toBe('{"givenName":"Ana"}');
     });
 
-    it('forgets the individual also when the upstream refuses the change', async () => {
+    it('passes on the refusal of the upstream to a change', async () => {
         answerWith(422, '{"error":"no"}');
         expect((await patch('{"givenName":"Ana"}')).status).toBe(422);
-        expect(clearCache).toHaveBeenCalledExactlyOnceWith('p-ana');
     });
 
     it.each([
@@ -370,7 +357,6 @@ describe('PATCH /party/individual/:id', () => {
         expect(res.status).toBe(403);
         expect(await res.json()).toEqual({ error: 'You are not allowed to access this resource' });
         expect(upstream.seen).toBeUndefined();
-        expect(clearCache).not.toHaveBeenCalled();
     });
 
     it.each(['not json', '[]', 'null'])('refuses the body %s', async (body) => {
@@ -400,13 +386,12 @@ describe('PATCH /party/organization/:id', () => {
     const patch = (body: string, headers: Record<string, string> = AS_ORGANISATION, id = 'p-acme') =>
         call(`/party/organization/${id}`, { method: 'PATCH', headers: { ...JSON_HEADERS, ...headers }, body });
 
-    it('changes the organisation, for its administrator, and then the legacy application forgets it', async () => {
+    it('changes the organisation, for its administrator', async () => {
         const body = JSON.stringify({ tradingName: 'Acme', contactMedium: [PHONE('+34612345678')], partyCharacteristic: [{ name: 'country', value: 'ES' }] });
         const res = await patch(body);
 
         expect(res.status).toBe(200);
         expect(upstream.seen).toMatchObject({ method: 'PATCH', url: `${BASE}/organization/p-acme`, body });
-        expect(clearCache).toHaveBeenCalledExactlyOnceWith('p-acme');
     });
 
     it.each([
@@ -418,7 +403,6 @@ describe('PATCH /party/organization/:id', () => {
         const res = await patch('{"tradingName":"Acme"}', headers, id);
         expect(res.status).toBe(403);
         expect(upstream.seen).toBeUndefined();
-        expect(clearCache).not.toHaveBeenCalled();
     });
 
     it.each([
@@ -457,11 +441,10 @@ describe('the rest of /party', () => {
         ['GET', '/individual/p-ana/history'],
         ['GET', '/other'],
         ['GET', '']
-    ])('%s %s is not found, neither here nor in the legacy application, and nothing is written', async (method, path) => {
+    ])('%s %s is not found, and nothing is written', async (method, path) => {
         const res = await call(`/party${path}`, { method, headers: as(AS_ORGANISATION, JSON_HEADERS), ...(method === 'GET' ? {} : { body: '{"givenName":"x"}' }) });
         expect(res.status).toBe(404);
         expect(await res.json()).toEqual({ error: 'Not found' });
         expect(upstream.seen).toBeUndefined();
-        expect(clearCache).not.toHaveBeenCalled();
     });
 });

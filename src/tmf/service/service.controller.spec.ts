@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
-import express from 'express';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { AuthModule } from '../../auth/auth.module';
 import { createApp } from '../../bootstrap';
@@ -14,12 +13,6 @@ const upstream = new FakeUpstream();
 
 @Module({ imports: [AppConfigModule, LoggingModule, AuthModule, ServiceModule] })
 class Root {}
-
-// The legacy application answers anything under /service
-const legacy = express();
-legacy.all('/service/*path', (_req, res) => {
-    res.json({ from: 'legacy' });
-});
 
 const SPEC_API = '/tmf-api/serviceCatalogManagement/v4/serviceSpecification';
 const PRODUCT_SPECS = '/tmf-api/productCatalogManagement/v4/productSpecification';
@@ -36,7 +29,7 @@ let productSpecs: string;
 beforeAll(async () => {
     await upstream.start();
     Object.assign(process.env, { BAE_UPSTREAMS__TMFORUM__HOST: '127.0.0.1', BAE_UPSTREAMS__TMFORUM__PORT: String(upstream.port) });
-    app = await createApp(legacy, Root);
+    app = await createApp(Root);
     useFakeLogin(app);
     await app.listen(0);
     url = await app.getUrl();
@@ -148,7 +141,7 @@ describe('the service specifications', () => {
         ['DELETE', '/serviceSpecification'],
         ['GET', '/resourceSpecification/x'],
         ['GET', '/other']
-    ])('%s %s is not found, neither here nor in the legacy application', async (method, path) => {
+    ])('%s %s is not found', async (method, path) => {
         const res = await call(path, { method, headers: seller, ...(method === 'GET' ? {} : { body: '{"name":"x"}' }) });
         expect(res.status).toBe(404);
         expect(await res.json()).toEqual({ error: 'Not found' });

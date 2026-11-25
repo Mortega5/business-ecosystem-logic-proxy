@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
-import express from 'express';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { AuthModule } from '../auth/auth.module';
 import { createApp } from '../bootstrap';
@@ -14,12 +13,6 @@ const charging = new FakeUpstream();
 
 @Module({ imports: [AppConfigModule, LoggingModule, AuthModule, ContactUsModule] })
 class Root {}
-
-// The legacy application answers anything else
-const legacy = express();
-legacy.all('/contact-us', (_req, res) => {
-    res.json({ from: 'legacy' });
-});
 
 const JSON_HEADERS = { 'content-type': 'application/json' };
 const FORM = {
@@ -41,7 +34,7 @@ let status: number;
 beforeAll(async () => {
     await charging.start();
     Object.assign(process.env, { BAE_UPSTREAMS__CHARGING__HOST: '127.0.0.1', BAE_UPSTREAMS__CHARGING__PORT: String(charging.port) });
-    app = await createApp(legacy, Root);
+    app = await createApp(Root);
     useFakeLogin(app);
     await app.listen(0);
     url = await app.getUrl();

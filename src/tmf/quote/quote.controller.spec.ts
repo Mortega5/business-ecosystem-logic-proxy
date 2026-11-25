@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
-import express from 'express';
 import { request } from 'node:http';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthModule } from '../../auth/auth.module';
@@ -36,12 +35,6 @@ const documents = new Documents();
 })
 class Root {}
 
-// The legacy application answers anything under /quote
-const legacy = express();
-legacy.all('/quote/*path', (_req, res) => {
-    res.json({ from: 'legacy' });
-});
-
 const upstream = new FakeUpstream();
 const apps: NestExpressApplication[] = [];
 const ID = 'urn:ngsi-ld:quote:7a1c0f3e';
@@ -57,7 +50,7 @@ const serve = async (env: NodeJS.ProcessEnv = {}): Promise<string> => {
         BAE_HTTP__UPLOAD_LIMIT: '1kb',
         ...env
     });
-    const app = await createApp(legacy, Root);
+    const app = await createApp(Root);
     useFakeLogin(app);
     await app.listen(0);
     apps.push(app);
@@ -309,7 +302,7 @@ describe('the rest of /quote', () => {
         ['DELETE', `${ROOT}/quote`],
         ['GET', `${ROOT}/tendering/other`],
         ['GET', `${ROOT}/listAllQuotes`]
-    ])('%s %s is not found, neither here nor in the legacy application', async (method, path) => {
+    ])('%s %s is not found', async (method, path) => {
         const res = await call(path, method, method === 'POST' || method === 'PUT' ? '{"a":1}' : undefined);
         expect(res.status).toBe(404);
         expect(await res.json()).toEqual({ error: 'Not found' });

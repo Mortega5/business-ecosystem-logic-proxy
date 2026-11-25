@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
-import express from 'express';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { AuthModule } from '../../auth/auth.module';
 import { createApp } from '../../bootstrap';
@@ -14,12 +13,6 @@ const upstream = new FakeUpstream();
 
 @Module({ imports: [AppConfigModule, LoggingModule, AuthModule, ChargingModule] })
 class Root {}
-
-// The legacy application answers anything under /charging
-const legacy = express();
-legacy.all('/charging/*path', (_req, res) => {
-    res.json({ from: 'legacy' });
-});
 
 const JSON_HEADERS = { 'content-type': 'application/json' };
 const CONFIRM = JSON.stringify({ confirm_action: 'accept', reference: 'ref-1', signature: 'abc' });
@@ -35,7 +28,7 @@ beforeAll(async () => {
         BAE_UPSTREAMS__CHARGING__PORT: String(upstream.port),
         BAE_HTTP__BODY_LIMIT: '8kb'
     });
-    app = await createApp(legacy, Root);
+    app = await createApp(Root);
     useFakeLogin(app);
     await app.listen(0);
     url = await app.getUrl();
@@ -227,7 +220,7 @@ describe('the rest of /charging', () => {
         ['GET', '/charging/api/assetManagement/assets'],
         ['GET', '/charging/other'],
         ['GET', '/charging']
-    ])('%s %s is not found, neither here nor in the legacy application, and the backend is not asked', async (method, path) => {
+    ])('%s %s is not found, and the backend is not asked', async (method, path) => {
         const res = await call(path, { method, headers: { ...AS_ADMIN, ...JSON_HEADERS }, ...(method === 'GET' ? {} : { body: '{"a":1}' }) });
         expect(res.status).toBe(404);
         expect(await res.json()).toEqual({ error: 'Not found' });

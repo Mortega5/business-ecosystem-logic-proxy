@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
-import express from 'express';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { AuthModule } from '../../auth/auth.module';
 import { createApp } from '../../bootstrap';
@@ -15,12 +14,6 @@ const upstream = new FakeUpstream();
 @Module({ imports: [AppConfigModule, LoggingModule, AuthModule, SearchModule] })
 class Root {}
 
-// The legacy application answers anything under /search-bck
-const legacy = express();
-legacy.all('/search-bck/*path', (_req, res) => {
-    res.json({ from: 'legacy' });
-});
-
 let app: NestExpressApplication;
 let url: string;
 const FILTERS = '{"categories":["Cloud"],"countries":["ES"]}';
@@ -33,7 +26,7 @@ beforeAll(async () => {
         BAE_UPSTREAMS__SEARCH__PORT: String(upstream.port),
         BAE_HTTP__BODY_LIMIT: '1kb'
     });
-    app = await createApp(legacy, Root);
+    app = await createApp(Root);
     useFakeLogin(app);
     await app.listen(0);
     url = await app.getUrl();
@@ -117,7 +110,7 @@ describe('the rest of /search-bck', () => {
         ['GET', '/search-bck'],
         ['GET', '/search-bck/'],
         ['POST', '/search-bck']
-    ])('%s %s is not found, neither here nor in the legacy application', async (method, path) => {
+    ])('%s %s is not found', async (method, path) => {
         const res = await fetch(`${url}${path}`, { method, headers: JSON_HEADERS, ...(method === 'POST' ? { body: FILTERS } : {}) });
         expect(res.status).toBe(404);
         expect(await res.json()).toEqual({ error: 'Not found' });

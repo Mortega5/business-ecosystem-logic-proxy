@@ -4,30 +4,20 @@ import { createApp } from './bootstrap';
 import { loadAppConfig } from './config/config.loader';
 import { envNameFor, type LegacyVariable } from './config/legacy-env';
 import type { AppConfig } from './config/config.schema';
-import type { LegacyHandler } from './legacy/legacy-fallback.filter';
+import { servePortal } from './portal/portal-static';
 import { buildHttpsOptions } from './https/https-options';
 import { configureSecurity } from './security/configure-security';
 import { buildLoggerOptions } from './logging/pino-options';
 
-export interface LegacyServer {
-    app: LegacyHandler;
-    onlistening: () => void;
-    stopBackgroundLoaders: () => void;
-    close: () => Promise<void>;
-}
-
 export interface RunningServer {
     app: NestExpressApplication;
-    legacy: LegacyServer;
     logger: pino.Logger;
     config: AppConfig;
 }
 
 export interface StartOptions {
     env: NodeJS.ProcessEnv;
-    loadLegacy: () => Promise<LegacyServer>;
     rootModule?: new () => object;
-    waitLogIntervalMs?: number;
     logStream?: pino.DestinationStream;
 }
 
@@ -53,25 +43,15 @@ export const start = async (options: StartOptions): Promise<RunningServer> => {
         }
         logger.info({ port: config.app.port, host: config.app.host, https: config.app.https.enabled }, 'Starting the server');
 
-        const started = Date.now();
-        const waiting = setInterval(() => {
-            logger.warn(
-                { waitedSeconds: Math.round((Date.now() - started) / 1000) },
-                'Still loading the legacy application, it waits for its dependencies such as MongoDB'
-            );
-        }, options.waitLogIntervalMs ?? 5000);
-        const legacy = await options.loadLegacy().finally(() => clearInterval(waiting));
-        logger.info('Legacy application loaded');
-
-        const app = await createApp(legacy.app, options.rootModule, buildHttpsOptions(config.app.https));
+        const app = await createApp(options.rootModule, buildHttpsOptions(config.app.https));
         // The client address (req.ip) comes from X-Forwarded-For only for the proxies the configuration trusts
         configureSecurity(app, config);
+        servePortal(app);
         app.set('trust proxy', config.http.trustedProxies.length === 0 ? false : config.http.trustedProxies);
         await (config.app.host === undefined ? app.listen(config.app.port) : app.listen(config.app.port, config.app.host));
         logger.info({ port: config.app.port }, 'Server listening');
 
-        legacy.onlistening();
-        return { app, legacy, logger, config };
+        return { app, logger, config };
     } catch (error) {
         logger.fatal({ err: error }, 'The server could not start');
         throw error;

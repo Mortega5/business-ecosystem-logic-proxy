@@ -21,7 +21,7 @@ describe('BlogAliasGuard: /domeblog is another name for /blog while the DOME ext
         expect(run('/domeblog/abc', true)).toBe(true);
     });
 
-    it('answers 404 to /domeblog while the extension is off, and does not hand it to the legacy application', () => {
+    it('answers 404 to /domeblog while the extension is off', () => {
         expect(() => run('/domeblog', false)).toThrow(NotFoundError);
         expect(() => run('/domeblog/abc', false)).toThrow(NotFoundError);
     });
