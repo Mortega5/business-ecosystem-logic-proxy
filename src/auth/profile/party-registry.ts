@@ -58,6 +58,13 @@ export class PartyRegistry {
         return this.individuals.run(claims.id, () => this.findOrCreateIndividual(claims));
     }
 
+    /** The trading name that TMForum has for the organisation known by `group`, if it has one. */
+    async organizationName(group: string): Promise<string | undefined> {
+        const found = await this.upstream.json<unknown>({ upstream: PARTY, path: '/organization', query: { 'externalReference.name': group } });
+        const name = Array.isArray(found) ? (found[0] as Json | undefined)?.['tradingName'] : undefined;
+        return typeof name === 'string' && name !== '' ? name : undefined;
+    }
+
     /**
      * The organisations of the user with their party ids, created when they do not exist. The individual is told which role the person
      * has in each of them.

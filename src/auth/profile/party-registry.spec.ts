@@ -185,3 +185,13 @@ describe('PartyRegistry: the organisations', () => {
         expect(tmforum.writes()).toEqual(['POST /individual']);
     });
 });
+
+describe('PartyRegistry: the name of an organisation', () => {
+    it('gives the trading name that TMForum has, and nothing when it does not know the organisation', async () => {
+        const tmforum = new FakeParty();
+        tmforum.organizations.push({ id: 'urn:ngsi-ld:organization:1', tradingName: 'Acme', externalReference: [{ name: 'group-1' }] });
+        const parties = registry(tmforum);
+        expect(await parties.organizationName('group-1')).toBe('Acme');
+        expect(await parties.organizationName('group-2')).toBeUndefined();
+    });
+});
