@@ -3,7 +3,7 @@ import { AimarketProvider } from './aimarket-provider';
 
 const answering = (body: unknown): typeof fetch => (async () => new Response(JSON.stringify(body), { status: 200 })) as unknown as typeof fetch;
 const provider = (body: unknown): AimarketProvider =>
-    new AimarketProvider({ id: 'local', server: 'https://idm.example.org', clientId: 'bae', clientSecret: 's', timeoutMs: 1000, fetcher: answering(body) });
+    new AimarketProvider({ id: 'local', server: 'https://idm.example.org', clientId: 'bae', clientSecret: 's', scope: 'jwt,openid', timeoutMs: 1000, fetcher: answering(body) });
 
 const user = { id: 'idm-ana', username: 'ana', displayName: 'Ana López', email: 'ana@example.org', roles: [{ id: 'r1', name: 'seller' }] };
 const extra = (aimData: unknown): string => JSON.stringify({ aimData });

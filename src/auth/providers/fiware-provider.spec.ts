@@ -16,7 +16,15 @@ const answering = (status: number, body: unknown, calls: Call[] = []): typeof fe
 
 const KEY = 'a-shared-secret-of-the-idm';
 const provider = (extra: Partial<FiwareOptions> = {}): FiwareProvider =>
-    new FiwareProvider({ id: 'local', server: 'https://idm.example.org/', clientId: 'bae', clientSecret: 'client-secret', timeoutMs: 1000, ...extra });
+    new FiwareProvider({
+        id: 'local',
+        server: 'https://idm.example.org/',
+        clientId: 'bae',
+        clientSecret: 'client-secret',
+        scope: 'jwt,openid',
+        timeoutMs: 1000,
+        ...extra
+    });
 
 const user = {
     id: 'idm-ana',
@@ -50,11 +58,16 @@ describe('FiwareProvider: asking the identity manager', () => {
         const claims = await provider({ fetcher: answering(200, { id: 'idm-2', exp: 2_000_000_000 }) }).claimsOf('t');
 
         expect(claims).toEqual({ id: 'idm-2', username: 'idm-2', roles: [], organizations: [], expire: 2_000_000_000 });
-        expect((await provider({ fetcher: answering(200, { id: 'idm-3', displayName: 'Bob' }) }).claimsOf('t')).username).toBe('Bob');
+        expect(
+            (await provider({ fetcher: answering(200, { id: 'idm-3', displayName: 'Bob' }) }).claimsOf('t')).username
+        ).toBe('Bob');
     });
 
     it('gives the default role to a user without roles, and only to one without', async () => {
-        const without = await provider({ defaultRole: 'Seller', fetcher: answering(200, { id: 'idm-2', roles: [] }) }).claimsOf('t');
+        const without = await provider({
+            defaultRole: 'Seller',
+            fetcher: answering(200, { id: 'idm-2', roles: [] })
+        }).claimsOf('t');
         const withRoles = await provider({ defaultRole: 'Seller', fetcher: answering(200, user) }).claimsOf('t');
 
         expect(without.roles).toEqual([{ id: 'Seller', name: 'Seller' }]);
@@ -63,7 +76,11 @@ describe('FiwareProvider: asking the identity manager', () => {
 
     it('keeps the country of an organisation, and ignores roles and organisations that are not well formed', async () => {
         const claims = await provider({
-            fetcher: answering(200, { id: 'idm-2', roles: [{ id: 'x' }, 'seller', null], organizations: [{ name: 'no id' }, { id: 'org-2', country: 'Spain', roles: 'owner' }, 7] })
+            fetcher: answering(200, {
+                id: 'idm-2',
+                roles: [{ id: 'x' }, 'seller', null],
+                organizations: [{ name: 'no id' }, { id: 'org-2', country: 'Spain', roles: 'owner' }, 7]
+            })
         }).claimsOf('t');
 
         expect(claims.roles).toEqual([]);
@@ -71,14 +88,19 @@ describe('FiwareProvider: asking the identity manager', () => {
     });
 
     it('rejects a token the manager does not accept, or an answer without a user', async () => {
-        await expect(provider({ fetcher: answering(401, { error: 'invalid' }) }).claimsOf('t')).rejects.toBeInstanceOf(IdpError);
-        await expect(provider({ fetcher: answering(200, { username: 'ana' }) }).claimsOf('t')).rejects.toBeInstanceOf(IdpError);
+        await expect(provider({ fetcher: answering(401, { error: 'invalid' }) }).claimsOf('t')).rejects.toBeInstanceOf(
+            IdpError
+        );
+        await expect(provider({ fetcher: answering(200, { username: 'ana' }) }).claimsOf('t')).rejects.toBeInstanceOf(
+            IdpError
+        );
     });
 });
 
 describe('FiwareProvider: OIDC mode, where the token is a JWT signed with the key', () => {
     const calls: Call[] = [];
-    const signed = (claims: object, key = KEY, options: jwt.SignOptions = {}): string => jwt.sign(claims, key, { algorithm: 'HS256', ...options });
+    const signed = (claims: object, key = KEY, options: jwt.SignOptions = {}): string =>
+        jwt.sign(claims, key, { algorithm: 'HS256', ...options });
     const oidc = (): FiwareProvider => provider({ key: KEY, fetcher: answering(500, 'must not be called', calls) });
 
     it('reads the user from the token without asking the manager, and takes the expiry from it', async () => {
@@ -108,10 +130,14 @@ describe('FiwareProvider: refreshing', () => {
     it('asks the token endpoint with the client credentials, in the header and the body, as v11 did', async () => {
         const calls: Call[] = [];
 
-        const tokens = await provider({ fetcher: answering(200, { access_token: 'a2', refresh_token: 'r2', expires_in: 3600 }, calls) }).refresh('r1');
+        const tokens = await provider({
+            fetcher: answering(200, { access_token: 'a2', refresh_token: 'r2', expires_in: 3600 }, calls)
+        }).refresh('r1');
 
         expect(calls[0]?.url).toBe('https://idm.example.org/oauth2/token');
-        expect((calls[0]?.init.headers as Record<string, string>)['authorization']).toBe(`Basic ${Buffer.from('bae:client-secret').toString('base64')}`);
+        expect((calls[0]?.init.headers as Record<string, string>)['authorization']).toBe(
+            `Basic ${Buffer.from('bae:client-secret').toString('base64')}`
+        );
         expect(Object.fromEntries(calls[0]?.init.body as URLSearchParams)).toEqual({
             grant_type: 'refresh_token',
             refresh_token: 'r1',
@@ -123,6 +149,42 @@ describe('FiwareProvider: refreshing', () => {
     });
 
     it('rejects when the manager refuses the refresh token', async () => {
-        await expect(provider({ fetcher: answering(400, { error: 'invalid_grant' }) }).refresh('used')).rejects.toBeInstanceOf(IdpError);
+        await expect(
+            provider({ fetcher: answering(400, { error: 'invalid_grant' }) }).refresh('used')
+        ).rejects.toBeInstanceOf(IdpError);
+    });
+
+    it('logs in through the manager: authorizes at its endpoint and exchanges the code with the client in the header and the body', async () => {
+        const calls: Call[] = [];
+        const fetcher = (async (url: string, init: RequestInit) => {
+            calls.push({ url, init });
+            const body = url.endsWith('/oauth2/token')
+                ? { access_token: 'at', refresh_token: 'rt', expires_in: 3600 }
+                : user;
+            return new Response(JSON.stringify(body), { status: 200 });
+        }) as unknown as typeof fetch;
+        const idm = provider({ fetcher });
+        const redirect = 'https://bae.example.org/auth/fiware/callback';
+
+        const { url, checks } = await idm.beginLogin(redirect);
+        expect(url.startsWith('https://idm.example.org/oauth2/authorize?')).toBe(true);
+        expect(new URL(url).searchParams.get('scope')).toBe('jwt,openid');
+
+        const outcome = await idm.finishLogin(`${redirect}?code=abc&state=${checks.state}`, checks);
+        const [exchange, userCall] = calls;
+        expect(exchange?.url).toBe('https://idm.example.org/oauth2/token');
+        expect((exchange?.init.headers as Record<string, string>)['authorization']).toMatch(/^Basic /);
+        expect(String(exchange?.init.body)).toContain('client_secret=client-secret');
+        expect(userCall?.url).toContain('/user?access_token=at');
+        expect(outcome.tokens).toMatchObject({ accessToken: 'at', refreshToken: 'rt' });
+        expect(outcome.claims).toMatchObject({ id: 'idm-ana', username: 'ana' });
+    });
+
+    it('refuses an answer that is not for the login', async () => {
+        const idm = provider({ fetcher: answering(200, user) });
+        const { checks } = await idm.beginLogin('https://bae.example.org/auth/fiware/callback');
+        await expect(
+            idm.finishLogin('https://bae.example.org/auth/fiware/callback?code=abc&state=forged', checks)
+        ).rejects.toBeInstanceOf(IdpError);
     });
 });

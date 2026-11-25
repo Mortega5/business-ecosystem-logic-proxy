@@ -14,6 +14,7 @@ Set `BAE_LP_OAUTH2_PROVIDER=fiware` and:
 | `BAE_LP_OAUTH2_CLIENT_ID` | `auth.idp.clientId` | yes | Id of the application registered in the identity manager |
 | `BAE_LP_OAUTH2_CLIENT_SECRET` | `auth.idp.clientSecret` | yes | Secret of that application |
 | `BAE_LP_OAUTH2_CALLBACK` | `auth.idp.callbackUrl` | yes | `https://<proxy>/auth/fiware/callback`, registered as the redirect URL of the application |
+| `BAE_AUTH__IDP__SCOPES` | `auth.idp.scopes` | no | What is asked at the login: `jwt,openid` with OIDC and `all_info` without it, as v11 did |
 | `BAE_LP_OIDC_ENABLED` | `auth.idp.oidcEnabled` | no, `true` | `true`: the access token is a JWT signed by the manager. `false`: the manager is asked for the user |
 | `BAE_LP_OIDC_KEY` | `auth.idp.oidcKey` | yes when `oidcEnabled` | Key the manager signs its JWTs with, 16 characters or more. **There is no default** |
 | `BAE_LP_OAUTH2_DEFAULT_ROLE` | `auth.idp.defaultRole` | no | Role given to a user that arrives without roles |

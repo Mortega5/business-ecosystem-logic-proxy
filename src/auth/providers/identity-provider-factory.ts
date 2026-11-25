@@ -55,6 +55,8 @@ export const createIdentityProvider = (idp: IdpSettings, dependencies: ProviderD
                 server: settings.server,
                 clientId: settings.clientId,
                 clientSecret: settings.clientSecret,
+                // What v11 asked for: with OIDC the token is a JWT (the AI Market does not need `openid`), without it all the data
+                scope: idp.scopes ?? (idp.oidcEnabled ? (idp.provider === 'aimarket' ? 'jwt' : 'jwt,openid') : 'all_info'),
                 ...(idp.oidcEnabled && idp.oidcKey !== undefined ? { key: idp.oidcKey } : {}),
                 ...(idp.defaultRole === undefined ? {} : { defaultRole: idp.defaultRole })
             });
