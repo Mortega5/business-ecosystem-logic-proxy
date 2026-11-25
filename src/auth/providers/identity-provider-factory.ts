@@ -1,9 +1,12 @@
+import { readFileSync } from 'node:fs';
 import type { AppConfig } from '../../config/config.schema';
 import { AimarketProvider } from './aimarket-provider';
 import { FiwareProvider } from './fiware-provider';
 import { GithubProvider } from './github-provider';
 import type { IdentityProvider } from './identity-provider';
 import type { Fetcher } from './idp-http';
+import { I4TrustProvider } from './i4trust-provider';
+import { JwksVerifier } from './jwks-verifier';
 import { KeycloakProvider } from './keycloak-provider';
 import { OidcDiscoverProvider } from './oidc-discover-provider';
 
@@ -87,6 +90,27 @@ export const createIdentityProvider = (idp: IdpSettings, dependencies: ProviderD
                 ...(idp.discoveryUrl === undefined ? {} : { discoveryUrl: idp.discoveryUrl }),
                 ...(idp.defaultRole === undefined ? {} : { defaultRole: idp.defaultRole }),
                 ...(idp.audience === undefined ? {} : { audience: idp.audience })
+            });
+        }
+        case 'i4trust': {
+            const settings = required(idp, ['server', 'clientId', 'callbackUrl', 'idpId', 'tokenKey', 'tokenCrt']);
+            return new I4TrustProvider({
+                id,
+                roles: dependencies.roles,
+                ...(idp.jwksUrl === undefined
+                    ? {}
+                    : { verifier: new JwksVerifier({ url: idp.jwksUrl, timeoutMs: dependencies.timeoutMs, ...(dependencies.fetcher === undefined ? {} : { fetcher: dependencies.fetcher }) }) }),
+                login: {
+                    server: settings.server,
+                    clientId: settings.clientId,
+                    idpId: settings.idpId,
+                    scope: idp.scopes ?? 'jwt openid iSHARE email profile',
+                    // Read at start-up, so that a path that is wrong stops it and does not fail the first login
+                    keyPem: readFileSync(settings.tokenKey, 'utf8'),
+                    certificatePem: readFileSync(settings.tokenCrt, 'utf8'),
+                    timeoutMs: dependencies.timeoutMs,
+                    ...(dependencies.fetcher === undefined ? {} : { fetcher: dependencies.fetcher })
+                }
             });
         }
         default:

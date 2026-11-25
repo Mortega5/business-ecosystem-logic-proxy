@@ -59,6 +59,8 @@ const VALUES: [string, string][] = [
     ['auth.idp.discoveryUrl', 'BAE_LP_OIDC_DISCOVERY_URI'],
     ['auth.idp.tokenAuthMethod', 'BAE_LP_OIDC_TOKEN_AUTH_METHOD'],
     ['auth.idp.scopes', 'BAE_LP_OIDC_SCOPES'],
+    ['auth.idp.tokenKey', 'BAE_LP_OIDC_TOKEN_KEY'],
+    ['auth.idp.tokenCrt', 'BAE_LP_OIDC_TOKEN_CRT'],
     ['auth.idp.oidcKey', 'BAE_LP_OIDC_KEY'],
     ['auth.idp.defaultRole', 'BAE_LP_OAUTH2_DEFAULT_ROLE'],
     ['auth.roles.admin', 'BAE_LP_OAUTH2_ADMIN_ROLE'],

@@ -1,3 +1,6 @@
+import { mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { AppConfig } from '../../config/config.schema';
 import { AimarketProvider } from './aimarket-provider';
@@ -6,6 +9,8 @@ import { GithubProvider } from './github-provider';
 import { createIdentityProvider, type ProviderDependencies } from './identity-provider-factory';
 import { KeycloakProvider } from './keycloak-provider';
 import { OidcDiscoverProvider } from './oidc-discover-provider';
+import { I4TrustProvider } from './i4trust-provider';
+import { TEST_CERTIFICATE, TEST_KEY } from './ishare-fixtures';
 
 type Idp = AppConfig['auth']['idp'];
 
@@ -144,13 +149,17 @@ describe('createIdentityProvider', () => {
         );
     });
 
-    it('says so when the provider is not ported yet', () => {
-        expect(() =>
-            createIdentityProvider(
-                { provider: 'i4trust', oidcEnabled: true, tokenAuthMethod: 'client_secret_basic', ...complete },
-                dependencies
-            )
-        ).toThrow('not available yet');
+    it('builds i4trust with the key and the certificate it reads from the files, and names what is missing', () => {
+        const dir = mkdtempSync(join(tmpdir(), 'bae-ishare-'));
+        const tokenKey = join(dir, 'key.pem');
+        const tokenCrt = join(dir, 'crt.pem');
+        writeFileSync(tokenKey, TEST_KEY);
+        writeFileSync(tokenCrt, TEST_CERTIFICATE);
+        const base = { provider: 'i4trust', oidcEnabled: true, tokenAuthMethod: 'client_secret_basic', ...complete } as const;
+
+        expect(createIdentityProvider({ ...base, idpId: 'EU.EORI.IDP', tokenKey, tokenCrt }, dependencies)).toBeInstanceOf(I4TrustProvider);
+        expect(() => createIdentityProvider(base, dependencies)).toThrow('auth.idp.idpId, auth.idp.tokenKey, auth.idp.tokenCrt required');
+        expect(() => createIdentityProvider({ ...base, idpId: 'EU.EORI.IDP', tokenKey: join(dir, 'none.pem'), tokenCrt }, dependencies)).toThrow('ENOENT');
     });
 
     it('asks for the scopes of v11 unless the configuration says others', () => {

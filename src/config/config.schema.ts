@@ -162,6 +162,11 @@ export const ConfigSchema = z.object({
             scopes: z.string().min(1).optional(),
             // Public keys of the identity provider, to check the tokens that are presented without a login
             jwksUrl: z.url().optional(),
+            // i4trust: the EORI of the identity provider (the audience of what the proxy signs) and the files of the key and of the
+            // certificate chain with which the proxy signs it
+            idpId: z.string().min(1).optional(),
+            tokenKey: z.string().min(1).optional(),
+            tokenCrt: z.string().min(1).optional(),
             // fiware and aimarket: the token is a JWT signed with the key (OIDC mode) or it is asked to the identity manager
             oidcEnabled: booleanLike,
             oidcKey: z.string().min(16).optional(),

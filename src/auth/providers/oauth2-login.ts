@@ -1,5 +1,5 @@
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
-import type { LoginChecks, LoginStart } from './identity-provider';
+import type { LoginChecks, LoginResult, LoginStart } from './identity-provider';
 import { IdpError, requestJson, tokensOf, type Fetcher } from './idp-http';
 
 export interface OAuth2LoginOptions {
@@ -8,11 +8,13 @@ export interface OAuth2LoginOptions {
     clientId: string;
     clientSecret: string;
     scope: string;
-    /** `basic` sends the credentials in the `Authorization` header, `post` in the body. */
-    clientAuth: 'basic' | 'post';
+    /** `basic` sends the credentials in the `Authorization` header, `post` in the body, and `none` sends none (`tokenParams` gives what the provider wants instead). */
+    clientAuth: 'basic' | 'post' | 'none';
+    /** Whether the PKCE verifier is sent with the code. On by default. */
+    pkce?: boolean;
     timeoutMs: number;
-    /** More parameters for the token request, for a provider that asks for them. */
-    tokenParams?: Record<string, string>;
+    /** More parameters for the token request, for a provider that asks for them; a function is asked at each exchange. */
+    tokenParams?: Record<string, string> | (() => Record<string, string>);
     fetcher?: Fetcher;
 }
 
@@ -51,7 +53,7 @@ export class OAuth2Login {
     }
 
     /** The tokens for the URL the provider sent the browser back to. Rejects when the answer is not for this login. */
-    async finish(callbackUrl: string, checks: LoginChecks) {
+    async finish(callbackUrl: string, checks: LoginChecks): Promise<LoginResult> {
         const url = new URL(callbackUrl);
         if (url.searchParams.has('error')) {
             // Only the code of the error: the description is written by whoever sent the browser here
@@ -71,8 +73,8 @@ export class OAuth2Login {
             code,
             // The redirect URI of the request, without what the provider added
             redirect_uri: `${url.origin}${url.pathname}`,
-            code_verifier: checks.codeVerifier,
-            ...this.options.tokenParams
+            ...(this.options.pkce === false ? {} : { code_verifier: checks.codeVerifier }),
+            ...(typeof this.options.tokenParams === 'function' ? this.options.tokenParams() : this.options.tokenParams)
         });
         const headers: Record<string, string> = {
             'content-type': 'application/x-www-form-urlencoded',
@@ -81,7 +83,7 @@ export class OAuth2Login {
         if (clientAuth === 'basic') {
             headers['authorization'] =
                 `Basic ${Buffer.from(`${encodeURIComponent(clientId)}:${encodeURIComponent(clientSecret)}`).toString('base64')}`;
-        } else {
+        } else if (clientAuth === 'post') {
             form.set('client_id', clientId);
             form.set('client_secret', clientSecret);
         }
@@ -92,6 +94,7 @@ export class OAuth2Login {
             this.options.timeoutMs
         );
         // A provider may answer 200 with an error, which has no access token
-        return tokensOf(answer);
+        const idToken = answer['id_token'];
+        return { ...tokensOf(answer), ...(typeof idToken === 'string' && idToken !== '' ? { idToken } : {}) };
     }
 }
