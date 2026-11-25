@@ -42,7 +42,17 @@ const VALUE: AppConfig = {
     quotes: { enabled: true, api: '/quote/quoteManagement' },
     tendering: { enabled: true, devButtonsOpenClose: false },
     party: { editEnabled: true },
-    dome: { enabled: true },
+    dome: {
+        enabled: true,
+        analytics: {
+            enabled: true,
+            url: '',
+            guestTokenPath: '/api/v1/dome/guest_token/',
+            dashboards: { businessInsightsNonLear: '', businessInsightsLear: '', usageMonitor: '' },
+            timeoutMs: 10000
+        },
+        compliance: { serverUrl: '', timeoutMs: 120000, maxFiles: 20, maxFileMb: 20, fileOrigins: [], certifierRole: 'certifier' }
+    },
     datasets: { enabled: false },
     apiAccess: { enabled: false },
     blueprints: { enabled: true },

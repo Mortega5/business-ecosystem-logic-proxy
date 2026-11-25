@@ -501,6 +501,11 @@ describe('datasets, file service and the other features of the portal', () => {
 describe('the DOME extension', () => {
     const load = (env: NodeJS.ProcessEnv) => loadStaticConfig({ defaultsPath: DEFAULTS_PATH, env });
 
+    it('has the compliance settings of v11 and takes the address of its service from the legacy variable', () => {
+        expect(load({}).dome.compliance).toMatchObject({ serverUrl: '', timeoutMs: 120000, maxFiles: 20, maxFileMb: 20, fileOrigins: [], certifierRole: 'certifier' });
+        expect(load({ BAE_LP_COMPLIANCE_SERVER_URL: 'https://compliance.example.org' }).dome.compliance.serverUrl).toBe('https://compliance.example.org');
+    });
+
     it('is on by default, as v11 had it, and is turned off with BAE_DOME__ENABLED', () => {
         expect(load({}).dome.enabled).toBe(true);
         expect(load({ BAE_DOME__ENABLED: 'false' }).dome.enabled).toBe(false);

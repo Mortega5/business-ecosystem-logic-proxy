@@ -224,7 +224,39 @@ export const ConfigSchema = z.object({
     party: z.object({ editEnabled: booleanLike }),
     // The DOME extension (the blog, the analytics, the compliance certificates and the verifiable credentials): with it off none of its
     // routes exists. It lives in `src/dome` and nothing of the core depends on it
-    dome: z.object({ enabled: booleanLike }),
+    dome: z.object({
+        enabled: booleanLike,
+        // The analytics: dashboards of an Apache Superset that the portal embeds. What an administrator saves from the portal wins over
+        // these values, which are the starting ones
+        analytics: z.object({
+            enabled: booleanLike,
+            // Where Superset is; empty while there is none
+            url: z.union([z.literal(''), z.url()]),
+            guestTokenPath: z.string().min(1),
+            dashboards: z.object({
+                businessInsightsNonLear: z.string(),
+                businessInsightsLear: z.string(),
+                usageMonitor: z.string()
+            }),
+            // Longest time to wait for Superset
+            timeoutMs: z.coerce.number().int().positive()
+        }),
+        // The compliance service, which issues the certificate of a product that a seller asks for, and the credential that a certifier
+        // uploads for it
+        compliance: z.object({
+            // Where the compliance service is; empty while there is none, and then a certificate cannot be asked for
+            serverUrl: z.union([z.literal(''), z.url()]),
+            // Longest time to wait for it: it analyses the files it is given
+            timeoutMs: z.coerce.number().int().positive(),
+            // The files that go with a request are read from the addresses the product names: how many, how big each is, and the
+            // origins they may be at (empty: any public address)
+            maxFiles: z.coerce.number().int().positive(),
+            maxFileMb: z.coerce.number().int().positive(),
+            fileOrigins: z.array(z.string().min(1)),
+            // Whoever has this role, besides the administrators, uploads the credential of a product
+            certifierRole: z.string().min(1)
+        })
+    }),
     // What the portal can offer, as the starting value of the flags that an administrator switches from the portal
     datasets: z.object({ enabled: booleanLike }),
     apiAccess: z.object({ enabled: booleanLike }),

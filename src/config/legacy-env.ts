@@ -38,6 +38,7 @@ const SWITCHES: [string, string][] = [
     ['auth.allowLocalEori', 'BAE_LP_ALLOW_LOCAL_EORI'],
     ['auth.idp.oidcEnabled', 'BAE_LP_OIDC_ENABLED'],
     ['purchase.enabled', 'BAE_LP_PURCHASE_ENABLED'],
+    ['dome.analytics.enabled', 'BAE_LP_ANALYTICS_ENABLED'],
     ['datasets.enabled', 'BAE_LP_DATASETS_ENABLED'],
     ['apiAccess.enabled', 'BAE_LP_API_ACCESS_ENABLED'],
     ['fileService.enabled', 'BAE_LP_FILE_SERVICE_ENABLED'],
@@ -95,7 +96,14 @@ const VALUES: [string, string][] = [
     ['fileService.token', 'BAE_LP_FILE_SERVICE_TOKEN'],
     ['fileService.timeoutMs', 'BAE_LP_FILE_SERVICE_TIMEOUT'],
     ['fileService.maxSizeMb', 'BAE_LP_FILE_SERVICE_MAX_SIZE_MB'],
-    ['fileService.acceptedTypes', 'BAE_LP_FILE_SERVICE_ACCEPTED_TYPES']
+    ['fileService.acceptedTypes', 'BAE_LP_FILE_SERVICE_ACCEPTED_TYPES'],
+    ['dome.compliance.serverUrl', 'BAE_LP_COMPLIANCE_SERVER_URL'],
+    ['dome.compliance.certifierRole', 'BAE_LP_OAUTH2_ORG_CERTIFIER_ROLE'],
+    ['dome.analytics.url', 'BAE_LP_ANALYTICS_URL'],
+    ['dome.analytics.guestTokenPath', 'BAE_LP_ANALYTICS_SUPERSET_GUEST_TOKEN_PATH'],
+    ['dome.analytics.dashboards.businessInsightsNonLear', 'BAE_LP_ANALYTICS_DASHBOARD_BUSINESS_INSIGHTS_NON_LEAR'],
+    ['dome.analytics.dashboards.businessInsightsLear', 'BAE_LP_ANALYTICS_DASHBOARD_BUSINESS_INSIGHTS_LEAR'],
+    ['dome.analytics.dashboards.usageMonitor', 'BAE_LP_ANALYTICS_DASHBOARD_USAGE_MONITOR']
 ];
 
 // Anything other than "true" turns a switch off
