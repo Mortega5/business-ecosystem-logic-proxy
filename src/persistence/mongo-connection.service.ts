@@ -4,6 +4,9 @@ import { PinoLogger } from 'nestjs-pino';
 import { ConnectionStates, type Connection } from 'mongoose';
 import { AppConfigService } from '../config/app-config.service';
 
+/** Where the connection goes, with no credentials and no options: the address is for the log, and the rest is secret. */
+export const mongoTarget = (uri: string): string => uri.split('?')[0]!.replace(/\/\/[^@/]*@/, '//');
+
 @Injectable()
 export class MongoConnectionService implements OnApplicationBootstrap, OnApplicationShutdown {
     private stopped = false;
@@ -55,6 +58,7 @@ export class MongoConnectionService implements OnApplicationBootstrap, OnApplica
         const { uri, maxPoolSize, serverSelectionTimeoutMs, heartbeatFrequencyMs, retryInitialDelayMs, retryMaxDelayMs } =
             this.config.mongo;
         for (let attempt = 1; !this.stopped; attempt++) {
+            this.logger.info({ attempt, target: mongoTarget(uri), timeoutMs: serverSelectionTimeoutMs }, 'Connecting to MongoDB');
             try {
                 await this.connection.openUri(uri, {
                     autoIndex: false,

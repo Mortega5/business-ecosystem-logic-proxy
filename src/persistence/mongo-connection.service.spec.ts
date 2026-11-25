@@ -7,7 +7,7 @@ import { ManagedMongod } from '../testing/managed-mongod';
 import { waitFor } from '../testing/wait-for';
 import { ConfigDocumentRepository } from './config-store/config-document.repository';
 import { ConfigStoreModule } from './config-store/config-store.module';
-import { MongoConnectionService } from './mongo-connection.service';
+import { MongoConnectionService, mongoTarget } from './mongo-connection.service';
 import { MongoPersistenceModule } from './mongo-persistence.module';
 
 const buildModule = async (mongod: ManagedMongod): Promise<TestingModule> => {
@@ -99,4 +99,14 @@ describe('MongoConnectionService', () => {
 
         expect(Date.now() - started).toBeLessThan(2000);
     }, 20_000);
+});
+
+describe('mongoTarget', () => {
+    it('keeps the address and the database, and drops the credentials and the options', () => {
+        expect(mongoTarget('mongodb://localhost:27017/belp')).toBe('mongodb://localhost:27017/belp');
+        expect(mongoTarget('mongodb://ana:s3cret@db1:27017,db2:27017/belp?replicaSet=rs&tlsCertificateKeyFilePassword=x')).toBe(
+            'mongodb://db1:27017,db2:27017/belp'
+        );
+        expect(mongoTarget('mongodb+srv://ana:p%40ss@cluster.example.org/belp')).toBe('mongodb+srv://cluster.example.org/belp');
+    });
 });
