@@ -1,8 +1,10 @@
 import type { IdentityClaims } from '../profile/user-profile';
 import { organizationsOf, rolesOf, text } from './claim-readers';
-import type { IdentityProvider, IdentityTokens } from './identity-provider';
+import type { IdentityProvider, IdentityTokens, LoginCapable, LoginChecks, LoginOutcome, LoginStart } from './identity-provider';
 import { IdpError, requestJson, tokensOf, type Fetcher } from './idp-http';
+import { jwtPayload } from './jwt-payload';
 import { JwksVerifier } from './jwks-verifier';
+import { OidcLogin } from './oidc-login';
 
 export interface OidcDiscoverOptions {
     id: string;
@@ -14,6 +16,8 @@ export interface OidcDiscoverOptions {
     clientSecret: string;
     tokenAuthMethod: 'client_secret_basic' | 'client_secret_post';
     timeoutMs: number;
+    /** Scopes asked at the login. */
+    scope: string;
     /** Name of the role of a seller: the role of a user that comes without roles when there is no default one. */
     sellerRole: string;
     defaultRole?: string;
@@ -39,10 +43,11 @@ const WELL_KNOWN = '/.well-known/openid-configuration';
  * provider publishes (signature, expiry, issuer, and audience when one is set). The claims are the ones of the ID token of a login
  * or of the access token; roles and organisations are read from them when they are there.
  */
-export class OidcDiscoverProvider implements IdentityProvider {
+export class OidcDiscoverProvider implements IdentityProvider, LoginCapable {
     readonly id: string;
     private readonly fetcher: Fetcher;
     private readonly now: () => number;
+    private readonly login: OidcLogin;
     private discovered: { at: number; value: Promise<Discovered> } | undefined;
 
     constructor(private readonly options: OidcDiscoverOptions) {
@@ -52,11 +57,34 @@ export class OidcDiscoverProvider implements IdentityProvider {
         this.id = options.id;
         this.fetcher = options.fetcher ?? fetch;
         this.now = options.now ?? Date.now;
+        this.login = new OidcLogin({
+            issuerUrl: (options.discoveryUrl ?? options.issuerUrl) as string,
+            clientId: options.clientId,
+            clientSecret: options.clientSecret,
+            tokenAuthMethod: options.tokenAuthMethod,
+            scope: options.scope,
+            timeoutMs: options.timeoutMs,
+            ...(options.fetcher === undefined ? {} : { fetcher: options.fetcher })
+        });
     }
 
     async claimsOf(accessToken: string): Promise<IdentityClaims> {
         const { verifier } = await this.discover();
         return this.claimsFrom(await verifier.verify(accessToken));
+    }
+
+    beginLogin(redirectUri: string): Promise<LoginStart> {
+        return this.login.start(redirectUri);
+    }
+
+    async finishLogin(callbackUrl: string, checks: LoginChecks): Promise<LoginOutcome> {
+        const { idToken, ...tokens } = await this.login.finish(callbackUrl, checks);
+        const claims = idToken === undefined ? undefined : jwtPayload(idToken);
+        if (claims === undefined) {
+            throw new IdpError('The identity provider gave no ID token');
+        }
+        // The library has validated the ID token, so its claims are the provider's
+        return { tokens, claims: this.claimsFrom(claims) };
     }
 
     async refresh(refreshToken: string): Promise<IdentityTokens> {

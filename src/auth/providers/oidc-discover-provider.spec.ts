@@ -38,6 +38,7 @@ const provider = (server: ReturnType<typeof idp>, extra: Partial<OidcDiscoverOpt
         clientId: 'bae',
         clientSecret: 'client secret',
         tokenAuthMethod: 'client_secret_basic',
+        scope: 'openid',
         timeoutMs: 1000,
         sellerRole: 'Seller',
         fetcher: server.fetcher,

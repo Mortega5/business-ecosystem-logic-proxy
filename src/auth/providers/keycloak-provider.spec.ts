@@ -23,6 +23,7 @@ const provider = (fetcher: typeof fetch, extra: Partial<KeycloakOptions> = {}): 
         clientId: 'bae',
         clientSecret: 'client-secret',
         timeoutMs: 1000,
+        scope: 'openid profile',
         organizationRoles: ['Seller', 'Buyer', 'orgAdmin'],
         organizationName: async () => undefined,
         fetcher,

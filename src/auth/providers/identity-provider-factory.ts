@@ -40,6 +40,7 @@ export const createIdentityProvider = (idp: IdpSettings, dependencies: ProviderD
                 realm: settings.realm,
                 clientId: settings.clientId,
                 clientSecret: settings.clientSecret,
+                scope: idp.scopes ?? 'openid profile',
                 organizationRoles: [seller, customer, orgAdmin],
                 organizationName: dependencies.organizationName
             });
@@ -72,6 +73,7 @@ export const createIdentityProvider = (idp: IdpSettings, dependencies: ProviderD
                 clientId: settings.clientId,
                 clientSecret: settings.clientSecret,
                 tokenAuthMethod: idp.tokenAuthMethod,
+                scope: idp.scopes ?? 'openid',
                 sellerRole: dependencies.roles.seller,
                 ...(idp.server === undefined ? {} : { issuerUrl: idp.server }),
                 ...(idp.discoveryUrl === undefined ? {} : { discoveryUrl: idp.discoveryUrl }),

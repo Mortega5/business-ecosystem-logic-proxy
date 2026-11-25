@@ -20,6 +20,7 @@ Set `BAE_LP_OAUTH2_PROVIDER=oidc-discover`:
 | `BAE_LP_OAUTH2_CLIENT_ID`, `BAE_LP_OAUTH2_CLIENT_SECRET` | `auth.idp.clientId`, `auth.idp.clientSecret` | yes | Credentials of the proxy as a client |
 | `BAE_LP_OAUTH2_CALLBACK` | `auth.idp.callbackUrl` | yes | `https://<proxy>/auth/oidc-discover/callback` |
 | `BAE_LP_OIDC_TOKEN_AUTH_METHOD` | `auth.idp.tokenAuthMethod` | no, `client_secret_basic` | How the client authenticates at the token endpoint: `client_secret_basic` or `client_secret_post` |
+| `BAE_LP_OIDC_SCOPES` | `auth.idp.scopes` | no, `openid` | What is asked at the login; it has to include `openid`, because the user is read from the ID token |
 | | `auth.idp.audience` | no | When set, a token presented without a login must be meant for it (its `aud`). When not set, the audience is not checked |
 | `BAE_LP_OAUTH2_DEFAULT_ROLE` | `auth.idp.defaultRole` | no | Role of a user whose token has no roles; the seller role if not set |
 | `BAE_LP_OIDC_SCOPES`, `BAE_LP_OAUTH2_NONCE` | (with the login) | no | Scopes asked (`openid` by default) and whether a nonce is sent |

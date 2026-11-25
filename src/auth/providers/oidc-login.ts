@@ -1,25 +1,6 @@
 import * as client from 'openid-client-v6';
-import type { IdentityTokens } from './identity-provider';
+import type { LoginChecks, LoginResult, LoginStart } from './identity-provider';
 import { IdpError, type Fetcher } from './idp-http';
-
-/** What a login has to remember between sending the user to the provider and getting them back. */
-export interface LoginChecks {
-    state: string;
-    nonce: string;
-    codeVerifier: string;
-}
-
-export interface LoginStart {
-    /** Where the browser goes. */
-    url: string;
-    /** To keep in the session until the provider answers. */
-    checks: LoginChecks;
-}
-
-export interface LoginResult extends IdentityTokens {
-    /** The ID token, already checked (signature, issuer, audience, expiry and nonce). */
-    idToken?: string;
-}
 
 export interface OidcLoginOptions {
     /** The issuer, whose discovery document is at `/.well-known/openid-configuration`. */

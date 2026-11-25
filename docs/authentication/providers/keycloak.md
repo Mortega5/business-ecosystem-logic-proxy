@@ -15,6 +15,7 @@ Set `BAE_LP_OAUTH2_PROVIDER=keycloak`. All of these are required:
 | `BAE_LP_OAUTH2_CLIENT_ID` | `auth.idp.clientId` | Id of a confidential client of the realm |
 | `BAE_LP_OAUTH2_CLIENT_SECRET` | `auth.idp.clientSecret` | Its secret |
 | `BAE_LP_OAUTH2_CALLBACK` | `auth.idp.callbackUrl` | `https://<proxy>/auth/keycloak/callback`, a valid redirect URI of the client |
+| `BAE_LP_OIDC_SCOPES` | `auth.idp.scopes` | What is asked at the login (`openid profile` if not set) |
 
 The names of the roles that a group gives come from `BAE_LP_OAUTH2_SELLER_ROLE`, `_CUSTOMER_ROLE` and `_ORG_ADMIN_ROLE`.
 

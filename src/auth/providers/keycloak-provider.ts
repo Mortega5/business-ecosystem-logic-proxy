@@ -1,7 +1,8 @@
 import type { IdentityClaims, ProfileOrganization } from '../profile/user-profile';
-import type { IdentityProvider, IdentityTokens } from './identity-provider';
+import type { IdentityProvider, IdentityTokens, LoginCapable, LoginChecks, LoginOutcome, LoginStart } from './identity-provider';
 import { IdpError, requestJson, tokensOf, type Fetcher } from './idp-http';
 import { jwtPayload } from './jwt-payload';
+import { OidcLogin } from './oidc-login';
 
 export interface KeycloakOptions {
     id: string;
@@ -11,6 +12,8 @@ export interface KeycloakOptions {
     clientId: string;
     clientSecret: string;
     timeoutMs: number;
+    /** Scopes asked at the login. */
+    scope: string;
     /** Names of the roles of the platform that the groups of the user get in their organisations. */
     organizationRoles: string[];
     /** The trading name of an organisation known by the group that names it, when TMForum has it. */
@@ -24,15 +27,25 @@ const strings = (value: unknown): string[] => (Array.isArray(value) ? value.filt
  * Keycloak: the user is asked to the user info endpoint of the realm. The roles are the ones of the client in the access token and
  * each group of the token is an organisation the user acts for.
  */
-export class KeycloakProvider implements IdentityProvider {
+export class KeycloakProvider implements IdentityProvider, LoginCapable {
     readonly id: string;
     private readonly realmUrl: string;
     private readonly fetcher: Fetcher;
+    private readonly login: OidcLogin;
 
     constructor(private readonly options: KeycloakOptions) {
         this.id = options.id;
         this.realmUrl = `${options.server.replace(/\/+$/, '')}/realms/${encodeURIComponent(options.realm)}/protocol/openid-connect`;
         this.fetcher = options.fetcher ?? fetch;
+        this.login = new OidcLogin({
+            issuerUrl: `${options.server.replace(/\/+$/, '')}/realms/${encodeURIComponent(options.realm)}`,
+            clientId: options.clientId,
+            clientSecret: options.clientSecret,
+            tokenAuthMethod: 'client_secret_post',
+            scope: options.scope,
+            timeoutMs: options.timeoutMs,
+            ...(options.fetcher === undefined ? {} : { fetcher: options.fetcher })
+        });
     }
 
     async claimsOf(accessToken: string): Promise<IdentityClaims> {
@@ -56,6 +69,16 @@ export class KeycloakProvider implements IdentityProvider {
             organizations: await Promise.all(strings(token?.['groups']).map((group) => this.organizationOf(group))),
             ...(typeof token?.['exp'] === 'number' ? { expire: token['exp'] } : {})
         };
+    }
+
+    beginLogin(redirectUri: string): Promise<LoginStart> {
+        return this.login.start(redirectUri);
+    }
+
+    async finishLogin(callbackUrl: string, checks: LoginChecks): Promise<LoginOutcome> {
+        const { idToken: _idToken, ...tokens } = await this.login.finish(callbackUrl, checks);
+        // Who the user is is asked to Keycloak, as for any token, so a login and a token presented give the same claims
+        return { tokens, claims: await this.claimsOf(tokens.accessToken) };
     }
 
     async refresh(refreshToken: string): Promise<IdentityTokens> {
