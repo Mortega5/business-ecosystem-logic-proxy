@@ -1,4 +1,4 @@
-import * as client from 'openid-client-v6';
+import * as client from 'openid-client';
 import type { LoginChecks, LoginResult, LoginStart } from './identity-provider';
 import { IdpError, type Fetcher } from './idp-http';
 
