@@ -17,6 +17,8 @@ tags:
     description: The contact form of the portal.
   - name: stats
     description: The figures of the landing page and the counts of an organisation.
+  - name: analytics
+    description: The dashboards of Superset that the portal embeds (DOME extension).
   - name: feedback
     description: The feedback that the portal asks of its visitors.
   - name: auth
@@ -1089,6 +1091,582 @@ paths:
                 $ref: '#/components/schemas/ErrorResult'
               example:
                 error: 'Not found'
+  /domeblog:
+    get:
+      tags: [dome-blog]
+      operationId: listBlogEntries
+      summary: The entries of the blog, the news and the questions
+      description: |
+        Open to anybody, and only with the DOME extension on (`dome.enabled`); otherwise 404. It answers all the entries, newest first, whatever the query: the portal sends `contentType`, `page` and `limit`, as it did of v11, and the proxy does not use them.
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      responses:
+        '200':
+          description: The entries.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BlogEntry'
+        '404':
+          description: The DOME extension is off.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: Not found
+    post:
+      tags: [dome-blog]
+      operationId: createBlogEntry
+      summary: Make an entry
+      description: |
+        Only for administrators. A title and a content are needed; what is not in the list of fields is ignored. Without a slug the proxy makes one from the title, a free one; with one, it has to be free whatever its case.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BlogEntryForm'
+      responses:
+        '201':
+          description: The entry that was made.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BlogEntry'
+        '400':
+          description: The body is not valid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: Validation failed
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          description: The caller is not an administrator.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: You are not allowed to access this resource
+        '404':
+          description: The DOME extension is off.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: Not found
+        '409':
+          description: Another entry has the slug.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: A blog entry with the same slug already exists
+  /domeblog/{id}:
+    get:
+      tags: [dome-blog]
+      operationId: getBlogEntry
+      summary: An entry
+      description: Open to anybody, and only with the DOME extension on. The id is the `_id` of the entry; a string that is not one is an entry that does not exist.
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The entry.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BlogEntry'
+        '404':
+          description: There is no such entry, or the DOME extension is off.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: Blog entry not found
+    patch:
+      tags: [dome-blog]
+      operationId: patchBlogEntry
+      summary: Change an entry
+      description: |
+        Only for administrators. Any of the fields; one that is sent empty is taken away, but an empty slug does not take the one the entry has. A slug that another entry has is a 409.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BlogEntryForm'
+      responses:
+        '200':
+          description: The entry after the change.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [message, patchedBlog]
+                properties:
+                  message:
+                    type: string
+                  patchedBlog:
+                    $ref: '#/components/schemas/BlogEntry'
+        '400':
+          description: The body is not valid, or has no field to change.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: No update fields provided
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          description: The caller is not an administrator.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: You are not allowed to access this resource
+        '404':
+          description: There is no such entry, or the DOME extension is off.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: Blog entry not found
+        '409':
+          description: Another entry has the slug.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: A blog entry with the same slug already exists
+    delete:
+      tags: [dome-blog]
+      operationId: deleteBlogEntry
+      summary: Remove an entry
+      description: Only for administrators.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The entry that was removed.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [message, deletedBlog]
+                properties:
+                  message:
+                    type: string
+                  deletedBlog:
+                    $ref: '#/components/schemas/BlogEntry'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          description: The caller is not an administrator.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: You are not allowed to access this resource
+        '404':
+          description: There is no such entry, or the DOME extension is off.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: Blog entry not found
+  /analytics/guest-token:
+    post:
+      tags: [analytics]
+      operationId: createAnalyticsGuestToken
+      summary: The token to embed a dashboard of the analytics
+      description: |
+        Part of the DOME extension (`dome.enabled`): with it off, 404. For who is logged in. The proxy asks Superset for a guest token with the access token of the caller, and answers it with the id of the dashboard. The dashboard depends on the tab and on the role: `businessInsights` is the Lear dashboard for an organisation administrator and the non-Lear one for anybody else; `usageMonitor` is only for administrators.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tab]
+              properties:
+                tab:
+                  type: string
+                  enum: [businessInsights, usageMonitor]
+      responses:
+        '200':
+          description: The dashboard and the guest token.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [dashboardId, token]
+                properties:
+                  dashboardId:
+                    type: string
+                  token:
+                    type: string
+        '400':
+          description: The body is not JSON, or the tab is not one of the two.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: A valid tab is required
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          description: The analytics are off, the caller is not an administrator and asked for the usage monitor, or has no access token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: Analytics is disabled
+        '404':
+          description: The DOME extension is off.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: Not found
+        '500':
+          description: There is no dashboard for the case, or Superset is not configured.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: Analytics dashboard is not configured
+        '502':
+          description: Superset refused, could not be reached, or gave no token. What it said is not repeated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: It was not possible to generate the analytics guest token
+        '504':
+          description: Superset did not answer within `dome.analytics.timeoutMs`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: The analytics service did not answer in time
+  /config/analytics:
+    get:
+      tags: [analytics]
+      operationId: getAnalyticsConfig
+      summary: The settings of the analytics
+      description: |
+        Part of the DOME extension; only for administrators, because where Superset is decides where the token of every user who asks for a dashboard goes. The settings that an administrator saved win over the ones of the configuration.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      responses:
+        '200':
+          description: The settings.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalyticsConfig'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          description: The caller is not an administrator.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: You are not allowed to access this resource
+        '404':
+          description: The DOME extension is off.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: Not found
+    patch:
+      tags: [analytics]
+      operationId: updateAnalyticsConfig
+      summary: Save the settings of the analytics
+      description: |
+        Part of the DOME extension; only for administrators. All the fields are sent. `analytics` has to be an http or https address with no user, query or fragment, the ids of the dashboards only letters, digits and `. _ : -`, and `guestTokenPath` an absolute path with no dot segments.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnalyticsConfig'
+      responses:
+        '200':
+          description: The settings, as they are now.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalyticsConfig'
+        '400':
+          description: The body is not valid; the message says everything that is wrong.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: 'Invalid analytics config payload: analyticsEnabled is required and must be a boolean'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          description: The caller is not an administrator.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: You are not allowed to access this resource
+        '404':
+          description: The DOME extension is off.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: Not found
+        '502':
+          description: The settings could not be saved.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: The analytics settings could not be saved
+  /compliance/certificate:
+    post:
+      tags: [dome]
+      operationId: requestComplianceCertificate
+      summary: Ask for the compliance certificate of a product
+      description: |
+        Part of the DOME extension (`dome.enabled`; with it off the route answers 404). Only for the seller of the product. The body is the product specification as the portal has it, but only its `id` is read: the product, its seller organisation and the files it names (the values of its `Compliance:*` characteristics, except the credential) are the ones TMForum has. The files are read from their addresses, which have to be public http or https addresses (and at one of `dome.compliance.fileOrigins` when that is set), at most `dome.compliance.maxFiles` of them and `dome.compliance.maxFileMb` MB each, and are sent with the data of the seller to the compliance service, with the access token of the caller. The answer is the one of the compliance service.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id]
+              properties:
+                id:
+                  type: string
+      responses:
+        '200':
+          description: What the compliance service answers.
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: The body is not an object with the id of a product specification.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: Invalid product specification
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          description: The caller has no party, or is not the seller of the product.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: You are not the seller of the product specification
+        '404':
+          description: The product, or its seller organisation, does not exist; or the DOME extension is off.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: The product specification does not exist
+        '413':
+          description: One of the files is larger than `dome.compliance.maxFileMb`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: The compliance file 1 is too large
+        '422':
+          description: The product names more files than allowed, or a file at an address that cannot be used (not public, not http or https, with credentials, redirecting, or at an origin that is not allowed); or the compliance service refuses the request, and says why.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: The compliance file 1 is not at a public address
+        '502':
+          description: TMForum, the compliance service or the address of a file failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: The compliance service failed
+        '503':
+          description: There is no compliance service configured.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: The compliance service is not configured
+        '504':
+          description: The compliance service did not answer.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: Compliance server unreachable
+  /admin/uploadcertificate/{specId}:
+    patch:
+      tags: [dome]
+      operationId: uploadComplianceCredential
+      summary: Put the compliance credential in a product
+      description: |
+        Part of the DOME extension (`dome.enabled`). For administrators, for whoever has the role of certifier (`dome.compliance.certifierRole`) and for the members of an organisation that has it. The credential becomes the characteristic `Compliance:VC` of the product, in place of the one it had, and is checked when the product is launched. It has to be a signed token (JWT) of at most 64 KB. Sellers cannot write that characteristic themselves.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - name: specId
+          in: path
+          required: true
+          description: The id of the product specification.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [vc]
+              properties:
+                vc:
+                  type: string
+      responses:
+        '200':
+          description: The credential is in the product.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id]
+                properties:
+                  id:
+                    type: string
+        '400':
+          description: The body has no credential, or the id is not one.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: Missing VC
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          description: The caller is not an administrator or a certifier.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: You are not authorized to upload certificates
+        '404':
+          description: The product does not exist, or the DOME extension is off.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: The product spec does not exist
+        '422':
+          description: The credential is not a signed token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: The credential has to be a signed token (JWT)
+        '502':
+          description: The catalog failed to give the product or to take the credential.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: The credential could not be saved in the product specification
   /feedback:
     post:
       tags: [feedback]
@@ -6280,6 +6858,102 @@ components:
           type: string
         description:
           type: string
+    BlogEntry:
+      type: object
+      required: [_id, title, contentType, tags, date, content]
+      properties:
+        _id:
+          type: string
+        title:
+          type: string
+        contentType:
+          type: string
+          enum: [blog, news, faq]
+        slug:
+          type: string
+        featuredImage:
+          type: string
+        metaDescription:
+          type: string
+        excerpt:
+          type: string
+        author:
+          type: string
+        partyId:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        date:
+          type: string
+          format: date-time
+        content:
+          type: string
+    BlogEntryForm:
+      type: object
+      description: |
+        `title` and `content` are needed to make an entry. Texts are trimmed; an optional one that is empty is taken away. Fields that are not here are ignored.
+      properties:
+        title:
+          type: string
+          maxLength: 300
+        content:
+          type: string
+        contentType:
+          type: string
+          enum: [blog, news, faq]
+        slug:
+          type: string
+          description: Lowercase letters and digits separated by hyphens.
+          pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$'
+        featuredImage:
+          type: string
+          description: An http or https address.
+        metaDescription:
+          type: string
+          maxLength: 160
+        excerpt:
+          type: string
+          maxLength: 300
+        author:
+          type: string
+        partyId:
+          type: string
+        tags:
+          type: array
+          maxItems: 50
+          items:
+            type: string
+            maxLength: 50
+        date:
+          type: string
+          format: date-time
+    AnalyticsConfig:
+      type: object
+      required: [analytics, analyticsEnabled, analyticsDashboards, analyticsSuperset]
+      properties:
+        analytics:
+          type: string
+          description: Where Superset is.
+        analyticsEnabled:
+          type: boolean
+        analyticsDashboards:
+          type: object
+          required: [businessInsightsNonLear, businessInsightsLear, usageMonitor]
+          properties:
+            businessInsightsNonLear:
+              type: string
+            businessInsightsLear:
+              type: string
+            usageMonitor:
+              type: string
+        analyticsSuperset:
+          type: object
+          required: [guestTokenPath]
+          properties:
+            guestTokenPath:
+              type: string
     ErrorResult:
       type: object
       required: [error]
