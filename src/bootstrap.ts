@@ -6,11 +6,13 @@ import { AppModule } from './app.module';
 import { ErrorFilter } from './common/error.filter';
 import { PortalFallbackFilter } from './portal/portal-static';
 
-// bodyParser is off: each route reads the body as the text it needs
+// bodyParser is off: each route reads the body as the text it needs. abortOnError is off so a failed start
+// reaches start(), which logs it, instead of Nest aborting the process without a trace
 export const createApp = async (rootModule: new () => object = AppModule, httpsOptions?: HttpsOptions): Promise<NestExpressApplication> => {
     const app = await NestFactory.create<NestExpressApplication>(rootModule, {
         bufferLogs: true,
         bodyParser: false,
+        abortOnError: false,
         ...(httpsOptions === undefined ? {} : { httpsOptions })
     });
     app.set('query parser', 'extended');
