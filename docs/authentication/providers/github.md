@@ -14,6 +14,7 @@ Set `BAE_LP_OAUTH2_PROVIDER=github`. All of these are required:
 | `BAE_LP_OAUTH2_CLIENT_ID` | `auth.idp.clientId` | Client id of a GitHub OAuth application |
 | `BAE_LP_OAUTH2_CLIENT_SECRET` | `auth.idp.clientSecret` | Its secret |
 | `BAE_LP_OAUTH2_CALLBACK` | `auth.idp.callbackUrl` | `https://<proxy>/auth/github/callback`, the authorization callback URL of the application |
+| `BAE_AUTH__IDP__SCOPES` | `auth.idp.scopes` | What is asked at the login (`user:email` if not set) |
 
 The role every user gets is the one named by `BAE_LP_OAUTH2_SELLER_ROLE`.
 

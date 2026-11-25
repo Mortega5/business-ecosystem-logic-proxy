@@ -60,8 +60,14 @@ export const createIdentityProvider = (idp: IdpSettings, dependencies: ProviderD
             });
         }
         case 'github': {
-            required(idp, ['clientId', 'clientSecret', 'callbackUrl']);
-            return new GithubProvider({ ...common, sellerRole: dependencies.roles.seller });
+            const settings = required(idp, ['clientId', 'clientSecret', 'callbackUrl']);
+            return new GithubProvider({
+                ...common,
+                clientId: settings.clientId,
+                clientSecret: settings.clientSecret,
+                scope: idp.scopes ?? 'user:email',
+                sellerRole: dependencies.roles.seller
+            });
         }
         case 'oidc-discover': {
             const settings = required(idp, ['clientId', 'clientSecret', 'callbackUrl']);
