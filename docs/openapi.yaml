@@ -18,7 +18,11 @@ tags:
   - name: stats
     description: The figures of the landing page and the counts of an organisation.
   - name: analytics
-    description: The dashboards of Superset that the portal embeds (DOME extension).
+    description: The dashboards of Superset that the portal embeds.
+  - name: blog
+    description: The blog, the news and the questions of the marketplace.
+  - name: compliance
+    description: The compliance certificate of a product and the credential that a certifier uploads for it.
   - name: feedback
     description: The feedback that the portal asks of its visitors.
   - name: auth
@@ -1091,13 +1095,13 @@ paths:
                 $ref: '#/components/schemas/ErrorResult'
               example:
                 error: 'Not found'
-  /domeblog:
+  /blog:
     get:
-      tags: [dome-blog]
+      tags: [blog]
       operationId: listBlogEntries
       summary: The entries of the blog, the news and the questions
       description: |
-        Open to anybody, and only with the DOME extension on (`dome.enabled`); otherwise 404. It answers all the entries, newest first, whatever the query: the portal sends `contentType`, `page` and `limit`, as it did of v11, and the proxy does not use them.
+        Open to anybody, and only while the blog is on (`blog.enabled`); otherwise 404. It is also at `/domeblog`, with the same answers, while the DOME extension is on (`dome.enabled`). It answers all the entries, newest first, whatever the query: the portal sends `contentType`, `page` and `limit`, as it did of v11, and the proxy does not use them.
       parameters:
         - $ref: '#/components/parameters/RequestId'
       responses:
@@ -1110,7 +1114,7 @@ paths:
                 items:
                   $ref: '#/components/schemas/BlogEntry'
         '404':
-          description: The DOME extension is off.
+          description: The blog is off.
           content:
             application/json:
               schema:
@@ -1118,7 +1122,7 @@ paths:
               example:
                 error: Not found
     post:
-      tags: [dome-blog]
+      tags: [blog]
       operationId: createBlogEntry
       summary: Make an entry
       description: |
@@ -1159,7 +1163,7 @@ paths:
               example:
                 error: You are not allowed to access this resource
         '404':
-          description: The DOME extension is off.
+          description: The blog is off.
           content:
             application/json:
               schema:
@@ -1174,12 +1178,12 @@ paths:
                 $ref: '#/components/schemas/ErrorResult'
               example:
                 error: A blog entry with the same slug already exists
-  /domeblog/{id}:
+  /blog/{id}:
     get:
-      tags: [dome-blog]
+      tags: [blog]
       operationId: getBlogEntry
       summary: An entry
-      description: Open to anybody, and only with the DOME extension on. The id is the `_id` of the entry; a string that is not one is an entry that does not exist.
+      description: Open to anybody, and only while the blog is on (`blog.enabled`). The id is the `_id` of the entry; a string that is not one is an entry that does not exist.
       parameters:
         - $ref: '#/components/parameters/RequestId'
         - name: id
@@ -1195,7 +1199,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/BlogEntry'
         '404':
-          description: There is no such entry, or the DOME extension is off.
+          description: There is no such entry, or the blog is off.
           content:
             application/json:
               schema:
@@ -1203,7 +1207,7 @@ paths:
               example:
                 error: Blog entry not found
     patch:
-      tags: [dome-blog]
+      tags: [blog]
       operationId: patchBlogEntry
       summary: Change an entry
       description: |
@@ -1255,7 +1259,7 @@ paths:
               example:
                 error: You are not allowed to access this resource
         '404':
-          description: There is no such entry, or the DOME extension is off.
+          description: There is no such entry, or the blog is off.
           content:
             application/json:
               schema:
@@ -1271,7 +1275,7 @@ paths:
               example:
                 error: A blog entry with the same slug already exists
     delete:
-      tags: [dome-blog]
+      tags: [blog]
       operationId: deleteBlogEntry
       summary: Remove an entry
       description: Only for administrators.
@@ -1308,7 +1312,236 @@ paths:
               example:
                 error: You are not allowed to access this resource
         '404':
-          description: There is no such entry, or the DOME extension is off.
+          description: There is no such entry, or the blog is off.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: Blog entry not found
+  /domeblog:
+    get:
+      tags: [blog]
+      deprecated: true
+      operationId: listBlogEntriesAtDomeblog
+      summary: The entries of the blog, the news and the questions
+      description: |
+        Another name for `/blog`, which the portal of DOME still calls; it answers only while the DOME extension is on (`dome.enabled`) and the blog is on, and otherwise 404. It answers all the entries, newest first, whatever the query: the portal sends `contentType`, `page` and `limit`, as it did of v11, and the proxy does not use them.
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      responses:
+        '200':
+          description: The entries.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BlogEntry'
+        '404':
+          description: The DOME extension or the blog is off.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: Not found
+    post:
+      tags: [blog]
+      deprecated: true
+      operationId: createBlogEntryAtDomeblog
+      summary: Make an entry
+      description: |
+        Only for administrators. A title and a content are needed; what is not in the list of fields is ignored. Without a slug the proxy makes one from the title, a free one; with one, it has to be free whatever its case.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BlogEntryForm'
+      responses:
+        '201':
+          description: The entry that was made.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BlogEntry'
+        '400':
+          description: The body is not valid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: Validation failed
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          description: The caller is not an administrator.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: You are not allowed to access this resource
+        '404':
+          description: The DOME extension or the blog is off.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: Not found
+        '409':
+          description: Another entry has the slug.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: A blog entry with the same slug already exists
+  /domeblog/{id}:
+    get:
+      tags: [blog]
+      deprecated: true
+      operationId: getBlogEntryAtDomeblog
+      summary: An entry
+      description: Another name for `/blog/{id}`; only while the DOME extension and the blog are on. The id is the `_id` of the entry; a string that is not one is an entry that does not exist.
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The entry.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BlogEntry'
+        '404':
+          description: There is no such entry, or the DOME extension or the blog is off.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: Blog entry not found
+    patch:
+      tags: [blog]
+      deprecated: true
+      operationId: patchBlogEntryAtDomeblog
+      summary: Change an entry
+      description: |
+        Only for administrators. Any of the fields; one that is sent empty is taken away, but an empty slug does not take the one the entry has. A slug that another entry has is a 409.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BlogEntryForm'
+      responses:
+        '200':
+          description: The entry after the change.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [message, patchedBlog]
+                properties:
+                  message:
+                    type: string
+                  patchedBlog:
+                    $ref: '#/components/schemas/BlogEntry'
+        '400':
+          description: The body is not valid, or has no field to change.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: No update fields provided
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          description: The caller is not an administrator.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: You are not allowed to access this resource
+        '404':
+          description: There is no such entry, or the DOME extension or the blog is off.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: Blog entry not found
+        '409':
+          description: Another entry has the slug.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: A blog entry with the same slug already exists
+    delete:
+      tags: [blog]
+      deprecated: true
+      operationId: deleteBlogEntryAtDomeblog
+      summary: Remove an entry
+      description: Only for administrators.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The entry that was removed.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [message, deletedBlog]
+                properties:
+                  message:
+                    type: string
+                  deletedBlog:
+                    $ref: '#/components/schemas/BlogEntry'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          description: The caller is not an administrator.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: You are not allowed to access this resource
+        '404':
+          description: There is no such entry, or the DOME extension or the blog is off.
           content:
             application/json:
               schema:
@@ -1321,7 +1554,7 @@ paths:
       operationId: createAnalyticsGuestToken
       summary: The token to embed a dashboard of the analytics
       description: |
-        Part of the DOME extension (`dome.enabled`): with it off, 404. For who is logged in. The proxy asks Superset for a guest token with the access token of the caller, and answers it with the id of the dashboard. The dashboard depends on the tab and on the role: `businessInsights` is the Lear dashboard for an organisation administrator and the non-Lear one for anybody else; `usageMonitor` is only for administrators.
+        For who is logged in. The proxy asks Superset for a guest token with the access token of the caller, and answers it with the id of the dashboard. The dashboard depends on the tab and on the role: `businessInsights` is the Lear dashboard for an organisation administrator and the non-Lear one for anybody else; `usageMonitor` is only for administrators.
       security:
         - bearerAuth: []
       parameters:
@@ -1368,14 +1601,6 @@ paths:
                 $ref: '#/components/schemas/ErrorResult'
               example:
                 error: Analytics is disabled
-        '404':
-          description: The DOME extension is off.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResult'
-              example:
-                error: Not found
         '500':
           description: There is no dashboard for the case, or Superset is not configured.
           content:
@@ -1393,7 +1618,7 @@ paths:
               example:
                 error: It was not possible to generate the analytics guest token
         '504':
-          description: Superset did not answer within `dome.analytics.timeoutMs`.
+          description: Superset did not answer within `analytics.timeoutMs`.
           content:
             application/json:
               schema:
@@ -1406,7 +1631,7 @@ paths:
       operationId: getAnalyticsConfig
       summary: The settings of the analytics
       description: |
-        Part of the DOME extension; only for administrators, because where Superset is decides where the token of every user who asks for a dashboard goes. The settings that an administrator saved win over the ones of the configuration.
+        Only for administrators, because where Superset is decides where the token of every user who asks for a dashboard goes. The settings that an administrator saved win over the ones of the configuration.
       security:
         - bearerAuth: []
       parameters:
@@ -1428,20 +1653,12 @@ paths:
                 $ref: '#/components/schemas/ErrorResult'
               example:
                 error: You are not allowed to access this resource
-        '404':
-          description: The DOME extension is off.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResult'
-              example:
-                error: Not found
     patch:
       tags: [analytics]
       operationId: updateAnalyticsConfig
       summary: Save the settings of the analytics
       description: |
-        Part of the DOME extension; only for administrators. All the fields are sent. `analytics` has to be an http or https address with no user, query or fragment, the ids of the dashboards only letters, digits and `. _ : -`, and `guestTokenPath` an absolute path with no dot segments.
+        Only for administrators. All the fields are sent. `analytics` has to be an http or https address with no user, query or fragment, the ids of the dashboards only letters, digits and `. _ : -`, and `guestTokenPath` an absolute path with no dot segments.
       security:
         - bearerAuth: []
       parameters:
@@ -1477,14 +1694,6 @@ paths:
                 $ref: '#/components/schemas/ErrorResult'
               example:
                 error: You are not allowed to access this resource
-        '404':
-          description: The DOME extension is off.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResult'
-              example:
-                error: Not found
         '502':
           description: The settings could not be saved.
           content:
@@ -1495,11 +1704,11 @@ paths:
                 error: The analytics settings could not be saved
   /compliance/certificate:
     post:
-      tags: [dome]
+      tags: [compliance]
       operationId: requestComplianceCertificate
       summary: Ask for the compliance certificate of a product
       description: |
-        Part of the DOME extension (`dome.enabled`; with it off the route answers 404). Only for the seller of the product. The body is the product specification as the portal has it, but only its `id` is read: the product, its seller organisation and the files it names (the values of its `Compliance:*` characteristics, except the credential) are the ones TMForum has. The files are read from their addresses, which have to be public http or https addresses (and at one of `dome.compliance.fileOrigins` when that is set), at most `dome.compliance.maxFiles` of them and `dome.compliance.maxFileMb` MB each, and are sent with the data of the seller to the compliance service, with the access token of the caller. The answer is the one of the compliance service.
+        Only while the compliance is on (`compliance.enabled`; otherwise 404), and only for the seller of the product. The body is the product specification as the portal has it, but only its `id` is read: the product, its seller organisation and the files it names (the values of its `Compliance:*` characteristics, except the credential) are the ones TMForum has. The files are read from their addresses, which have to be public http or https addresses (and at one of `compliance.fileOrigins` when that is set), at most `compliance.maxFiles` of them and `compliance.maxFileMb` MB each, and are sent with the data of the seller to the compliance service, with the access token of the caller. The answer is the one of the compliance service.
       security:
         - bearerAuth: []
       parameters:
@@ -1540,7 +1749,7 @@ paths:
               example:
                 error: You are not the seller of the product specification
         '404':
-          description: The product, or its seller organisation, does not exist; or the DOME extension is off.
+          description: The product, or its seller organisation, does not exist; or the compliance is off.
           content:
             application/json:
               schema:
@@ -1548,7 +1757,7 @@ paths:
               example:
                 error: The product specification does not exist
         '413':
-          description: One of the files is larger than `dome.compliance.maxFileMb`.
+          description: One of the files is larger than `compliance.maxFileMb`.
           content:
             application/json:
               schema:
@@ -1589,11 +1798,11 @@ paths:
                 error: Compliance server unreachable
   /admin/uploadcertificate/{specId}:
     patch:
-      tags: [dome]
+      tags: [compliance]
       operationId: uploadComplianceCredential
       summary: Put the compliance credential in a product
       description: |
-        Part of the DOME extension (`dome.enabled`). For administrators, for whoever has the role of certifier (`dome.compliance.certifierRole`) and for the members of an organisation that has it. The credential becomes the characteristic `Compliance:VC` of the product, in place of the one it had, and is checked when the product is launched. It has to be a signed token (JWT) of at most 64 KB. Sellers cannot write that characteristic themselves.
+        Only while the compliance is on (`compliance.enabled`; otherwise 404). For administrators, for whoever has the role of certifier (`compliance.certifierRole`) and for the members of an organisation that has it. The credential becomes the characteristic `Compliance:VC` of the product, in place of the one it had, and is checked when the product is launched. It has to be a signed token (JWT) of at most 64 KB. Sellers cannot write that characteristic themselves.
       security:
         - bearerAuth: []
       parameters:
@@ -1644,7 +1853,7 @@ paths:
               example:
                 error: You are not authorized to upload certificates
         '404':
-          description: The product does not exist, or the DOME extension is off.
+          description: The product does not exist, or the compliance is off.
           content:
             application/json:
               schema:
@@ -1667,6 +1876,177 @@ paths:
                 $ref: '#/components/schemas/ErrorResult'
               example:
                 error: The credential could not be saved in the product specification
+  /auth/vc/request.jwt:
+    get:
+      tags: [auth]
+      operationId: getVcRequestObject
+      summary: The request that the wallet asks for
+      description: |
+        Only with the login with credentials on (`auth.vc.enabled`) and `auth.vc.isRedirection`; otherwise 404. The signed request (a JWT, signed with the key of the proxy) that tells the verifier and the wallet what the proxy asks of the user. Open: it is what the verifier fetches.
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      responses:
+        '200':
+          description: The signed request.
+          content:
+            text/plain:
+              schema:
+                type: string
+        '404':
+          description: The login with credentials is off, or the user does not come back to the proxy.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: Not found
+  /auth/vc/callback:
+    get:
+      tags: [auth]
+      operationId: finishVcLogin
+      summary: Where the verifier sends the user, or tells the proxy the code
+      description: |
+        Only with the login with credentials on; otherwise 404. With `isRedirection` the user's browser comes back with a `code` and a `state`: it answers a redirect to the portal when the login works, and to `/error` when it does not. Without it the verifier tells the proxy the code of a user whose wallet is on another device, and the browser asks for the answer at `/poll`; a `state` that starts with `cert:` is the upload of a certificate, whose credential is read at once and given at `/cert/poll`.
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - name: state
+          in: query
+          description: What the portal made up for this login, up to 200 letters, digits and `. _ ~ : -`.
+          schema:
+            type: string
+        - name: code
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The code is kept for the browser that waits for it.
+        '302':
+          description: The user is sent to the portal, or to `/error` when the login could not be completed.
+          headers:
+            Location:
+              schema:
+                type: string
+        '400':
+          description: The `state` or the `code` is missing or has a form that cannot be one.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: 'Missing required param: state and code'
+        '404':
+          description: The login with credentials is off.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: Not found
+        '500':
+          description: The verifier did not give a token for the code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: Error loading VC
+  /poll:
+    get:
+      tags: [auth]
+      operationId: pollVcLogin
+      summary: Whether the user has shown the credential
+      description: |
+        Only with the login with credentials on and without `isRedirection`; otherwise 404. The portal asks every second. The browser that asks first about a `state` is the only one that gets its answer (`auth.vc.bindPollToSession`), so the session cookie has to reach the proxy in each question. A 401 means that the user has not shown the credential yet; a 200 sets the session of the browser; a 400 or a 500 means that the login failed.
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - name: state
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The browser is logged in.
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          description: There is no code yet, or the state is not one this browser may ask about.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: No auth code received yet
+        '404':
+          description: The login with credentials is off.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: Not found
+        '500':
+          description: The code could not be exchanged, or the credential is not one that can log in.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: The login could not be completed
+  /cert/poll:
+    get:
+      tags: [auth]
+      operationId: pollVcCertificate
+      summary: The credential of a certification that the user showed
+      description: |
+        Only with the login with credentials on and without `isRedirection`; otherwise 404. For the `state` of an upload that started with `cert:`. The credential has to be signed by the verifier, issued by one of `auth.vc.certIssuers`, not expired, and say the product and the compliance it certifies.
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - name: state
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The credential and what it says.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [vc, subject]
+                properties:
+                  vc:
+                    type: string
+                  subject:
+                    type: object
+        '400':
+          description: The state is missing, or the credential is not valid, not from a trusted issuer, expired, or not about a product.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: Invalid VC issuer
+        '401':
+          description: There is no credential for the state yet.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: VC not found
+        '404':
+          description: The login with credentials is off.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: Not found
   /feedback:
     post:
       tags: [feedback]
@@ -1790,6 +2170,14 @@ paths:
                     type: string
                   dspContractDefinitionSchema:
                     type: string
+                  siop:
+                    type: object
+                    description: The login with credentials. `enabled` is false when it is off; when it is on the object also says where the verifier is and how its answer comes back (`isRedirection`, `pollPath`, `pollCertPath`, `clientID`, `callbackURL`, `verifierHost`, `verifierQRCodePath`, `requestUri`).
+                    required: [enabled]
+                    properties:
+                      enabled:
+                        type: boolean
+                    additionalProperties: true
                 additionalProperties: true
               example:
                 roles: { seller: Seller, customer: Buyer, admin: admin, orgAdmin: orgAdmin }
