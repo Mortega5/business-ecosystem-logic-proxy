@@ -73,6 +73,26 @@ tendering:
 party:
   editEnabled: true
 
+datasets:
+  enabled: false
+
+apiAccess:
+  enabled: false
+
+blueprints:
+  enabled: true
+
+software:
+  enabled: true
+
+fileService:
+  enabled: false
+  url: http://file-service:8081
+  # Longest time for one request: the upload of a large file takes a while
+  timeoutMs: 1800000
+  maxSizeMb: 100
+  acceptedTypes: .csv,.json,text/csv,application/json
+
 dsp:
   enabled: false
   # The EDC contract definition (an access policy and a contract policy). v11 gave here the schema of the deployment of software by mistake
