@@ -9,6 +9,7 @@ class FakeUpstream extends UpstreamClient {
     queries: Query[] = [];
     organizations: Record<string, unknown[]> = {};
     failing = false;
+    unanswered = 0;
     send(): never {
         throw new Error('not used');
     }
@@ -18,12 +19,15 @@ class FakeUpstream extends UpstreamClient {
         if (this.failing) {
             return Promise.reject(new Error('down'));
         }
+        if (this.queries.length <= this.unanswered) {
+            return Promise.resolve([] as T);
+        }
         return Promise.resolve((this.organizations[Object.values(query)[0] as string] ?? []) as T);
     }
 }
 
 const settle = async (): Promise<void> => {
-    for (let turn = 0; turn < 5; turn += 1) {
+    for (let turn = 0; turn < 20; turn += 1) {
         await Promise.resolve();
     }
 };
@@ -63,6 +67,7 @@ describe('OperatorService', () => {
     it('goes on to the external reference, with the DID and as configured', async () => {
         const upstream = new FakeUpstream();
         upstream.organizations['did:web:op.example.org'] = [{ id: 'urn:org:2' }];
+        upstream.unanswered = 1;
         const operator = make('did:web:op.example.org', upstream);
         operator.onApplicationBootstrap();
         await settle();
