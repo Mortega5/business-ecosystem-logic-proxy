@@ -1911,7 +1911,7 @@ paths:
         - $ref: '#/components/parameters/RequestId'
         - name: state
           in: query
-          description: What the portal made up for this login, up to 200 letters, digits and `. _ ~ : -`.
+          description: "What the portal made up for this login, up to 200 letters, digits and `. _ ~ : -`."
           schema:
             type: string
         - name: code
