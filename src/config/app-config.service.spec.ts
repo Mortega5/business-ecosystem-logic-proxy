@@ -35,6 +35,7 @@ const VALUE: AppConfig = {
         refreshMarginSeconds: 5,
         defaultTokenLifetimeSeconds: 1800,
         store: { type: 'memory', memoryMaxEntries: 1000 },
+        externalLogin: { enabled: false },
         session: { maxAgeMs: 86400000, cookieSecure: 'auto', cookieSameSite: 'lax' }
     },
     purchase: { enabled: true, paymentProvider: 'none' },

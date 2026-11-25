@@ -90,6 +90,9 @@ answering with the renewed profile for a short time, for the requests that were 
 | `BAE_AUTH__STORE__MEMORY_MAX_ENTRIES` | Entries kept in memory before the oldest goes (1000 by default; 50 in v11) |
 | `BAE_AUTH__STORE__ENCRYPTION_KEY` | Required with `mongo`: a random string of 32 characters or more. Profiles hold refresh tokens, so they are stored sealed (AES-256-GCM) and under the hash of the key. Changing it makes the stored entries misses |
 | `BAE_LP_EXTERNAL_PORTAL` | Address of a portal of another site (`auth.externalPortal`). After a login with the main provider the user is sent to `<portal>/dashboard?token=<access token>`, as in v11; without it, to `/dashboard?token=local` |
+| `BAE_LP_EXT_LOGIN` | `true` turns on the identity providers that an administrator adds at run time (`/IDP`); off by default |
+| `BAE_EORI` | EORI of the proxy as a client of those providers. Required with `BAE_LP_EXT_LOGIN` |
+| `BAE_TOKEN_KEY`, `BAE_TOKEN_CRT` | Paths of the private key and of the certificate chain (PEM) with which the proxy signs for them. Required with `BAE_LP_EXT_LOGIN`; read when a provider is added and when the proxy starts |
 | `BAE_AUTH__SESSION__SECRET` | Signs the session cookie: a random string of 32 characters or more, with no default. Required once the login is served by the proxy |
 | `BAE_AUTH__SESSION__MAX_AGE_MS` | How long a session lasts since its last request (24 hours by default) |
 | `BAE_AUTH__SESSION__COOKIE_SECURE` | `auto` (default: Secure when the request came over HTTPS), `true` or `false` |
@@ -122,3 +125,20 @@ request then carries the organization's roles and party id, and the id of the us
 | `/logOut` | Destroys the session and redirects to `/` |
 | `/logintoken` | The profile of the logged user |
 | `/IDP`, `/IDP/:idpId` | CRUD of the external providers (only with `BAE_LP_EXT_LOGIN=true`) |
+
+## Identity providers added at run time (`/IDP`)
+
+With `BAE_LP_EXT_LOGIN=true` an administrator manages the external identity providers, all of them i4Trust, with these routes. Only
+users with the administrator role may use them (v11 let any user who was logged in add, change and remove them).
+
+| Route | What it does |
+|---|---|
+| `GET /IDP?search=` | The providers, or the ones whose name or description has the words |
+| `GET /IDP/:idpId` | One: `name`, `server`, `idpId`, `issuerDid`, `description` |
+| `POST /IDP` | Adds one. Body: `idpId` (letters, digits, `.`, `_`, `:` and `-`, up to 128), `name`, `server` (http or https), and optionally `issuerDid` and `description`. 200 with its address in `location`, 409 if the id is taken, 400 if it is `local` or the name of the main provider |
+| `PUT /IDP/:idpId` | Changes `name`, `server`, `issuerDid` and `description`; what the body leaves out is removed |
+| `DELETE /IDP/:idpId` | Removes it, 204 |
+
+Each provider is kept in the `idps` collection, as in v11, and is available for login at `/login/<idpId>`, whose callback is
+`/auth/<idpId>/callback` on the site of `auth.idp.callbackUrl`. The ones that are kept are loaded when the proxy starts; one that
+cannot be loaded is logged and left out, and does not stop the others.

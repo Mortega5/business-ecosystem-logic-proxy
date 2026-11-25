@@ -185,6 +185,18 @@ export const ConfigSchema = z.object({
                 path: ['encryptionKey'],
                 message: 'is required when auth.store.type is mongo'
             }),
+        // Identity providers that an administrator adds at run time (`/IDP`). They are all i4Trust: the proxy is a client of each with
+        // its own EORI, and signs with one key and one certificate chain (paths of PEM files)
+        externalLogin: z
+            .object({
+                enabled: booleanLike,
+                eori: z.string().min(1).optional(),
+                tokenKey: z.string().min(1).optional(),
+                tokenCrt: z.string().min(1).optional()
+            })
+            .refine((login) => !login.enabled || (login.eori !== undefined && login.tokenKey !== undefined && login.tokenCrt !== undefined), {
+                message: 'eori, tokenKey and tokenCrt are required when auth.externalLogin.enabled is true'
+            }),
         // The portal of another site that the user is sent to after the login, with the access token in the address (empty: the one of
         // the proxy)
         externalPortal: z.url().optional(),

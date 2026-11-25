@@ -281,6 +281,7 @@ describe('authentication configuration', () => {
             refreshMarginSeconds: 5,
             defaultTokenLifetimeSeconds: 1800,
             store: { type: 'memory', memoryMaxEntries: 1000 },
+            externalLogin: { enabled: false },
             session: { maxAgeMs: 86400000, cookieSecure: 'auto', cookieSameSite: 'lax' }
         });
     });
@@ -336,6 +337,16 @@ describe('authentication configuration', () => {
             encryptionKey: key
         });
         expect(load({ BAE_AUTH__STORE__MEMORY_MAX_ENTRIES: '50' }).auth.store.memoryMaxEntries).toBe(50);
+    });
+
+    it('reads the external login and asks for what it needs when it is on', () => {
+        expect(load({ BAE_LP_EXT_LOGIN: 'true', BAE_EORI: 'EU.EORI.PROXY', BAE_TOKEN_KEY: '/k.pem', BAE_TOKEN_CRT: '/c.pem' }).auth.externalLogin).toEqual({
+            enabled: true,
+            eori: 'EU.EORI.PROXY',
+            tokenKey: '/k.pem',
+            tokenCrt: '/c.pem'
+        });
+        expect(() => load({ BAE_LP_EXT_LOGIN: 'true', BAE_EORI: 'EU.EORI.PROXY' })).toThrow('tokenKey');
     });
 
     it('reads the portal of another site and refuses what is not an address', () => {
