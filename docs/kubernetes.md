@@ -11,11 +11,11 @@ described in [openapi.yaml](openapi.yaml).
 | Node.js | 26 or later |
 | Listening port | `app.port`, `8004` by default |
 | Listening address | `app.host` when set; otherwise Node's default, which is every interface over IPv6 and IPv4 |
-| Working directory | `config/default.yaml` is read relative to it, so it is the repository root; `server.js` is loaded from the directory above `dist/` |
+| Working directory | `config/default.yaml` is read relative to it, so it is the repository root; the compiled portal is read from `portal/bae-frontend`, above `dist/` |
 
-The application serves two sets of routes on the same port. Requests are matched against the routes implemented
-by Nest first; those that match none are handled by the legacy Express application (`server.js`), which is
-configured separately, through its `BAE_LP_*` environment variables and `config.js`.
+The application serves the APIs and the compiled portal on the same port. A request that matches no route is the page
+of the portal when a browser asks for it (it accepts HTML), so that a link into the portal opens directly, and a 404 for
+anything else.
 
 The image built from `docker/Dockerfile` runs `pnpm build` and its entrypoint ends with `exec node dist/main`, so
 the process receiving `SIGTERM` is the Node.js one. Its `HEALTHCHECK` requests `/health/live` over HTTP, with a
@@ -24,11 +24,11 @@ start period of 120 seconds; with `app.https.enabled` set it needs to be overrid
 ## HTTPS
 
 Disabled by default. With `app.https.enabled` set to `true` the server listens on `app.port` over TLS and no longer
-answers plain HTTP on that port; the Nest routes and the legacy ones are served the same way. The key and
+answers plain HTTP on that port. The key and
 certificate files are read when the server starts; `app.https.keyFile` and `app.https.certFile` are required once
 HTTPS is enabled and `app.https.caFile` is optional.
 
-TLS 1.0 and 1.1 are excluded, and TLS 1.2 connections use the legacy application's cipher list
+TLS 1.0 and 1.1 are excluded, and TLS 1.2 connections use this cipher list
 (`ECDHE-RSA-AES256-SHA384:DHE-RSA-AES256-SHA384:ECDHE-RSA-AES256-SHA256:DHE-RSA-AES256-SHA256:ECDHE-RSA-AES128-SHA256:DHE-RSA-AES128-SHA256:HIGH`
 without `aNULL`, `eNULL`, `EXPORT`, `DES`, `RC4`, `MD5`, `PSK`, `SRP` and `CAMELLIA`) in the server's order of preference.
 
@@ -41,15 +41,12 @@ livenessProbe:
 
 ## Start-up
 
-`server.js` is loaded before the Nest application is created, and it waits for its own dependencies
-(MongoDB, the identity provider) while loading. The port is not open until that finishes. Progress is logged
-with `context: "Bootstrap"`:
+The server connects to MongoDB before it opens the port, and tries again with a growing delay (`mongo.retryInitialDelayMs`
+up to `mongo.retryMaxDelayMs`) while it is not reachable. Progress is logged with `context: "Bootstrap"`:
 
 | Level | Message | When |
 |---|---|---|
 | info | `Starting the server` | Immediately, with `port` and, when set, `host` |
-| warn | `Still loading the legacy application, it waits for its dependencies such as MongoDB` | Every 5 seconds while loading, with `waitedSeconds` |
-| info | `Legacy application loaded` | `server.js` finished loading |
 | info | `Server listening` | The port is open |
 | fatal | `The server could not start` | Any failure; the process exits with code 1 |
 
@@ -80,7 +77,7 @@ and is evaluated on every call. Bodies:
 
 Requests to both routes are not written to the access log.
 
-Example configuration; the timings depend on how long `server.js` takes to load:
+Example configuration; the timings depend on how long MongoDB takes to be reachable:
 
 ```yaml
 containers:
@@ -105,16 +102,14 @@ containers:
 
 `SIGTERM` and `SIGINT` start an orderly shutdown, in this order:
 
-1. The retries of the start-up loaders of the legacy application (charging information, statistics, operator)
-   and its scheduled refreshes are cancelled.
-2. `/health/ready` answers `503` with status `shutting_down`. On `SIGTERM` the server keeps accepting requests
+1. `/health/ready` answers `503` with status `shutting_down`. On `SIGTERM` the server keeps accepting requests
    for `app.shutdownDelayMs` (no wait when it is `0`, and none for `SIGINT`); `/health/live` keeps answering `200`.
-3. The HTTP server stops accepting connections and waits for the requests in flight to finish.
-4. The Nest MongoDB connection is closed, then the connections of the legacy application.
-5. The process exits with code 0.
+2. The HTTP server stops accepting connections and waits for the requests in flight to finish.
+3. The MongoDB connection is closed.
+4. The process exits with code 0.
 
 Before the application is up (while it waits for MongoDB, for instance) there is nothing to drain: a signal ends the
-process at once, and `docker/entrypoint.sh` does the same while it waits for MongoDB before starting. As PID 1 a process
+process at once, and `docker/entrypoint.sh` does the same. As PID 1 a process
 without a handler ignores `SIGTERM`, so a pod stuck at start-up would otherwise only stop when Kubernetes kills it.
 
 If the shutdown has not finished `app.shutdownTimeoutMs` after the signal, the process exits with code 1.
@@ -150,14 +145,14 @@ Logged with `context: "MongoConnectionService"`:
 Values are resolved in this order, each layer overriding the previous one:
 
 1. `config/default.yaml`, shipped with the application.
-2. The [legacy variables](#legacy-environment-variables) listed below.
+2. The [variables of version 11](#environment-variables-of-version-11) listed below.
 3. The YAML file named by `CONFIG_FILE`, or `/etc/bae/config/application.yaml` when `CONFIG_FILE` is not set.
    The default file is optional; a file named by `CONFIG_FILE` must exist.
 4. Environment variables named `BAE_<SECTION>__<KEY>`.
 
 Environment variable names: `__` separates levels and a single `_` inside a level is a camelCase boundary, so
 `BAE_MONGO__RETRY_MAX_DELAY_MS` is `mongo.retryMaxDelayMs`. Arrays and objects are given as JSON. Variables
-without `__` after `BAE_` (the legacy `BAE_LP_*` ones) are ignored by this mechanism.
+without `__` after `BAE_` (the `BAE_LP_*` ones of version 11) are ignored by this mechanism.
 
 The configuration is validated at start-up and read only then: changing the file or a variable requires
 restarting the container.
@@ -178,9 +173,9 @@ volumes:
     configMap: { name: proxy-config }   # key: application.yaml
 ```
 
-### Legacy environment variables
+### Environment variables of version 11
 
-Variables of the legacy application that also configure the Nest application:
+The `BAE_LP_*` variables of version 11 are read and translated to the keys of the configuration. A deprecation warning names the key that replaces each one in use:
 
 | Variable | Configures | Notes |
 |---|---|---|
@@ -188,7 +183,7 @@ Variables of the legacy application that also configure the Nest application:
 | `BAE_LP_HTTPS_ENABLED` | `app.https.enabled` | Only the value `true` enables HTTPS |
 | `BAE_LP_HTTPS_CERT`, `BAE_LP_HTTPS_KEY`, `BAE_LP_HTTPS_CA` | `app.https.certFile`, `app.https.keyFile`, `app.https.caFile` | |
 | `BAE_LP_HTTPS_PORT` | `app.port` | Used while HTTPS is enabled; `443` when it is not set |
-| `BAE_LP_MONGO_SERVER`, `BAE_LP_MONGO_PORT`, `BAE_LP_MONGO_DB`, `BAE_LP_MONGO_USER`, `BAE_LP_MONGO_PASS` | `mongo.uri` | `mongodb://[user:password@]server:port/db`. Parts that are not set take the values of the legacy application: server `mongo`, port `27017`, database `belp`. Credentials are used only when both a user and a password are set, and are percent-encoded |
+| `BAE_LP_MONGO_SERVER`, `BAE_LP_MONGO_PORT`, `BAE_LP_MONGO_DB`, `BAE_LP_MONGO_USER`, `BAE_LP_MONGO_PASS` | `mongo.uri` | `mongodb://[user:password@]server:port/db`. Parts that are not set take the values of version 11: server `mongo`, port `27017`, database `belp`. Credentials are used only when both a user and a password are set, and are percent-encoded |
 | `BAE_LP_CONTACT_US_NOTIFICATION_URL` | `upstreams.contactUs` | Where the contact form is notified, as one URL (host, port, scheme and path are taken from it, the query is not); without it the form is notified to the charging backend. Also `BAE_UPSTREAMS__CONTACT_US__HOST` and the like |
 | `BAE_GIT_HASH` | | Not configuration: the commit of the build, shown by `GET /version` |
 | `BAE_DOME__ENABLED` | `dome.enabled` | Whether the DOME extension is part of the proxy. On by default; with `false` its routes do not exist. It has no pieces of its own yet, except that `/domeblog` is another name for `/blog` while it is on. v11 had no such variable |
@@ -208,7 +203,7 @@ Variables of the legacy application that also configure the Nest application:
 | `BAE_LP_FILE_SERVICE_TIMEOUT` | `fileService.timeoutMs` | Longest time for one request to the file service, in ms (30 minutes by default: an upload takes a while) |
 | `BAE_LP_FILE_SERVICE_MAX_SIZE_MB`, `BAE_LP_FILE_SERVICE_ACCEPTED_TYPES` | `fileService.maxSizeMb`, `fileService.acceptedTypes` | The largest file (100 by default) and the types the portal offers (`.csv,.json,text/csv,application/json`), as the `accept` of a file input. `/config` gives them as `datasetMaxSizeBytes` and `datasetAcceptedTypes` |
 | `BAE_LP_PURCHASE_ENABLED`, `BAE_LP_DATASPACE_ENABLED`, `BAE_LP_CATALOG_MANAGEMENT_ENABLED`, `BAE_LP_DSP_ENABLED`, `BAE_LP_QUOTE_ENABLED`, `BAE_LP_TENDERING_ENABLED`, `BAE_LP_LAUNCH_VALIDATION_ENABLED` | `http.uploadLimit` | size | `50mb` | Largest file upload (multipart body) a route accepts; a bigger one is refused with 413 |
-| `http.cors.origins` | list of origins or `"*"` | `["*"]` | Origins that may call the API from a browser; `*` is what the legacy application did |
+| `http.cors.origins` | list of origins or `"*"` | `["*"]` | Origins that may call the API from a browser; `*` is what version 11 did |
 | `http.cors.exposeRedirect` | boolean | `false` | Exposes `X-Redirect-URL` to the browser |
 | `security.csp.reportOnly` | boolean | `true` | Sends `Content-Security-Policy-Report-Only` instead of enforcing the policy |
 | `security.hsts.enabled`, `.maxAgeSeconds`, `.includeSubDomains` | boolean, integer, boolean | `true`, `31536000`, `false` | `Strict-Transport-Security`; browsers ignore it over plain HTTP |
@@ -231,7 +226,7 @@ Variables of the legacy application that also configure the Nest application:
 | `BAE_LP_PROPAGATE_TOKEN`, `BAE_LP_ALLOW_LOCAL_EORI` | `auth.propagateToken`, `auth.allowLocalEori` | Anything other than `true` turns the option off |
 | `BAE_LP_OPERATOR_ID` | `operator.id` | The organisation that operates the marketplace; empty means there is none |
 | `BAE_LP_OAUTH2_ADMIN_ROLE`, `_SELLER_ROLE`, `_CUSTOMER_ROLE`, `_ORG_ADMIN_ROLE` | `auth.roles.admin`, `.seller`, `.customer`, `.orgAdmin` | |
-| `BAE_LP_ENDPOINT_<NAME>_HOST`, `_PORT`, `_PATH`, `_SECURED` | `upstreams.tmforum.apis.<api>` or `upstreams.<name>` | See [Upstreams](#upstreams) for the names. `SECURED=true` sets `scheme: https`. What is not set (host or port) comes from the group; a missing `PATH` means the path the legacy application had for that endpoint, which is empty except for `revenue` (`/revenue`) and `invoicing` (`/invoicing`) |
+| `BAE_LP_ENDPOINT_<NAME>_HOST`, `_PORT`, `_PATH`, `_SECURED` | `upstreams.tmforum.apis.<api>` or `upstreams.<name>` | See [Upstreams](#upstreams) for the names. `SECURED=true` sets `scheme: https`. What is not set (host or port) comes from the group; a missing `PATH` means the path version 11 had for that endpoint, which is empty except for `revenue` (`/revenue`) and `invoicing` (`/invoicing`) |
 
 When none of the `BAE_LP_MONGO_*` variables is set, `mongo.uri` keeps its default.
 
@@ -274,7 +269,7 @@ Keys read by the application:
 | `dsp.contractDefinitionSchema` | URL | the `contract-definition.json` of `wistefan/edc-dsc` (branch `init`) | The schema of the EDC contract definition that the portal puts in the offers that use the data space. v11 gave here the schema of the deployment of software by mistake |
 | `launchValidation.enabled`, `dataSpace.enabled` | boolean | `false` | |
 | `catalogManagement.enabled` | boolean | `true` | |
-| `catalog.offeringSchema`, `catalog.priceCompSchema`, `catalog.blueprintSchema`, `catalog.partyLocation` | URL | the legacy values | `@schemaLocation` of offerings, price components, blueprint product specifications and the related parties of what the operator owns |
+| `catalog.offeringSchema`, `catalog.priceCompSchema`, `catalog.blueprintSchema`, `catalog.partyLocation` | URL | the values of version 11 | `@schemaLocation` of offerings, price components, blueprint product specifications and the related parties of what the operator owns |
 | `catalog.defaultCatalogId` | string | empty | The default catalog, which lists the root categories the marketplace shows; when it is set it is the one used and it has to exist. When it is empty the proxy takes the stored one, the one the catalog API marks with the catalog type `default`, or makes one |
 | `catalog.defaultCatalogName` | string | `default` | The name of the default catalog the proxy makes, and with which it recognises the one made before the catalog type existed |
 | `catalog.bootstrap.enabled` | boolean | `true` | Whether the proxy makes sure, every time it starts, of the default catalog, the system categories (in the default catalog) and the support package spec of the software. Off, it does nothing and what is not there is not made; the default catalog is then the one of `catalog.defaultCatalogId`, if any |
@@ -357,14 +352,14 @@ upstreams:
 ```
 
 There is no default host: an upstream the application needs and that resolves to no `host` is an error that names the
-keys to set. The legacy `BAE_LP_ENDPOINT_*` variables keep working one API at a time, and the host or the port they
+keys to set. The `BAE_LP_ENDPOINT_*` variables of version 11 keep working one API at a time, and the host or the port they
 leave out comes from the group. An API that has any of them gets an empty path unless `PATH` says otherwise, as in
-the legacy application, so a lone `PORT` also drops the default path of the API. Their names are crossed for two APIs:
+version 11, so a lone `PORT` also drops the default path of the API. Their names are crossed for two APIs:
 `BAE_LP_ENDPOINT_BILLING_*` configures `account` and `BAE_LP_ENDPOINT_CUSTOMER_BILL_*` configures `customerBill`.
 
 ### Security
 
-`security.*` and `http.cors.*` set, for the routes Nest serves and for what it hands to the legacy application:
+`security.*` and `http.cors.*` set, for every route:
 
 - **Headers.** `X-Content-Type-Options`, `Strict-Transport-Security`, `Cross-Origin-*`, `Referrer-Policy` and a
   `Content-Security-Policy` that only reports until `security.csp.reportOnly` is `false`. `X-Powered-By` is removed.
@@ -373,7 +368,6 @@ the legacy application, so a lone `PORT` also drops the default path of the API.
   runs on another origin in development (for instance `http://localhost:4200`), list it in
   `security.csrf.trustedOrigins`, as `BAE_SECURITY__CSRF__TRUSTED_ORIGINS='["http://localhost:4200"]'`; do not use it
   in production.
-- **CORS.** Every origin is allowed until `http.cors.origins` says otherwise. The legacy application answers with its own
-  `*` on the routes it serves.
-- **Request body.** `http.bodyLimit` is `5mb`, enough for the file of the portal (up to 3 MB) as base64 in the body of an upload; the routes of the legacy application accept bodies of up to 50 MB.
+- **CORS.** Every origin is allowed until `http.cors.origins` says otherwise.
+- **Request body.** `http.bodyLimit` is `5mb`, enough for the file of the portal (up to 3 MB) as base64 in the body of an upload.
 - **Rate limiting** is not applied by the proxy.

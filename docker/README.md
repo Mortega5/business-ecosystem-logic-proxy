@@ -13,8 +13,7 @@ If you want to know what is behind the scenes of our container you can go ahead 
 ## The Fastest Way
 
 The Business Ecosystem Logic Proxy uses an external MongoDB container as database and an ElasticSearch container for handling indexes.
-Both components can be configured providing a `config.js` file or using environment variables. For details of the different configuration options have a look at the
-[Business API Ecosystem configuration guide](https://business-api-ecosystem.readthedocs.io/en/latest/configuration-guide.html#configuring-the-logic-proxy)
+The proxy is configured with environment variables (`BAE_*`) and, optionally, a YAML file. See [the configuration](../docs/kubernetes.md#configuration).
 
 To run the Business Ecosystem Logic Proxy, `docker compose` can be used. You can use the `docker-compose.yml` file included
 with the source of the software, or create a new one with the following content:
@@ -46,12 +45,8 @@ services:
             - mongo
         ports:
             - 8000:8000
-        volumes:
-            - ./proxy-themes:/business-ecosystem-logic-proxy/themes
-            - ./proxy-static:/business-ecosystem-logic-proxy/static
         environment:
             - NODE_ENV=development  # Deployment in development or in production
-            - COLLECT=True  # Execute the collect static command on startup
 
             - BAE_LP_PORT=8000  # Port where the node service is going to run in the container
             - BAE_LP_HOST=proxy.docker  # Host where the node service if going to run in the container
@@ -73,7 +68,6 @@ services:
             - BAE_LP_OAUTH2_ORG_ADMIN_ROLE=orgAdmin  # Role defined in the IDM client app for organization admins of the BAE 
             - BAE_LP_OAUTH2_IS_LEGACY=false  # Whether the used FIWARE IDM is version 6 or lower
 
-            # - BAE_LP_THEME=theme  # If provided custom theme to be used by the web site, it must be included in themes volume
             
             # ----- Mongo Config ------
             # - BAE_LP_MONGO_USER=user
@@ -94,16 +88,9 @@ services:
             # ...
 ```
 
-The biz-ecosystem-logic-proxy image defines 2 volumes. In particular:
-* */business-ecosystem-logic-proxy/themes*: In this volume, it can be provided the themes that can be used to customize the web portal
-* */business-ecosystem-logic-proxy/static*: This volume includes the static files ready to be rendered including the selected theme and js files
+The image serves the compiled portal from its own files, so it has no volume to fill. `NODE_ENV` selects the development or the production mode.
 
-Additionally, the image defines two environment variables intended to optimize the production deployment of the BAE Logic proxy:
-* *NODE_ENV*: Specifies whether the system is in *development* or in *production* (default: development)
-* *COLLECT*: Specifies if the container should execute the collect static command to generate static files or use the existing on start up (default: True)
-
-As can be seen in the `docker-compose.yml` file, configuration can be provided as environment variables. If this feature is used,
-providing a `config.js` file with the configuration is not necessary, taking into account that the environment values override the file ones.
+The configuration is given as environment variables, as the `docker-compose.yml` file shows.
 
 Once you have created the file, run the following command:
 

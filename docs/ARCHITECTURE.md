@@ -1,8 +1,7 @@
 # Architecture
 
-The proxy is being moved from an Express 4 application (`server.js`) to NestJS, one API at a time. Until the move is
-over both live in one process: Nest is the outer application and hands every request it has no route for to the legacy
-one. Everything that makes that possible is in [`src/legacy/`](../src/legacy/README.md) and is deleted at the end.
+The proxy is a NestJS application (Express 5). It serves the APIs of the portal, authenticates the callers, and serves
+the compiled portal (`portal/bae-frontend`).
 
 ## Life of a request
 
@@ -18,7 +17,7 @@ client
                   controller     the rules of that API, in plain code       src/tmf/<api>/
                   TmfProxy       headers, send, answer                      src/tmf/tmf-proxy.ts
                   UpstreamClient a safe path, a timeout, a log line         src/http-client/
-            no  ─ LegacyFallbackFilter hands it to server.js, which authenticates and routes it its own way
+            no  ─ PortalFallbackFilter  a browser that asks for a page gets the portal; anything else, a 404   src/portal/portal-static.ts
 ```
 
 An error thrown anywhere on the way ends in `ErrorFilter` ([`src/common/error.filter.ts`](../src/common/error.filter.ts)):
@@ -28,9 +27,9 @@ anything unexpected is a 500 with a generic message and the stack goes to the lo
 ## Rules the structure enforces
 
 - **Private by default.** `AuthGuard` is global. A route is open only with `@Public()`, which does not even open a
-  session. Without the legacy authentication chain attached, every private route answers 401.
+  session. A request with no token and no session answers 401.
 - **Only what the portal uses.** A TMF API is a controller with its routes written out. The whole prefix is closed by a
-  last route that answers 404, so what is not listed is neither proxied nor handed to the legacy application.
+  last route that answers 404, so what is not listed is not proxied, and a client of the API gets a JSON 404 and not the page of the portal.
 - **Nothing the client says becomes identity.** The headers sent upstream come from a short list of the client's plus
   what the authenticated user is known to be ([`src/tmf/upstream-headers.ts`](../src/tmf/upstream-headers.ts)).
 - **A path cannot leave its API.** The upstream client refuses dot segments (however encoded), separators, `;` and
@@ -42,12 +41,12 @@ anything unexpected is a 500 with a generic message and the stack goes to the lo
 
 | Folder | What it holds |
 |---|---|
-| `src/config` | Zod schema, layered loader, upstream resolution, translation of the legacy `BAE_LP_*` variables |
+| `src/config` | Zod schema, layered loader, upstream resolution, translation of the `BAE_LP_*` variables of earlier versions |
 | `src/http-client` | `UpstreamClient` over `fetch` |
 | `src/tmf` | `TmfProxy`, upstream headers, one folder per API |
 | `src/auth`, `src/features`, `src/security` | guards and the security configuration |
 | `src/persistence` | Mongoose, the base `Repository` and its in-memory fake |
-| `src/legacy` | the fallback to the legacy application; temporary |
+| `src/portal` | `GET /config`, the settings an administrator changes, and the static files of the portal |
 | `src/testing` | what the tests share: `FakeUpstream`, `fakeLogin` |
 | `docs/openapi.yaml` | the routes Nest serves, checked against the code and the real answers |
 
@@ -71,8 +70,8 @@ Take [`src/tmf/document/`](../src/tmf/document/) as the model.
    }
    ```
 
-   `NotFoundError` and not `NotFoundException`: the latter is what hands a request to the legacy application. This
-   route exists only while the legacy application does; without it Nest's own 404 is enough, and these routes are removed.
+   `NotFoundError` and not `NotFoundException`: the latter is what serves the page of the portal to a browser that asks for
+   a path that has no route. This route is what keeps a prefix of an API from answering with the portal.
 4. **If a route takes a body,** apply `BodyTextInterceptor` to the controller (`@UseInterceptors(BodyTextInterceptor)`, see
    `search.controller.ts`): it reads the body as text up to `http.bodyLimit` and answers 413 beyond it. It is an interceptor and not a
    middleware so that it runs after the guards: a request that is refused for who it comes from, or for a feature that is off, has
@@ -97,12 +96,3 @@ Take [`src/tmf/document/`](../src/tmf/document/) as the model.
 7. **Test it.** A controller spec with `FakeUpstream` and `fakeLogin` (see `document.controller.spec.ts`): the happy
    path, 401, a refused id, every route that must be closed. Dot-segment ids must be sent with `http.request`, because
    `fetch` normalises them.
-
-## When the legacy application goes away
-
-The only thing outside `src/legacy/` that refers to it is the fallback filter, and what changes is:
-
-- `src/bootstrap.ts` stops registering the fallback filter.
-- The closing `@All` route of each API controller is deleted: Nest's default 404 does the same.
-- `server.js` goes. `src/testing/fake-login.ts` stays: it replaces the authenticator of the application under test.
-- Then `src/legacy/` is deleted.

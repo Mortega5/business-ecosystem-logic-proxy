@@ -15,15 +15,8 @@ services:
             - mongo
         ports:
             - 8000:8000
-        volumes:
-            # - ./proxy-conf:/business-ecosystem-logic-proxy/etc  # To be used when congiguring the system with a config file provided in the volume
-            # - ./proxy-indexes:/business-ecosystem-logic-proxy/indexes  # To be used only for locan indexes
-            - ./proxy-themes:/business-ecosystem-logic-proxy/themes
-            - ./proxy-static:/business-ecosystem-logic-proxy/static
-            - ./proxy-locales:/business-ecosystem-logic-proxy/locales
         environment:
             - NODE_ENV=development  # Deployment in development or in production
-            - COLLECT=True  # Execute the collect static command on startup
 
             - BAE_LP_PORT=8000  # Port where the node service is going to run in the container
             - BAE_LP_HOST=proxy.docker  # Host where the node service if going to run in the container
@@ -45,7 +38,6 @@ services:
             - BAE_LP_OAUTH2_ORG_ADMIN_ROLE=orgAdmin  # Role defined in the IDM client app for organization admins of the BAE 
             - BAE_LP_OAUTH2_IS_LEGACY=false  # Whether the used FIWARE IDM is version 6 or lower
 
-            # - BAE_LP_THEME=theme  # If provided custom theme to be used by the web site, it must be included in themes volume
 
             # ----- Mongo Config ------
             # - BAE_LP_MONGO_USER=user
