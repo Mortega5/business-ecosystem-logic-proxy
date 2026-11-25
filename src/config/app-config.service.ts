@@ -37,6 +37,10 @@ export class AppConfigService {
         return this.value.dome;
     }
 
+    get operator(): AppConfig['operator'] {
+        return this.value.operator;
+    }
+
     get blog(): AppConfig['blog'] {
         return this.value.blog;
     }

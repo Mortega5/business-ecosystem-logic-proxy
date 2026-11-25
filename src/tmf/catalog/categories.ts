@@ -6,7 +6,7 @@ import { parseRequest } from '../schemas/parse';
 import { BadGatewayError, DomainError, ForbiddenError, NotFoundError } from '../../common/domain-error';
 import { AppConfigService } from '../../config/app-config.service';
 import type { UpstreamResponse } from '../../http-client/upstream-client';
-import { LegacyOperator } from '../../legacy/legacy-operator';
+import { OperatorService } from '../../operator/operator.service';
 import { AS_JSON } from '../http-options';
 import { isRecord } from '../related-party';
 import { isResourceId } from '../resource-id.pipe';
@@ -44,7 +44,7 @@ export class Categories {
     constructor(
         private readonly proxy: TmfProxy,
         private readonly config: AppConfigService,
-        private readonly operator: LegacyOperator,
+        private readonly operator: OperatorService,
         private readonly defaults: CatalogDefaults
     ) {}
 

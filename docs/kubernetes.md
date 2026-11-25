@@ -229,6 +229,7 @@ Variables of the legacy application that also configure the Nest application:
 | `BAE_LP_DEFAULT_CATALOG_ID`, `BAE_LP_DEFAULT_CATALOG_NAME` | `catalog.defaultCatalogId`, `catalog.defaultCatalogName` | |
 | `BAE_LP_CORS_EXPOSE_REDIRECT` | `http.cors.exposeRedirect` | Anything other than `true` turns it off |
 | `BAE_LP_PROPAGATE_TOKEN`, `BAE_LP_ALLOW_LOCAL_EORI` | `auth.propagateToken`, `auth.allowLocalEori` | Anything other than `true` turns the option off |
+| `BAE_LP_OPERATOR_ID` | `operator.id` | The organisation that operates the marketplace; empty means there is none |
 | `BAE_LP_OAUTH2_ADMIN_ROLE`, `_SELLER_ROLE`, `_CUSTOMER_ROLE`, `_ORG_ADMIN_ROLE` | `auth.roles.admin`, `.seller`, `.customer`, `.orgAdmin` | |
 | `BAE_LP_ENDPOINT_<NAME>_HOST`, `_PORT`, `_PATH`, `_SECURED` | `upstreams.tmforum.apis.<api>` or `upstreams.<name>` | See [Upstreams](#upstreams) for the names. `SECURED=true` sets `scheme: https`. What is not set (host or port) comes from the group; a missing `PATH` means the path the legacy application had for that endpoint, which is empty except for `revenue` (`/revenue`) and `invoicing` (`/invoicing`) |
 

@@ -1,11 +1,10 @@
 import { Module } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
-import express from 'express';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthModule } from '../../auth/auth.module';
 import { createApp } from '../../bootstrap';
 import { AppConfigModule } from '../../config/app-config.module';
-import { LegacyOperator } from '../../legacy/legacy-operator';
+import { OperatorService } from '../../operator/operator.service';
 import { LoggingModule } from '../../logging/logging.module';
 import { AS_ADMIN, useFakeLogin, LOGGED_IN } from '../../testing/fake-login';
 import { FakeFeaturesModule } from '../../testing/fake-features';
@@ -17,12 +16,6 @@ const upstream = new FakeUpstream();
 
 @Module({ imports: [AppConfigModule, LoggingModule, AuthModule, FakeFeaturesModule, CatalogModule] })
 class Root {}
-
-// The legacy application answers whatever of /catalog is not here
-const legacy = express();
-legacy.get('/catalog/catalog', (_req, res) => {
-    res.json({ from: 'legacy' });
-});
 
 const CATALOG = '/tmf-api/productCatalogManagement/v4';
 const JSON_HEADERS = { 'content-type': 'application/json' };
@@ -51,7 +44,7 @@ let catalogWrite: Reply;
 beforeAll(async () => {
     await upstream.start();
     Object.assign(process.env, { BAE_UPSTREAMS__TMFORUM__HOST: '127.0.0.1', BAE_UPSTREAMS__TMFORUM__PORT: String(upstream.port) });
-    app = await createApp(legacy, Root);
+    app = await createApp(Root);
     useFakeLogin(app);
     await app.listen(0);
     url = await app.getUrl();
@@ -141,7 +134,7 @@ describe('POST /catalog/category', () => {
 
     it('is owned by the operator of the marketplace when there is one, with the schema of the related party', async () => {
         const operator = [{ id: 'urn:ngsi-ld:organization:op', role: 'Seller' }, { id: 'urn:ngsi-ld:organization:op', role: 'SellerOperator' }];
-        vi.spyOn(app.get(LegacyOperator), 'owner').mockReturnValue(operator);
+        vi.spyOn(app.get(OperatorService), 'owner').mockReturnValue(operator);
 
         await post({ name: 'New', relatedParty: [{ id: 'p-forged', role: 'Seller' }] });
 
@@ -306,7 +299,7 @@ describe('PATCH /admin/catalog/catalog/:id', () => {
         expect((await edit('cat-broken', { name: 'x' })).status).toBe(502);
     });
 
-    it('leaves the other routes under /admin to the legacy application', async () => {
+    it('has no other routes under /admin', async () => {
         expect((await call('/admin/catalog/catalog', { method: 'POST', headers: admin(), body: '{}' })).status).toBe(404);
     });
 });
@@ -319,10 +312,10 @@ describe('what the portal does not use, and what is not here yet', () => {
         expect(seen).toEqual([]);
     });
 
-    it('leaves the rest of the catalog API to the legacy application', async () => {
+    it('has no route for the rest of the catalog API', async () => {
         const res = await call('/catalog/catalog', { headers: admin() });
 
-        expect(await res.json()).toEqual({ from: 'legacy' });
+        expect(res.status).toBe(404);
         expect(seen).toEqual([]);
     });
 });

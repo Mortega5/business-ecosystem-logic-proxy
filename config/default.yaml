@@ -85,6 +85,10 @@ tendering:
 party:
   editEnabled: true
 
+# The organisation that operates the marketplace, by its identifier (a DID, or `did:elsi:` is added)
+operator:
+  id: ""
+
 dome:
   enabled: true
 

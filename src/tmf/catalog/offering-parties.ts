@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import type { Request } from 'express';
 import { DomainError } from '../../common/domain-error';
 import { AppConfigService } from '../../config/app-config.service';
-import { LegacyOperator } from '../../legacy/legacy-operator';
+import { OperatorService } from '../../operator/operator.service';
 import { NormalizedParties } from '../normalized-parties';
 import { isRecord } from '../related-party';
 import type { UpstreamUser } from '../upstream-headers';
@@ -18,7 +18,7 @@ type Json = Record<string, unknown>;
 export class OfferingParties {
     constructor(
         private readonly config: AppConfigService,
-        private readonly operator: LegacyOperator,
+        private readonly operator: OperatorService,
         private readonly parties: NormalizedParties
     ) {}
 

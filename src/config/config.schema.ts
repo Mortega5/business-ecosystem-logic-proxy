@@ -262,6 +262,8 @@ export const ConfigSchema = z.object({
     quotes: z.object({ enabled: booleanLike, api: z.string().min(1) }),
     tendering: z.object({ enabled: booleanLike, devButtonsOpenClose: booleanLike }),
     party: z.object({ editEnabled: booleanLike }),
+    // The organisation that operates the marketplace: what a seller creates names it when it is set
+    operator: z.object({ id: z.string() }),
     // The extension of DOME. It has no pieces of its own for now: its routes exist only while `dome.enabled` is on, and it lives in `src/dome`
     dome: z.object({ enabled: booleanLike }),
     // The blog, the news and the questions of the marketplace. `/domeblog` is another name for `/blog` that exists while `dome.enabled` is on

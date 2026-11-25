@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import type { LegacyOperator } from '../legacy/legacy-operator';
+import type { OperatorService } from '../operator/operator.service';
 import { SellerParties } from './seller-parties';
 
 const OPERATOR = { id: 'urn:ngsi-ld:organization:op', href: 'urn:ngsi-ld:organization:op', name: 'did:elsi:VATES-1', role: 'SellerOperator', '@referredType': 'Organization' };
-const without = { seller: () => undefined } as unknown as LegacyOperator;
-const with_ = { seller: () => OPERATOR } as unknown as LegacyOperator;
+const without = { seller: () => undefined } as unknown as OperatorService;
+const with_ = { seller: () => OPERATOR } as unknown as OperatorService;
 const user = { id: 'u-sam', partyId: 'p-shop' };
 
 describe('the related parties of what a seller creates', () => {

@@ -74,6 +74,7 @@ const VALUES: [string, string][] = [
     ['auth.idp.tokenCrt', 'BAE_LP_OIDC_TOKEN_CRT'],
     ['auth.idp.oidcKey', 'BAE_LP_OIDC_KEY'],
     ['auth.idp.defaultRole', 'BAE_LP_OAUTH2_DEFAULT_ROLE'],
+    ['operator.id', 'BAE_LP_OPERATOR_ID'],
     ['auth.roles.admin', 'BAE_LP_OAUTH2_ADMIN_ROLE'],
     ['auth.roles.seller', 'BAE_LP_OAUTH2_SELLER_ROLE'],
     ['auth.roles.customer', 'BAE_LP_OAUTH2_CUSTOMER_ROLE'],

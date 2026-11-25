@@ -4,7 +4,7 @@ import { BadGatewayError, DomainError, ForbiddenError, NotFoundError } from '../
 import { AppConfigService } from '../../config/app-config.service';
 import type { UpstreamName } from '../../config/upstream-names';
 import type { UpstreamResponse } from '../../http-client/upstream-client';
-import { LegacyOperator } from '../../legacy/legacy-operator';
+import { OperatorService } from '../../operator/operator.service';
 import { AS_JSON, PRIVATE } from '../http-options';
 import { OwnedResources } from '../owned-resources';
 import { NormalizedParties, type PartyRef } from '../normalized-parties';
@@ -38,7 +38,7 @@ export class Orders {
         private readonly proxy: TmfProxy,
         private readonly owned: OwnedResources,
         private readonly config: AppConfigService,
-        private readonly operator: LegacyOperator,
+        private readonly operator: OperatorService,
         private readonly parties: NormalizedParties
     ) {}
 

@@ -1,27 +1,19 @@
 import { Module } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
-import express from 'express';
-import { createRequire } from 'node:module';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthModule } from '../../auth/auth.module';
 import { createApp } from '../../bootstrap';
 import { AppConfigModule } from '../../config/app-config.module';
 import { LoggingModule } from '../../logging/logging.module';
+import { OperatorService } from '../../operator/operator.service';
 import { AS_SELLER, useFakeLogin, LOGGED_IN } from '../../testing/fake-login';
 import { FakeUpstream } from '../../testing/fake-upstream';
 import { ResourceModule } from './resource.module';
 
-const nodeRequire = createRequire(__filename);
 const upstream = new FakeUpstream();
 
 @Module({ imports: [AppConfigModule, LoggingModule, AuthModule, ResourceModule] })
 class Root {}
-
-// The legacy application answers anything under /resource
-const legacy = express();
-legacy.all('/resource/*path', (_req, res) => {
-    res.json({ from: 'legacy' });
-});
 
 const SPEC_API = '/tmf-api/resourceCatalog/v4/resourceSpecification';
 const PRODUCT_SPECS = '/tmf-api/productCatalogManagement/v4/productSpecification';
@@ -50,7 +42,7 @@ let productSpecs: (offset: number) => Reply;
 beforeAll(async () => {
     await upstream.start();
     Object.assign(process.env, { BAE_UPSTREAMS__TMFORUM__HOST: '127.0.0.1', BAE_UPSTREAMS__TMFORUM__PORT: String(upstream.port) });
-    app = await createApp(legacy, Root);
+    app = await createApp(Root);
     useFakeLogin(app);
     await app.listen(0);
     url = await app.getUrl();
@@ -200,23 +192,19 @@ describe('POST /resource/resourceSpecification', () => {
     });
 
     it('names the seller as v11 did, and the operator of the marketplace after them when there is one', async () => {
-        const { operator } = nodeRequire('../../../lib/operator') as { operator: { getOperatorId: () => string | undefined } };
-        const legacyConfig = nodeRequire('../../../config') as { operatorId: string; roles: { sellerOperator: string } };
-        const previous = legacyConfig.operatorId;
-        legacyConfig.operatorId = 'did:elsi:VATES-1';
-        const operatorId = vi.spyOn(operator, 'getOperatorId').mockReturnValue('urn:ngsi-ld:organization:op');
+        const operator = { id: 'urn:ngsi-ld:organization:op', href: 'urn:ngsi-ld:organization:op', name: 'did:elsi:VATES-1', role: 'SellerOperator', '@referredType': 'Organization' };
+        const seller = vi.spyOn(OperatorService.prototype, 'seller').mockReturnValue(operator);
         try {
             await post('{"name":"Dataset","relatedParty":[{"id":"p-shop","role":"Seller","href":"https://evil.example","name":"Somebody"}]}');
         } finally {
-            operatorId.mockRestore();
-            legacyConfig.operatorId = previous;
+            seller.mockRestore();
         }
 
         expect(JSON.parse(seen[0]?.body ?? '')).toEqual({
             name: 'Dataset',
             relatedParty: [
                 { id: 'p-shop', href: 'p-shop', name: 'u-sam', role: 'Seller', '@referredType': 'Individual' },
-                { id: 'urn:ngsi-ld:organization:op', href: 'urn:ngsi-ld:organization:op', name: 'did:elsi:VATES-1', role: legacyConfig.roles.sellerOperator, '@referredType': 'Organization' }
+                operator
             ]
         });
     });
@@ -492,7 +480,7 @@ describe('the rest of /resource', () => {
         ['GET', '/resourceSpecification/x/history'],
         ['GET', '/other'],
         ['GET', '']
-    ])('%s /resource%s is not found, neither here nor in the legacy application, and nothing is written', async (method, path) => {
+    ])('%s /resource%s is not found, and nothing is written', async (method, path) => {
         const res = await call(`/resource${path}`, { method, headers: seller(), ...(method === 'GET' ? {} : { body: '{"name":"x"}' }) });
         expect(res.status).toBe(404);
         expect(await res.json()).toEqual({ error: 'Not found' });

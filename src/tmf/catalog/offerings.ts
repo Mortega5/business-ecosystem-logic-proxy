@@ -6,7 +6,7 @@ import { pagination, queryParams, sorting } from '../schemas/pagination';
 import { parseRequest } from '../schemas/parse';
 import { BadGatewayError, DomainError, ForbiddenError, NotFoundError } from '../../common/domain-error';
 import { AppConfigService } from '../../config/app-config.service';
-import { LegacyOperator } from '../../legacy/legacy-operator';
+import { OperatorService } from '../../operator/operator.service';
 import { ChargingAssets } from '../charging-assets';
 import { AS_JSON, PRIVATE } from '../http-options';
 import { callerParty, isRecord, isRelatedAs } from '../related-party';
@@ -72,7 +72,7 @@ export class Offerings {
     constructor(
         private readonly proxy: TmfProxy,
         private readonly config: AppConfigService,
-        private readonly operator: LegacyOperator,
+        private readonly operator: OperatorService,
         private readonly parties: OfferingParties,
         private readonly charging: ChargingAssets,
         private readonly launch: LaunchRequirements,

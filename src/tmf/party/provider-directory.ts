@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { BadGatewayError, DomainError } from '../../common/domain-error';
 import { AppConfigService } from '../../config/app-config.service';
-import { LegacyOperator } from '../../legacy/legacy-operator';
+import { OperatorService } from '../../operator/operator.service';
 import { MarketplaceSearch } from '../marketplace-search';
 import { isRecord } from '../related-party';
 import { isResourceId } from '../resource-id.pipe';
@@ -39,7 +39,7 @@ export class ProviderDirectory {
         private readonly proxy: TmfProxy,
         private readonly config: AppConfigService,
         private readonly search: MarketplaceSearch,
-        private readonly operator: LegacyOperator
+        private readonly operator: OperatorService
     ) {}
 
     /** Whether a list of organisations is the directory: it asks for the launched ones or for a keyword. */

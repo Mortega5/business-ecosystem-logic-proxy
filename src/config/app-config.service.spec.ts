@@ -55,6 +55,7 @@ const VALUE: AppConfig = {
     quotes: { enabled: true, api: '/quote/quoteManagement' },
     tendering: { enabled: true, devButtonsOpenClose: false },
     party: { editEnabled: true },
+    operator: { id: '' },
     dome: { enabled: true },
     blog: { enabled: true },
     analytics: {

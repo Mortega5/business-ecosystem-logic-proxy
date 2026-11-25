@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { LegacyOperator } from '../legacy/legacy-operator';
+import { OperatorService } from '../operator/operator.service';
 import type { UpstreamUser } from './upstream-headers';
 
 /**
@@ -8,7 +8,7 @@ import type { UpstreamUser } from './upstream-headers';
  */
 @Injectable()
 export class SellerParties {
-    constructor(private readonly operator: LegacyOperator) {}
+    constructor(private readonly operator: OperatorService) {}
 
     of(seller: Record<string, unknown>, user: UpstreamUser): Record<string, unknown>[] {
         const id = String(seller['id']);
