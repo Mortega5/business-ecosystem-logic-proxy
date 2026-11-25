@@ -33,6 +33,26 @@ export class AppConfigService {
         return this.value.auth;
     }
 
+    get datasets(): AppConfig['datasets'] {
+        return this.value.datasets;
+    }
+
+    get apiAccess(): AppConfig['apiAccess'] {
+        return this.value.apiAccess;
+    }
+
+    get blueprints(): AppConfig['blueprints'] {
+        return this.value.blueprints;
+    }
+
+    get software(): AppConfig['software'] {
+        return this.value.software;
+    }
+
+    get fileService(): AppConfig['fileService'] {
+        return this.value.fileService;
+    }
+
     get purchase(): AppConfig['purchase'] {
         return this.value.purchase;
     }

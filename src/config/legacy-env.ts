@@ -38,6 +38,9 @@ const SWITCHES: [string, string][] = [
     ['auth.allowLocalEori', 'BAE_LP_ALLOW_LOCAL_EORI'],
     ['auth.idp.oidcEnabled', 'BAE_LP_OIDC_ENABLED'],
     ['purchase.enabled', 'BAE_LP_PURCHASE_ENABLED'],
+    ['datasets.enabled', 'BAE_LP_DATASETS_ENABLED'],
+    ['apiAccess.enabled', 'BAE_LP_API_ACCESS_ENABLED'],
+    ['fileService.enabled', 'BAE_LP_FILE_SERVICE_ENABLED'],
     ['dataSpace.enabled', 'BAE_LP_DATASPACE_ENABLED'],
     ['catalogManagement.enabled', 'BAE_LP_CATALOG_MANAGEMENT_ENABLED'],
     ['dsp.enabled', 'BAE_LP_DSP_ENABLED'],
@@ -87,7 +90,12 @@ const VALUES: [string, string][] = [
     ['catalog.defaultCatalogId', 'BAE_LP_DEFAULT_CATALOG_ID'],
     ['catalog.defaultCatalogName', 'BAE_LP_DEFAULT_CATALOG_NAME'],
     ['catalog.priceCompSchema', 'BAE_LP_PRICE_COMP_SCHEMA'],
-    ['catalog.blueprintSchema', 'BAE_LP_BLUEPRINT_SCHEMA']
+    ['catalog.blueprintSchema', 'BAE_LP_BLUEPRINT_SCHEMA'],
+    ['fileService.url', 'BAE_LP_FILE_SERVICE_URL'],
+    ['fileService.token', 'BAE_LP_FILE_SERVICE_TOKEN'],
+    ['fileService.timeoutMs', 'BAE_LP_FILE_SERVICE_TIMEOUT'],
+    ['fileService.maxSizeMb', 'BAE_LP_FILE_SERVICE_MAX_SIZE_MB'],
+    ['fileService.acceptedTypes', 'BAE_LP_FILE_SERVICE_ACCEPTED_TYPES']
 ];
 
 // Anything other than "true" turns a switch off
@@ -95,6 +103,17 @@ const switchRules: LegacyRule[] = SWITCHES.map(([key, variable]) => ({
     key,
     variables: [variable],
     build: (env) => (present(env[variable]) ? String(env[variable] === 'true') : undefined)
+}));
+
+// These start on: only "false" turns them off
+const OFF_ONLY_BY_FALSE: [string, string][] = [
+    ['blueprints.enabled', 'BAE_LP_BLUEPRINTS_ENABLED'],
+    ['software.enabled', 'BAE_LP_SOFTWARE_ENABLED']
+];
+const offOnlyByFalseRules: LegacyRule[] = OFF_ONLY_BY_FALSE.map(([key, variable]) => ({
+    key,
+    variables: [variable],
+    build: (env) => (present(env[variable]) ? String(env[variable] !== 'false') : undefined)
 }));
 
 const valueRules: LegacyRule[] = VALUES.map(([key, variable]) => ({
@@ -250,6 +269,7 @@ const RULES: LegacyRule[] = [
     // The legacy application searches when it has the address of the engine
     { key: 'search.enabled', variables: ['BAE_LP_SEARCH_URL'], build: (env) => (present(env.BAE_LP_SEARCH_URL) ? 'true' : undefined) },
     ...switchRules,
+    ...offOnlyByFalseRules,
     ...valueRules,
     ...portalExtraRules,
     contactUsRule,

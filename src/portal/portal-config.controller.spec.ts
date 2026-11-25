@@ -79,7 +79,10 @@ describe('GET /config', () => {
             reservedCatalogNames: ['dataset', 'api', 'blueprint'],
             quotesEnabled: true,
             purchaseEnabled: false,
-            quoteApi: '/quote/quoteManagement'
+            quoteApi: '/quote/quoteManagement',
+            datasetFilesEnabled: false,
+            datasetMaxSizeBytes: 100 * 1024 * 1024,
+            datasetAcceptedTypes: '.csv,.json,text/csv,application/json'
         });
         featuresOn.clear();
     });

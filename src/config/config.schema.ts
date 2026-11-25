@@ -222,6 +222,22 @@ export const ConfigSchema = z.object({
     quotes: z.object({ enabled: booleanLike, api: z.string().min(1) }),
     tendering: z.object({ enabled: booleanLike, devButtonsOpenClose: booleanLike }),
     party: z.object({ editEnabled: booleanLike }),
+    // What the portal can offer, as the starting value of the flags that an administrator switches from the portal
+    datasets: z.object({ enabled: booleanLike }),
+    apiAccess: z.object({ enabled: booleanLike }),
+    blueprints: z.object({ enabled: booleanLike }),
+    software: z.object({ enabled: booleanLike }),
+    // The file service, which keeps the files of the datasets. Its address is not one of the upstreams: files are streamed through
+    // the proxy and do not go through the generic proxy of the TMForum APIs
+    fileService: z.object({
+        enabled: booleanLike,
+        url: z.url(),
+        token: z.string().optional(),
+        timeoutMs: z.coerce.number().int().positive(),
+        maxSizeMb: z.coerce.number().int().positive(),
+        // As the `accept` of a file input: extensions and media types, separated by commas
+        acceptedTypes: z.string()
+    }),
     dsp: z
         .object({ enabled: booleanLike, contractDefinitionSchema: z.url().optional() })
         .refine((dsp) => !dsp.enabled || dsp.contractDefinitionSchema !== undefined, {

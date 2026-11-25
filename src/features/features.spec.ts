@@ -19,7 +19,11 @@ const staticValues = {
     dsp: { enabled: false, contractDefinitionSchema: undefined },
     quotes: { enabled: true },
     tendering: { enabled: true, devButtonsOpenClose: false },
-    launchValidation: { enabled: false }
+    launchValidation: { enabled: false },
+    datasets: { enabled: false },
+    apiAccess: { enabled: false },
+    blueprints: { enabled: true },
+    software: { enabled: true }
 };
 const staticConfig = staticValues as unknown as AppConfigService;
 
@@ -31,6 +35,10 @@ const staticFeatures = {
     quotes: true,
     tendering: true,
     launchValidation: false,
+    datasets: false,
+    apiAccess: false,
+    blueprints: true,
+    software: true,
     tenderDevButtons: false
 };
 

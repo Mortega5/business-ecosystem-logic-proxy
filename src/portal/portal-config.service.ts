@@ -39,7 +39,7 @@ export class PortalConfigService {
     ) {}
 
     async read(): Promise<Json> {
-        const { auth, portal, quotes, catalog, dsp } = this.config;
+        const { auth, portal, quotes, catalog, dsp, fileService } = this.config;
         const [features, searchFilters] = await Promise.all([this.flags.all(), this.searchFilters()]);
         const own: Json = {
             roles: { seller: auth.roles.seller, customer: auth.roles.customer, admin: auth.roles.admin, orgAdmin: auth.roles.orgAdmin },
@@ -57,6 +57,11 @@ export class PortalConfigService {
             reservedCatalogNames: catalog.systemCategories.map((category) => category.name.trim().toLowerCase()),
             searchFilters,
             blueprintSchema: catalog.blueprintSchema,
+            // Whether a dataset can be made from a file: it needs the datasets on and a file service, and the portal offers files of
+            // the size and the types that the proxy takes
+            datasetFilesEnabled: features.datasets && fileService.enabled,
+            datasetMaxSizeBytes: fileService.maxSizeMb * 1024 * 1024,
+            datasetAcceptedTypes: fileService.acceptedTypes,
             ...(dsp.contractDefinitionSchema === undefined ? {} : { dspContractDefinitionSchema: dsp.contractDefinitionSchema }),
             ...Object.fromEntries(FEATURE_NAMES.map((feature) => [FEATURES[feature].dbName, features[feature]]))
         };

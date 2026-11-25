@@ -464,3 +464,36 @@ describe('request size configuration', () => {
         expect(() => load({ BAE_HTTP__UPLOAD_LIMIT: '50' })).toThrow('http.uploadLimit');
     });
 });
+
+describe('datasets, file service and the other features of the portal', () => {
+    const load = (env: NodeJS.ProcessEnv) => loadStaticConfig({ defaultsPath: DEFAULTS_PATH, env });
+
+    it('starts the datasets and the access to APIs off, and the blueprints and the software on', () => {
+        const config = load({});
+        expect([config.datasets.enabled, config.apiAccess.enabled, config.blueprints.enabled, config.software.enabled]).toEqual([false, false, true, true]);
+        expect(config.fileService).toEqual({
+            enabled: false,
+            url: 'http://file-service:8081',
+            timeoutMs: 1800000,
+            maxSizeMb: 100,
+            acceptedTypes: '.csv,.json,text/csv,application/json'
+        });
+    });
+
+    it('accepts the legacy variables: the datasets are on only with "true", the blueprints are off only with "false"', () => {
+        expect(load({ BAE_LP_DATASETS_ENABLED: 'yes', BAE_LP_API_ACCESS_ENABLED: 'true' }).datasets.enabled).toBe(false);
+        expect(load({ BAE_LP_API_ACCESS_ENABLED: 'true' }).apiAccess.enabled).toBe(true);
+        expect(load({ BAE_LP_BLUEPRINTS_ENABLED: 'no' }).blueprints.enabled).toBe(true);
+        expect(load({ BAE_LP_BLUEPRINTS_ENABLED: 'false', BAE_LP_SOFTWARE_ENABLED: 'false' }).software.enabled).toBe(false);
+        expect(
+            load({
+                BAE_LP_FILE_SERVICE_ENABLED: 'true',
+                BAE_LP_FILE_SERVICE_URL: 'http://files:9000',
+                BAE_LP_FILE_SERVICE_TOKEN: 'tok',
+                BAE_LP_FILE_SERVICE_TIMEOUT: '60000',
+                BAE_LP_FILE_SERVICE_MAX_SIZE_MB: '5',
+                BAE_LP_FILE_SERVICE_ACCEPTED_TYPES: '.csv'
+            }).fileService
+        ).toEqual({ enabled: true, url: 'http://files:9000', token: 'tok', timeoutMs: 60000, maxSizeMb: 5, acceptedTypes: '.csv' });
+    });
+});

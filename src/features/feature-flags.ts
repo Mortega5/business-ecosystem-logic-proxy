@@ -30,6 +30,10 @@ export const FEATURES = {
         enabled: (c) => c.launchValidation.enabled,
         configured: always
     },
+    datasets: { dbName: 'datasetsEnabled', enabled: (c) => c.datasets.enabled, configured: always },
+    apiAccess: { dbName: 'apiAccessEnabled', enabled: (c) => c.apiAccess.enabled, configured: always },
+    blueprints: { dbName: 'blueprintsEnabled', enabled: (c) => c.blueprints.enabled, configured: always },
+    software: { dbName: 'softwareEnabled', enabled: (c) => c.software.enabled, configured: always },
     tenderDevButtons: {
         dbName: 'tenderDevButtonsOpenCloseEnabled',
         enabled: (c) => c.tendering.devButtonsOpenClose,
