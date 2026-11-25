@@ -5,8 +5,6 @@ administrator adds at run time with the `/IDP` routes.
 
 [Back to authentication](../../authentication.md)
 
-> **Status in v12:** the way the user is read and the login with the signed request are ported; the `/IDP` routes come with the login routes.
-
 ## Settings
 
 Main provider (`BAE_LP_OAUTH2_PROVIDER=i4trust`):

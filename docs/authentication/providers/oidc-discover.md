@@ -5,9 +5,7 @@ Use it for any identity provider that speaks OpenID Connect and publishes a disc
 
 [Back to authentication](../../authentication.md)
 
-> **Status in v12:** the reading of tokens, the refresh and the audience check are ported. The login (authorization code with
-> `openid-client`, scopes, nonce) comes with the login routes, and so does the profile of a verifiable credential, which goes
-> with [`vc`](vc.md).
+> **Status in v12:** the profile of a verifiable credential is not ported: it goes with [`vc`](vc.md).
 
 ## Settings
 

@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from './auth/auth.module';
+import { IdpModule } from './auth/idp/idp.module';
+import { LoginModule } from './auth/login/login.module';
 import { AppConfigModule } from './config/app-config.module';
 import { FeaturesModule } from './features/features.module';
 import { ContactUsModule } from './contact-us/contact-us.module';
@@ -30,5 +32,5 @@ import { HealthModule } from './health/health.module';
 import { LoggingModule } from './logging/logging.module';
 import { MongoPersistenceModule } from './persistence/mongo-persistence.module';
 
-@Module({ imports: [AppConfigModule, VersionModule, ContactUsModule, StatsModule, CartModule, PaymentModule, PortalModule, FeedbackModule, AuthModule, LoggingModule, MongoPersistenceModule, FeaturesModule, HealthModule, DocumentModule, RevenueModule, SearchModule, InvoicingModule, QuoteModule, InventoryModule, AccountModule, BillingModule, PartyModule, ResourceModule, ServiceModule, ChargingModule, SoftwareModule, UsageModule, OrderingModule, CatalogModule, CatalogBootstrapModule] })
+@Module({ imports: [AppConfigModule, VersionModule, ContactUsModule, StatsModule, CartModule, PaymentModule, PortalModule, FeedbackModule, AuthModule, LoginModule, IdpModule, LoggingModule, MongoPersistenceModule, FeaturesModule, HealthModule, DocumentModule, RevenueModule, SearchModule, InvoicingModule, QuoteModule, InventoryModule, AccountModule, BillingModule, PartyModule, ResourceModule, ServiceModule, ChargingModule, SoftwareModule, UsageModule, OrderingModule, CatalogModule, CatalogBootstrapModule] })
 export class AppModule {}

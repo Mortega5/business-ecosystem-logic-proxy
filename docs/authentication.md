@@ -93,7 +93,7 @@ answering with the renewed profile for a short time, for the requests that were 
 | `BAE_LP_EXT_LOGIN` | `true` turns on the identity providers that an administrator adds at run time (`/IDP`); off by default |
 | `BAE_EORI` | EORI of the proxy as a client of those providers. Required with `BAE_LP_EXT_LOGIN` |
 | `BAE_TOKEN_KEY`, `BAE_TOKEN_CRT` | Paths of the private key and of the certificate chain (PEM) with which the proxy signs for them. Required with `BAE_LP_EXT_LOGIN`; read when a provider is added and when the proxy starts |
-| `BAE_AUTH__SESSION__SECRET` | Signs the session cookie: a random string of 32 characters or more, with no default. Required once the login is served by the proxy |
+| `BAE_AUTH__SESSION__SECRET` | Signs the session cookie: a random string of 32 characters or more, with no default. Required: the proxy does not start without it |
 | `BAE_AUTH__SESSION__MAX_AGE_MS` | How long a session lasts since its last request (24 hours by default) |
 | `BAE_AUTH__SESSION__COOKIE_SECURE` | `auto` (default: Secure when the request came over HTTPS), `true` or `false` |
 | `BAE_AUTH__SESSION__COOKIE_SAME_SITE` | `lax` (default) or `strict`. The cookie is always `HttpOnly` |

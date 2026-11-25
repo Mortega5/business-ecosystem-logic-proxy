@@ -55,11 +55,13 @@ export class IdpService implements OnModuleInit {
     }
 
     async list(search?: string): Promise<IdpView[]> {
+        this.settings();
         const found = await (search === undefined ? this.idps.find() : this.idps.search(search));
         return found.map(viewOf);
     }
 
     async get(idpId: string): Promise<IdpView> {
+        this.settings();
         return viewOf(await this.existing(idpId));
     }
 
@@ -93,6 +95,7 @@ export class IdpService implements OnModuleInit {
     }
 
     async update(idpId: string, form: IdpChangeForm): Promise<void> {
+        this.settings();
         const current = await this.existing(idpId);
         const changed: Idp = { ...current, name: form.name, server: form.server };
         delete changed.issuerDid;
@@ -110,6 +113,7 @@ export class IdpService implements OnModuleInit {
     }
 
     async remove(idpId: string): Promise<void> {
+        this.settings();
         await this.idps.deleteMany({ idpId });
         this.registry.remove(idpId);
         this.logger.info({ idpId }, 'An identity provider was removed');

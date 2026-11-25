@@ -107,6 +107,11 @@ describe('IdpService', () => {
             logger
         );
         await expect(closed.create({ ...form, idpId: 'other' })).rejects.toBeInstanceOf(NotFoundError);
+        // With the external login off the routes are not there, as in v11
+        await expect(closed.list()).rejects.toBeInstanceOf(NotFoundError);
+        await expect(closed.get('EU.EORI.IDP1')).rejects.toBeInstanceOf(NotFoundError);
+        await expect(closed.update('EU.EORI.IDP1', { name: 'x', server: 'https://x.example.org' })).rejects.toBeInstanceOf(NotFoundError);
+        await expect(closed.remove('EU.EORI.IDP1')).rejects.toBeInstanceOf(NotFoundError);
     });
 
     it('does not keep a provider that cannot be built', async () => {
