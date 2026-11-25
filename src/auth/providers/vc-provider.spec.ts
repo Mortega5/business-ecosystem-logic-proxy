@@ -155,7 +155,7 @@ describe('VcProvider: the request of the wallet', () => {
     });
 
     it('does not let out what the library says when it cannot sign', () => {
-        const failing = provider(verifier().fetcher, { signAlgorithm: 'RS256' });
+        const failing = provider(verifier().fetcher, { signAlgorithm: 'XX999' });
         expect(() => failing.requestObject()).toThrow('could not sign');
     });
 });

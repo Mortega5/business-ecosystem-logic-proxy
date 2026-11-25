@@ -28,7 +28,7 @@ describe('parseAnalyticsConfig', () => {
             analyticsSuperset: {}
         });
         expect(parsed).toHaveProperty('errors');
-        expect((parsed as { errors: string[] }).errors).toHaveLength(7);
+        expect((parsed as { errors: string[] }).errors).toHaveLength(6);
     });
 
     it('refuses what is not an object, and sections that are not objects', () => {

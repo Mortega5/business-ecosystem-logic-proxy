@@ -16,7 +16,7 @@ const ISSUER = 'did:web:certifier.example.org';
 
 const setup = (
     vc: Record<string, unknown> = {},
-    token: unknown = { access_token: verifierToken(LEAR_EMPLOYEE), refresh_token: 'r', expires_in: 600 }
+    token: unknown | null = { access_token: verifierToken(LEAR_EMPLOYEE), refresh_token: 'r', expires_in: 600 }
 ) => {
     const exchanges: URLSearchParams[] = [];
     const fetcher = (async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -24,7 +24,7 @@ const setup = (
             return new Response(JSON.stringify(jwksDocument()), { status: 200 });
         }
         exchanges.push(new URLSearchParams(String(init?.body)));
-        return new Response(JSON.stringify(token), { status: token === undefined ? 500 : 200 });
+        return new Response(JSON.stringify(token), { status: token === null ? 500 : 200 });
     }) as unknown as typeof fetch;
     const registry = new IdentityProviderRegistry();
     registry.add(
@@ -117,7 +117,7 @@ describe('VcLoginService: polling', () => {
         await service.poll(STATE, 'browser-1');
         await expect(service.poll(STATE, 'browser-1')).rejects.toBeInstanceOf(UnauthorizedError);
 
-        const failing = setup({}, undefined);
+        const failing = setup({}, null);
         await failing.service.poll(STATE, 'browser-1').catch(() => undefined);
         await failing.service.receive(STATE, 'code-1');
         await expect(failing.service.poll(STATE, 'browser-1')).rejects.toMatchObject({ status: 500 });
@@ -226,7 +226,7 @@ describe('VcLoginService: the credential of a certification', () => {
     });
 
     it('is a 500 when the verifier gives no token, and a 400 when the state is not one', async () => {
-        const { service } = setup({}, undefined);
+        const { service } = setup({}, null);
         await expect(service.receive(CERT_STATE, 'code-1')).rejects.toMatchObject({ status: 500 });
         await expect(service.pollCertificate('no')).rejects.toMatchObject({ status: 400 });
     });

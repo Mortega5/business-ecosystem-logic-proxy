@@ -10,6 +10,7 @@ import { ConfigDocumentRepository, type ConfigDocument } from '../persistence/co
 import { FakeFeaturesModule, featuresOn } from '../testing/fake-features';
 import { CatalogDefaults } from '../tmf/catalog/catalog-defaults';
 import { TmfModule } from '../tmf/tmf.module';
+import { PortalConfigContributors } from './portal-config-contributors';
 import { PortalConfigController } from './portal-config.controller';
 import { PortalConfigService } from './portal-config.service';
 
@@ -28,7 +29,7 @@ const documents = new Documents();
 @Module({
     imports: [AppConfigModule, LoggingModule, AuthModule, FakeFeaturesModule, TmfModule],
     controllers: [PortalConfigController],
-    providers: [PortalConfigService, { provide: ConfigDocumentRepository, useValue: documents }]
+    providers: [PortalConfigService, PortalConfigContributors, { provide: ConfigDocumentRepository, useValue: documents }]
 })
 class Root {}
 

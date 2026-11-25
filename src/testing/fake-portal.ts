@@ -4,6 +4,7 @@ import { ConfigDocumentRepository } from '../persistence/config-store/config-doc
 import { AdminConfigController } from '../portal/admin-config.controller';
 import { AdminConfigService } from '../portal/admin-config.service';
 import { PortalConfigController } from '../portal/portal-config.controller';
+import { PortalConfigContributors } from '../portal/portal-config-contributors';
 import { PortalConfigService } from '../portal/portal-config.service';
 import { TmfModule } from '../tmf/tmf.module';
 
@@ -11,6 +12,6 @@ import { TmfModule } from '../tmf/tmf.module';
 @Module({
     imports: [TmfModule],
     controllers: [PortalConfigController, AdminConfigController],
-    providers: [PortalConfigService, AdminConfigService, SearchSettings, { provide: ConfigDocumentRepository, useValue: { findById: () => Promise.resolve(undefined), upsert: () => Promise.resolve() } }]
+    providers: [PortalConfigService, PortalConfigContributors, AdminConfigService, SearchSettings, { provide: ConfigDocumentRepository, useValue: { findById: () => Promise.resolve(undefined), upsert: () => Promise.resolve() } }]
 })
 export class FakePortalModule {}

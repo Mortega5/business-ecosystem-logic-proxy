@@ -15,11 +15,14 @@ const configFor = (timeoutMs = 2000) =>
         auth: { roles: { admin: 'admin', customer: 'Buyer', seller: 'Seller', orgAdmin: 'orgAdmin' } },
         analytics: { timeoutMs }
     }) as unknown as AppConfigService;
-const user = (roles: string[], accessToken: string | undefined = 'tok-ana') => ({
-    id: 'u1',
-    roles: roles.map((name) => ({ name })),
-    ...(accessToken === undefined ? {} : { accessToken })
-});
+const user = (roles: string[], ...given: [accessToken?: string]) => {
+    const accessToken = given.length === 0 ? 'tok-ana' : given[0];
+    return {
+        id: 'u1',
+        roles: roles.map((name) => ({ name })),
+        ...(accessToken === undefined ? {} : { accessToken })
+    };
+};
 
 beforeAll(async () => {
     await superset.start();
