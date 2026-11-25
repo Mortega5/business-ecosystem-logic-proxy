@@ -42,6 +42,7 @@ const VALUE: AppConfig = {
     quotes: { enabled: true, api: '/quote/quoteManagement' },
     tendering: { enabled: true, devButtonsOpenClose: false },
     party: { editEnabled: true },
+    dome: { enabled: true },
     datasets: { enabled: false },
     apiAccess: { enabled: false },
     blueprints: { enabled: true },

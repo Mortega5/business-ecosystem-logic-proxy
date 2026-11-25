@@ -33,6 +33,10 @@ export class AppConfigService {
         return this.value.auth;
     }
 
+    get dome(): AppConfig['dome'] {
+        return this.value.dome;
+    }
+
     get datasets(): AppConfig['datasets'] {
         return this.value.datasets;
     }

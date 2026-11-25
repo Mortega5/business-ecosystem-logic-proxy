@@ -497,3 +497,12 @@ describe('datasets, file service and the other features of the portal', () => {
         ).toEqual({ enabled: true, url: 'http://files:9000', token: 'tok', timeoutMs: 60000, maxSizeMb: 5, acceptedTypes: '.csv' });
     });
 });
+
+describe('the DOME extension', () => {
+    const load = (env: NodeJS.ProcessEnv) => loadStaticConfig({ defaultsPath: DEFAULTS_PATH, env });
+
+    it('is on by default, as v11 had it, and is turned off with BAE_DOME__ENABLED', () => {
+        expect(load({}).dome.enabled).toBe(true);
+        expect(load({ BAE_DOME__ENABLED: 'false' }).dome.enabled).toBe(false);
+    });
+});

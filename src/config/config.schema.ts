@@ -222,6 +222,9 @@ export const ConfigSchema = z.object({
     quotes: z.object({ enabled: booleanLike, api: z.string().min(1) }),
     tendering: z.object({ enabled: booleanLike, devButtonsOpenClose: booleanLike }),
     party: z.object({ editEnabled: booleanLike }),
+    // The DOME extension (the blog, the analytics, the compliance certificates and the verifiable credentials): with it off none of its
+    // routes exists. It lives in `src/dome` and nothing of the core depends on it
+    dome: z.object({ enabled: booleanLike }),
     // What the portal can offer, as the starting value of the flags that an administrator switches from the portal
     datasets: z.object({ enabled: booleanLike }),
     apiAccess: z.object({ enabled: booleanLike }),

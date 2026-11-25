@@ -73,6 +73,9 @@ tendering:
 party:
   editEnabled: true
 
+dome:
+  enabled: true
+
 datasets:
   enabled: false
 
