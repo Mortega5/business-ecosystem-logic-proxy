@@ -177,56 +177,45 @@ volumes:
 
 The `BAE_LP_*` variables of version 11 are read and translated to the keys of the configuration. A deprecation warning names the key that replaces each one in use:
 
-| Variable | Configures | Notes |
-|---|---|---|
-| `BAE_LP_PORT` | `app.port` | Used while HTTPS is not enabled |
-| `BAE_LP_HTTPS_ENABLED` | `app.https.enabled` | Only the value `true` enables HTTPS |
-| `BAE_LP_HTTPS_CERT`, `BAE_LP_HTTPS_KEY`, `BAE_LP_HTTPS_CA` | `app.https.certFile`, `app.https.keyFile`, `app.https.caFile` | |
-| `BAE_LP_HTTPS_PORT` | `app.port` | Used while HTTPS is enabled; `443` when it is not set |
-| `BAE_LP_MONGO_SERVER`, `BAE_LP_MONGO_PORT`, `BAE_LP_MONGO_DB`, `BAE_LP_MONGO_USER`, `BAE_LP_MONGO_PASS` | `mongo.uri` | `mongodb://[user:password@]server:port/db`. Parts that are not set take the values of version 11: server `mongo`, port `27017`, database `belp`. Credentials are used only when both a user and a password are set, and are percent-encoded |
-| `BAE_LP_CONTACT_US_NOTIFICATION_URL` | `upstreams.contactUs` | Where the contact form is notified, as one URL (host, port, scheme and path are taken from it, the query is not); without it the form is notified to the charging backend. Also `BAE_UPSTREAMS__CONTACT_US__HOST` and the like |
-| `BAE_GIT_HASH` | | Not configuration: the commit of the build, shown by `GET /version` |
-| `BAE_DOME__ENABLED` | `dome.enabled` | Whether the DOME extension is part of the proxy. On by default; with `false` its routes do not exist. It has no pieces of its own yet, except that `/domeblog` is another name for `/blog` while it is on. v11 had no such variable |
-| | `blog.enabled` (`BAE_BLOG__ENABLED`) | Whether the blog, the news and the questions (`/blog`) are served. On by default; an administrator can switch it from the portal as any other feature (`blogEnabled` of `/config`) |
-| `BAE_LP_ANALYTICS_ENABLED`, `BAE_LP_ANALYTICS_URL` | `analytics.enabled`, `analytics.url` | Whether the dashboards of the analytics are offered (on unless `false`) and where Superset is (an http or https address). What an administrator saves from the portal (`PATCH /config/analytics`) wins over these |
-| `BAE_LP_ANALYTICS_SUPERSET_GUEST_TOKEN_PATH` | `analytics.guestTokenPath` | The path of the guest token endpoint of Superset (`/api/v1/dome/guest_token/` by default) |
-| `BAE_LP_ANALYTICS_DASHBOARD_BUSINESS_INSIGHTS_NON_LEAR`, `..._BUSINESS_INSIGHTS_LEAR`, `..._USAGE_MONITOR` | `analytics.dashboards.businessInsightsNonLear`, `.businessInsightsLear`, `.usageMonitor` | The ids of the dashboards: the business one for users, the one for organisation administrators, and the usage monitor for administrators |
-| | `analytics.timeoutMs` | Longest time to wait for Superset (10 seconds by default; v11 had no limit) |
-| `BAE_LP_COMPLIANCE_SERVER_URL` | `compliance.serverUrl` | The compliance service that a seller asks for the certificate of a product (`POST /compliance/certificate`); without it that route answers 503. |
-| | `compliance.enabled` (`BAE_COMPLIANCE__ENABLED`) | Whether the check of the compliance and the upload of the credential of a product (`POST /compliance/certificate`, `PATCH /admin/uploadcertificate/{specId}`) are served. On by default; an administrator can switch it from the portal (`complianceEnabled` of `/config`) |
-| `BAE_LP_OAUTH2_ORG_CERTIFIER_ROLE` | `compliance.certifierRole` | Role (`certifier` by default) of who uploads the compliance credential of a product, besides the administrators |
-| | `compliance.timeoutMs`, `.maxFiles`, `.maxFileMb`, `.fileOrigins` | How long to wait for the compliance service (120000 ms), how many files a request may carry (20), how big each is (20 MB) and the origins they may be at, as a JSON list (`["https://files.example.org"]`; empty means any public address). `BAE_COMPLIANCE__*` sets them |
-| `BAE_LP_DATASETS_ENABLED`, `BAE_LP_API_ACCESS_ENABLED` | `datasets.enabled`, `apiAccess.enabled` | Whether the portal can offer datasets and APIs for sale. They start off, and an administrator can switch them from the portal; only `true` turns them on |
-| `BAE_LP_BLUEPRINTS_ENABLED`, `BAE_LP_SOFTWARE_ENABLED` | `blueprints.enabled`, `software.enabled` | Whether the portal offers blueprints and software. They start on; only `false` turns them off |
-| `BAE_LP_FILE_SERVICE_ENABLED` | `fileService.enabled` | Whether a file service is deployed; a dataset can be made from a file only when it is (`datasetFilesEnabled` of `/config`) |
-| `BAE_LP_FILE_SERVICE_URL`, `BAE_LP_FILE_SERVICE_TOKEN` | `fileService.url`, `fileService.token` | The address of the file service (`http://file-service:8081` by default) and the token with which the proxy calls it |
-| `BAE_LP_FILE_SERVICE_TIMEOUT` | `fileService.timeoutMs` | Longest time for one request to the file service, in ms (30 minutes by default: an upload takes a while) |
-| `BAE_LP_FILE_SERVICE_MAX_SIZE_MB`, `BAE_LP_FILE_SERVICE_ACCEPTED_TYPES` | `fileService.maxSizeMb`, `fileService.acceptedTypes` | The largest file (100 by default) and the types the portal offers (`.csv,.json,text/csv,application/json`), as the `accept` of a file input. `/config` gives them as `datasetMaxSizeBytes` and `datasetAcceptedTypes` |
-| `BAE_LP_PURCHASE_ENABLED`, `BAE_LP_DATASPACE_ENABLED`, `BAE_LP_CATALOG_MANAGEMENT_ENABLED`, `BAE_LP_DSP_ENABLED`, `BAE_LP_QUOTE_ENABLED`, `BAE_LP_TENDERING_ENABLED`, `BAE_LP_LAUNCH_VALIDATION_ENABLED` | `http.uploadLimit` | size | `50mb` | Largest file upload (multipart body) a route accepts; a bigger one is refused with 413 |
-| `http.cors.origins` | list of origins or `"*"` | `["*"]` | Origins that may call the API from a browser; `*` is what version 11 did |
-| `http.cors.exposeRedirect` | boolean | `false` | Exposes `X-Redirect-URL` to the browser |
-| `security.csp.reportOnly` | boolean | `true` | Sends `Content-Security-Policy-Report-Only` instead of enforcing the policy |
-| `security.hsts.enabled`, `.maxAgeSeconds`, `.includeSubDomains` | boolean, integer, boolean | `true`, `31536000`, `false` | `Strict-Transport-Security`; browsers ignore it over plain HTTP |
-| `security.crossOriginResourcePolicy` | `same-origin` `same-site` `cross-origin` | `same-origin` | |
-| `security.csrf.enabled` | boolean | `true` | Refuses state-changing requests a browser says come from another site |
-| `security.csrf.trustedOrigins` | list of origins | `[]` | Origins exempt from that check; meant for tests and development |
-| `auth.propagateToken` | boolean | `true` | Sends the user's access token to the upstreams as `Authorization: Bearer` |
-| `auth.allowLocalEori` | boolean | `false` | A local IdP user acts under their display name as IdP id |
-| `auth.roles.admin`, `.customer`, `.seller`, `.orgAdmin` | string | `admin`, `Buyer`, `Seller`, `orgAdmin` | Names of the roles in the identity provider |
-| `purchase.enabled`, `dataSpace.enabled`, `catalogManagement.enabled`, `dsp.enabled`, `quotes.enabled`, `tendering.enabled`, `launchValidation.enabled` | Anything other than `true` turns the feature off |
-| `BAE_LP_TENDER_DEV_BUTTON_ENABLED` | `tendering.devButtonsOpenClose` | Same rule |
-| `BAE_LP_PAYMENT_GATEWAY`, `BAE_LP_PAYMENT_PROVIDER` | `purchase.paymentGateway`, `purchase.paymentProvider` | The provider is trimmed and lowercased; blank means `none` |
-| `BAE_LP_CHAT_URL`, `BAE_LP_KNOWLEDGE_BASE_URL`, `BAE_LP_TICKETING_URL`, `BAE_LP_MATOMO_ID`, `BAE_LP_MATOMO_URL`, `BAE_LP_GOOGLE_TAG_MANAGER_ID`, `BAE_LP_THEME` | `portal.chatUrl`, `portal.knowledgeBaseUrl`, `portal.ticketingUrl`, `portal.matomoId`, `portal.matomoUrl`, `portal.googleTagManagerId`, `portal.theme` | |
-| TO REMOVE: `BAE_LP_DOME_TRUST`, `BAE_LP_DOME_ABOUT`, `BAE_LP_DOME_REGISTER`, `BAE_LP_DOME_REGISTER_CUSTOMER`, `BAE_LP_DOME_REGISTRATION_FORM`, `BAE_LP_DOME_ONBOARDING_GUIDELINES`, `BAE_LP_DOME_GUIDELINES`, `BAE_LP_DOME_PUBLISH`, `BAE_LP_LEAR_URL`, `BAE_LP_OAUTH2_ORG_CERTIFIER_ROLE` | `portal.extra.domeTrust`, `domeAbout`, `domeRegister`, `domeRegisterCustomer` (the register link when it has none of its own), `domeRegistrationForm`, `domeOnboardingGuidelines`, `domeGuidelines`, `domePublish`, `learUrl` and `roles.certifier` | Kept so that a deployment of v11 goes on working, and to be removed: set the keys in `portal.extra`. Without the variable the address that v11 gave by default is used for `domeAbout`, `domeRegister` (and so `domeRegisterCustomer`) and `domePublish`, unless `portal.extra` sets it |
-| `BAE_LP_QUOTE_API` | `quotes.api` | |
-| `BAE_LP_DSP_CONTRACT_DEFINITION_SCHEMA` | `dsp.contractDefinitionSchema` | |
-| `BAE_LP_OFFERING_SCHEMA`, `BAE_LP_PRICE_COMP_SCHEMA`, `BAE_LP_BLUEPRINT_SCHEMA`, `BAE_LP_PARTY_LOCATION` | `catalog.offeringSchema`, `catalog.priceCompSchema`, `catalog.blueprintSchema`, `catalog.partyLocation` | |
-| `BAE_LP_DEFAULT_CATALOG_ID`, `BAE_LP_DEFAULT_CATALOG_NAME` | `catalog.defaultCatalogId`, `catalog.defaultCatalogName` | |
-| `BAE_LP_CORS_EXPOSE_REDIRECT` | `http.cors.exposeRedirect` | Anything other than `true` turns it off |
-| `BAE_LP_PROPAGATE_TOKEN`, `BAE_LP_ALLOW_LOCAL_EORI` | `auth.propagateToken`, `auth.allowLocalEori` | Anything other than `true` turns the option off |
-| `BAE_LP_OPERATOR_ID` | `operator.id` | The organisation that operates the marketplace; empty means there is none |
-| `BAE_LP_OAUTH2_ADMIN_ROLE`, `_SELLER_ROLE`, `_CUSTOMER_ROLE`, `_ORG_ADMIN_ROLE` | `auth.roles.admin`, `.seller`, `.customer`, `.orgAdmin` | |
-| `BAE_LP_ENDPOINT_<NAME>_HOST`, `_PORT`, `_PATH`, `_SECURED` | `upstreams.tmforum.apis.<api>` or `upstreams.<name>` | See [Upstreams](#upstreams) for the names. `SECURED=true` sets `scheme: https`. What is not set (host or port) comes from the group; a missing `PATH` means the path version 11 had for that endpoint, which is empty except for `revenue` (`/revenue`) and `invoicing` (`/invoicing`) |
+| Variable | Configures | Variable that replaces it | Notes |
+|---|---|---|---|
+| `BAE_LP_PORT` | `app.port` | `BAE_APP__PORT` | Used while HTTPS is not enabled |
+| `BAE_LP_HTTPS_ENABLED` | `app.https.enabled` | `BAE_APP__HTTPS__ENABLED` | Only the value `true` enables HTTPS |
+| `BAE_LP_HTTPS_CERT`, `BAE_LP_HTTPS_KEY`, `BAE_LP_HTTPS_CA` | `app.https.certFile`, `app.https.keyFile`, `app.https.caFile` | `BAE_APP__HTTPS__CERT_FILE`, `BAE_APP__HTTPS__KEY_FILE`, `BAE_APP__HTTPS__CA_FILE` | |
+| `BAE_LP_HTTPS_PORT` | `app.port` | `BAE_APP__PORT` | Used while HTTPS is enabled; `443` when it is not set |
+| `BAE_LP_MONGO_SERVER`, `BAE_LP_MONGO_PORT`, `BAE_LP_MONGO_DB`, `BAE_LP_MONGO_USER`, `BAE_LP_MONGO_PASS` | `mongo.uri` | `BAE_MONGO__URI` | `mongodb://[user:password@]server:port/db`. Parts that are not set take the values of version 11: server `mongo`, port `27017`, database `belp`. Credentials are used only when both a user and a password are set, and are percent-encoded |
+| `BAE_LP_CONTACT_US_NOTIFICATION_URL` | `upstreams.contactUs` | `BAE_UPSTREAMS__CONTACT_US` | Where the contact form is notified, as one URL (host, port, scheme and path are taken from it, the query is not); without it the form is notified to the charging backend. Also `BAE_UPSTREAMS__CONTACT_US__HOST` and the like |
+| `BAE_GIT_HASH` | |  | Not configuration: the commit of the build, shown by `GET /version` |
+| `BAE_DOME__ENABLED` | `dome.enabled` | `BAE_DOME__ENABLED` | Whether the DOME extension is part of the proxy. On by default; with `false` its routes do not exist. It has no pieces of its own yet, except that `/domeblog` is another name for `/blog` while it is on. v11 had no such variable |
+| | `blog.enabled` (`BAE_BLOG__ENABLED`) | `BAE_BLOG__ENABLED` | Whether the blog, the news and the questions (`/blog`) are served. On by default; an administrator can switch it from the portal as any other feature (`blogEnabled` of `/config`) |
+| `BAE_LP_ANALYTICS_ENABLED`, `BAE_LP_ANALYTICS_URL` | `analytics.enabled`, `analytics.url` | `BAE_ANALYTICS__ENABLED`, `BAE_ANALYTICS__URL` | Whether the dashboards of the analytics are offered (on unless `false`) and where Superset is (an http or https address). What an administrator saves from the portal (`PATCH /config/analytics`) wins over these |
+| `BAE_LP_ANALYTICS_SUPERSET_GUEST_TOKEN_PATH` | `analytics.guestTokenPath` | `BAE_ANALYTICS__GUEST_TOKEN_PATH` | The path of the guest token endpoint of Superset (`/api/v1/dome/guest_token/` by default) |
+| `BAE_LP_ANALYTICS_DASHBOARD_BUSINESS_INSIGHTS_NON_LEAR`, `..._BUSINESS_INSIGHTS_LEAR`, `..._USAGE_MONITOR` | `analytics.dashboards.businessInsightsNonLear`, `.businessInsightsLear`, `.usageMonitor` | `BAE_ANALYTICS__DASHBOARDS__BUSINESS_INSIGHTS_NON_LEAR`, `BAE_ANALYTICS__DASHBOARDS__BUSINESS_INSIGHTS_LEAR`, `BAE_ANALYTICS__DASHBOARDS__USAGE_MONITOR` | The ids of the dashboards: the business one for users, the one for organisation administrators, and the usage monitor for administrators |
+| | `analytics.timeoutMs` | `BAE_ANALYTICS__TIMEOUT_MS` | Longest time to wait for Superset (10 seconds by default; v11 had no limit) |
+| `BAE_LP_COMPLIANCE_SERVER_URL` | `compliance.serverUrl` | `BAE_COMPLIANCE__SERVER_URL` | The compliance service that a seller asks for the certificate of a product (`POST /compliance/certificate`); without it that route answers 503. |
+| | `compliance.enabled` (`BAE_COMPLIANCE__ENABLED`) | `BAE_COMPLIANCE__ENABLED` | Whether the check of the compliance and the upload of the credential of a product (`POST /compliance/certificate`, `PATCH /admin/uploadcertificate/{specId}`) are served. On by default; an administrator can switch it from the portal (`complianceEnabled` of `/config`) |
+| `BAE_LP_OAUTH2_ORG_CERTIFIER_ROLE` | `compliance.certifierRole` | `BAE_COMPLIANCE__CERTIFIER_ROLE` | Role (`certifier` by default) of who uploads the compliance credential of a product, besides the administrators |
+| | `compliance.timeoutMs`, `.maxFiles`, `.maxFileMb`, `.fileOrigins` | `BAE_COMPLIANCE__TIMEOUT_MS`, `BAE_COMPLIANCE__MAX_FILES`, `BAE_COMPLIANCE__MAX_FILE_MB`, `BAE_COMPLIANCE__FILE_ORIGINS` | How long to wait for the compliance service (120000 ms), how many files a request may carry (20), how big each is (20 MB) and the origins they may be at, as a JSON list (`["https://files.example.org"]`; empty means any public address). `BAE_COMPLIANCE__*` sets them |
+| `BAE_LP_DATASETS_ENABLED`, `BAE_LP_API_ACCESS_ENABLED` | `datasets.enabled`, `apiAccess.enabled` | `BAE_DATASETS__ENABLED`, `BAE_API_ACCESS__ENABLED` | Whether the portal can offer datasets and APIs for sale. They start off, and an administrator can switch them from the portal; only `true` turns them on |
+| `BAE_LP_BLUEPRINTS_ENABLED`, `BAE_LP_SOFTWARE_ENABLED` | `blueprints.enabled`, `software.enabled` | `BAE_BLUEPRINTS__ENABLED`, `BAE_SOFTWARE__ENABLED` | Whether the portal offers blueprints and software. They start on; only `false` turns them off |
+| `BAE_LP_FILE_SERVICE_ENABLED` | `fileService.enabled` | `BAE_FILE_SERVICE__ENABLED` | Whether a file service is deployed; a dataset can be made from a file only when it is (`datasetFilesEnabled` of `/config`) |
+| `BAE_LP_FILE_SERVICE_URL`, `BAE_LP_FILE_SERVICE_TOKEN` | `fileService.url`, `fileService.token` | `BAE_FILE_SERVICE__URL`, `BAE_FILE_SERVICE__TOKEN` | The address of the file service (`http://file-service:8081` by default) and the token with which the proxy calls it |
+| `BAE_LP_FILE_SERVICE_TIMEOUT` | `fileService.timeoutMs` | `BAE_FILE_SERVICE__TIMEOUT_MS` | Longest time for one request to the file service, in ms (30 minutes by default: an upload takes a while) |
+| `BAE_LP_FILE_SERVICE_MAX_SIZE_MB`, `BAE_LP_FILE_SERVICE_ACCEPTED_TYPES` | `fileService.maxSizeMb`, `fileService.acceptedTypes` | `BAE_FILE_SERVICE__MAX_SIZE_MB`, `BAE_FILE_SERVICE__ACCEPTED_TYPES` | The largest file (100 by default) and the types the portal offers (`.csv,.json,text/csv,application/json`), as the `accept` of a file input. `/config` gives them as `datasetMaxSizeBytes` and `datasetAcceptedTypes` |
+| `BAE_LP_PURCHASE_ENABLED`, `BAE_LP_DATASPACE_ENABLED`, `BAE_LP_CATALOG_MANAGEMENT_ENABLED`, `BAE_LP_DSP_ENABLED`, `BAE_LP_QUOTE_ENABLED`, `BAE_LP_TENDERING_ENABLED`, `BAE_LP_LAUNCH_VALIDATION_ENABLED` | `purchase.enabled`, `dataSpace.enabled`, `catalogManagement.enabled`, `dsp.enabled`, `quotes.enabled`, `tendering.enabled`, `launchValidation.enabled` | `BAE_PURCHASE__ENABLED`, `BAE_DATA_SPACE__ENABLED`, `BAE_CATALOG_MANAGEMENT__ENABLED`, `BAE_DSP__ENABLED`, `BAE_QUOTES__ENABLED`, `BAE_TENDERING__ENABLED`, `BAE_LAUNCH_VALIDATION__ENABLED` | Anything other than `true` turns the feature off |
+| `BAE_LP_TENDER_DEV_BUTTON_ENABLED` | `tendering.devButtonsOpenClose` | `BAE_TENDERING__DEV_BUTTONS_OPEN_CLOSE` | Same rule |
+| `BAE_LP_PAYMENT_GATEWAY`, `BAE_LP_PAYMENT_PROVIDER` | `purchase.paymentGateway`, `purchase.paymentProvider` | `BAE_PURCHASE__PAYMENT_GATEWAY`, `BAE_PURCHASE__PAYMENT_PROVIDER` | The provider is trimmed and lowercased; blank means `none` |
+| `BAE_LP_CHAT_URL`, `BAE_LP_KNOWLEDGE_BASE_URL`, `BAE_LP_TICKETING_URL`, `BAE_LP_MATOMO_ID`, `BAE_LP_MATOMO_URL`, `BAE_LP_GOOGLE_TAG_MANAGER_ID`, `BAE_LP_THEME` | `portal.chatUrl`, `portal.knowledgeBaseUrl`, `portal.ticketingUrl`, `portal.matomoId`, `portal.matomoUrl`, `portal.googleTagManagerId`, `portal.theme` | `BAE_PORTAL__CHAT_URL`, `BAE_PORTAL__KNOWLEDGE_BASE_URL`, `BAE_PORTAL__TICKETING_URL`, `BAE_PORTAL__MATOMO_ID`, `BAE_PORTAL__MATOMO_URL`, `BAE_PORTAL__GOOGLE_TAG_MANAGER_ID`, `BAE_PORTAL__THEME` | |
+| TO REMOVE: `BAE_LP_DOME_TRUST`, `BAE_LP_DOME_ABOUT`, `BAE_LP_DOME_REGISTER`, `BAE_LP_DOME_REGISTER_CUSTOMER`, `BAE_LP_DOME_REGISTRATION_FORM`, `BAE_LP_DOME_ONBOARDING_GUIDELINES`, `BAE_LP_DOME_GUIDELINES`, `BAE_LP_DOME_PUBLISH`, `BAE_LP_LEAR_URL`, `BAE_LP_OAUTH2_ORG_CERTIFIER_ROLE` | `portal.extra.domeTrust`, `domeAbout`, `domeRegister`, `domeRegisterCustomer` (the register link when it has none of its own), `domeRegistrationForm`, `domeOnboardingGuidelines`, `domeGuidelines`, `domePublish`, `learUrl` and `roles.certifier` | `BAE_PORTAL__EXTRA__DOME_TRUST`, `BAE_DOME_ABOUT`, `BAE_DOME_REGISTER`, `BAE_DOME_REGISTER_CUSTOMER`, `BAE_DOME_REGISTRATION_FORM`, `BAE_DOME_ONBOARDING_GUIDELINES`, `BAE_DOME_GUIDELINES`, `BAE_DOME_PUBLISH`, `BAE_LEAR_URL`, `BAE_ROLES__CERTIFIER` | Kept so that a deployment of v11 goes on working, and to be removed: set the keys in `portal.extra`. Without the variable the address that v11 gave by default is used for `domeAbout`, `domeRegister` (and so `domeRegisterCustomer`) and `domePublish`, unless `portal.extra` sets it |
+| `BAE_LP_QUOTE_API` | `quotes.api` | `BAE_QUOTES__API` | |
+| `BAE_LP_DSP_CONTRACT_DEFINITION_SCHEMA` | `dsp.contractDefinitionSchema` | `BAE_DSP__CONTRACT_DEFINITION_SCHEMA` | |
+| `BAE_LP_OFFERING_SCHEMA`, `BAE_LP_PRICE_COMP_SCHEMA`, `BAE_LP_BLUEPRINT_SCHEMA`, `BAE_LP_PARTY_LOCATION` | `catalog.offeringSchema`, `catalog.priceCompSchema`, `catalog.blueprintSchema`, `catalog.partyLocation` | `BAE_CATALOG__OFFERING_SCHEMA`, `BAE_CATALOG__PRICE_COMP_SCHEMA`, `BAE_CATALOG__BLUEPRINT_SCHEMA`, `BAE_CATALOG__PARTY_LOCATION` | |
+| `BAE_LP_DEFAULT_CATALOG_ID`, `BAE_LP_DEFAULT_CATALOG_NAME` | `catalog.defaultCatalogId`, `catalog.defaultCatalogName` | `BAE_CATALOG__DEFAULT_CATALOG_ID`, `BAE_CATALOG__DEFAULT_CATALOG_NAME` | |
+| `BAE_LP_CORS_EXPOSE_REDIRECT` | `http.cors.exposeRedirect` | `BAE_HTTP__CORS__EXPOSE_REDIRECT` | Anything other than `true` turns it off |
+| `BAE_LP_PROPAGATE_TOKEN`, `BAE_LP_ALLOW_LOCAL_EORI` | `auth.propagateToken`, `auth.allowLocalEori` | `BAE_AUTH__PROPAGATE_TOKEN`, `BAE_AUTH__ALLOW_LOCAL_EORI` | Anything other than `true` turns the option off |
+| `BAE_LP_OPERATOR_ID` | `operator.id` | `BAE_OPERATOR__ID` | The organisation that operates the marketplace; empty means there is none |
+| `BAE_LP_OAUTH2_ADMIN_ROLE`, `_SELLER_ROLE`, `_CUSTOMER_ROLE`, `_ORG_ADMIN_ROLE` | `auth.roles.admin`, `.seller`, `.customer`, `.orgAdmin` | `BAE_AUTH__ROLES__ADMIN`, `BAE_AUTH__ROLES__SELLER`, `BAE_AUTH__ROLES__CUSTOMER`, `BAE_AUTH__ROLES__ORG_ADMIN` | |
+| `BAE_LP_ENDPOINT_<NAME>_HOST`, `_PORT`, `_PATH`, `_SECURED` | `upstreams.tmforum.apis.<api>` or `upstreams.<name>` | `BAE_UPSTREAMS__TMFORUM__APIS__<API>`, `BAE_UPSTREAMS__<NAME>` | See [Upstreams](#upstreams) for the names. `SECURED=true` sets `scheme: https`. What is not set (host or port) comes from the group; a missing `PATH` means the path version 11 had for that endpoint, which is empty except for `revenue` (`/revenue`) and `invoicing` (`/invoicing`) |
 
 When none of the `BAE_LP_MONGO_*` variables is set, `mongo.uri` keeps its default.
 
@@ -240,58 +229,71 @@ Each variable in use is logged at start-up, with `context: "Bootstrap"`:
 
 Keys read by the application:
 
-| Key | Type | Default | |
-|---|---|---|---|
-| `app.host` | string | not set | Listening address |
-| `app.port` | integer 1–65535 | `8004` | Listening port |
-| `app.https.enabled` | boolean | `false` | Serves HTTPS instead of HTTP |
-| `app.https.keyFile`, `app.https.certFile` | string | not set | PEM files; required when `app.https.enabled` is `true` |
-| `app.https.caFile` | string | not set | PEM file with the certificate authority chain |
-| `app.shutdownDelayMs` | integer ≥ 0 | `0` | Time the server keeps accepting requests, with readiness at 503, after `SIGTERM` |
-| `app.shutdownTimeoutMs` | integer, greater than `app.shutdownDelayMs` | `20000` | Maximum duration of the shutdown |
-| `logging.level` | `fatal` `error` `warn` `info` `debug` `trace` `silent` | `info` | |
-| `logging.format` | `json` `pretty` | `pretty` | `pretty` uses pino-pretty |
-| `logging.prettyOptions` | object | `{ singleLine: true }` | Options for pino-pretty |
-| `mongo.uri` | string | `mongodb://localhost:27017/belp` | |
-| `mongo.maxPoolSize` | integer | `10` | |
-| `mongo.serverSelectionTimeoutMs` | integer | `5000` | How long each connection attempt waits for a server |
-| `mongo.heartbeatFrequencyMs` | integer ≥ 500 | `10000` | |
-| `mongo.retryInitialDelayMs` | integer | `1000` | |
-| `mongo.retryMaxDelayMs` | integer | `30000` | |
-| `purchase.enabled` | boolean | `true` | |
-| `purchase.paymentProvider` | `dpas` `paypal` `stripe` `none` | `none` | |
-| `purchase.paymentGateway` | URL | not set | Required when the provider is `dpas`; there is no default |
-| `quotes.enabled` | boolean | `true` | |
-| `quotes.api` | string | `/quote/quoteManagement` | |
-| `tendering.enabled` | boolean | `true` | |
-| `tendering.devButtonsOpenClose` | boolean | `false` | |
-| `dsp.enabled` | boolean | `false` | |
-| `dsp.contractDefinitionSchema` | URL | the `contract-definition.json` of `wistefan/edc-dsc` (branch `init`) | The schema of the EDC contract definition that the portal puts in the offers that use the data space. v11 gave here the schema of the deployment of software by mistake |
-| `launchValidation.enabled`, `dataSpace.enabled` | boolean | `false` | |
-| `catalogManagement.enabled` | boolean | `true` | |
-| `catalog.offeringSchema`, `catalog.priceCompSchema`, `catalog.blueprintSchema`, `catalog.partyLocation` | URL | the values of version 11 | `@schemaLocation` of offerings, price components, blueprint product specifications and the related parties of what the operator owns |
-| `catalog.defaultCatalogId` | string | empty | The default catalog, which lists the root categories the marketplace shows; when it is set it is the one used and it has to exist. When it is empty the proxy takes the stored one, the one the catalog API marks with the catalog type `default`, or makes one |
-| `catalog.defaultCatalogName` | string | `default` | The name of the default catalog the proxy makes, and with which it recognises the one made before the catalog type existed |
-| `catalog.bootstrap.enabled` | boolean | `true` | Whether the proxy makes sure, every time it starts, of the default catalog, the system categories (in the default catalog) and the support package spec of the software. Off, it does nothing and what is not there is not made; the default catalog is then the one of `catalog.defaultCatalogId`, if any |
-| `catalog.bootstrap.retryDelayMs` | integer | `5000` | The wait before the start-up tries again when the TMForum APIs do not answer |
-| `catalog.bootstrap.records.defaultCatalog`, `catalog.bootstrap.records.supportPackageSpec` | string | `default`, `global` | The ids of the records (in `defaultcatalog` and `supportpackagespec`) in which the start-up keeps what it found. They are the ones of v11: changing them leaves what it stored unread, and it looks for it again |
-| `catalog.systemCategories` | list of `key`, `name`, `description` | `dataset`, `api`, `blueprint` | The categories of the platform, one per kind of product; the proxy makes them, adds them to the default catalog, and does not let them be retired, renamed or moved. A catalog cannot be named as one of them |
-| `upstreams.timeoutMs` | integer | `30000` | Timeout of every upstream that does not set its own |
-| `upstreams.tmforum.host`, `.port`, `.scheme` | string, integer, `http` `https` | not set (`http` when no scheme is given) | Default server of every TMForum API |
-| `upstreams.tmforum.apis.<api>.host`, `.port`, `.scheme`, `.path`, `.timeoutMs` | | the standard TMForum paths | What one API sets itself; see [Upstreams](#upstreams) |
-| `upstreams.charging`, `.revenue`, `.search` | `host`, `port`, `scheme`, `path`, `timeoutMs` | not set (`revenue.path` is `/revenue`) | The services that are not TMForum APIs |
-| `limits.orderItems` | integer | `50` | Items that one product order may have |
-| `limits.cartItems` | integer | `100` | Items that the shopping cart of a user may hold |
-| `limits.noteLength`, `limits.notesPerRequest` | integer | `10000`, `20` | Characters of a note of an order, and notes that one request adds |
-| `limits.nameLength`, `limits.descriptionLength` | integer | `100`, `100000` | Characters of the name and of the description of a specification or a category |
-| `limits.plansPerQuery` | integer | `20` | Price plans that one query to the catalog asks for, when the proxy looks for the offers that use a usage specification |
-| `limits.providersPerQuery`, `limits.providerCacheMs` | integer | `50`, `300000` | The directory of providers, when the marketplace has no search engine: the organisations that one query to the party API asks for, and the milliseconds that the organisations with launched offerings are kept before they are looked for again |
-| `limits.readAll.pageSize`, `limits.readAll.maxPages` | integer | `100`, `100` | When the proxy reads everything that a TMForum collection has (what uses a specification, the catalogs of the start-up): the items it asks for in a page, and the pages it reads at most before it gives up |
-| `portal.chatUrl`, `portal.knowledgeBaseUrl`, `portal.ticketingUrl`, `portal.matomoId`, `portal.matomoUrl`, `portal.googleTagManagerId`, `portal.theme` | string | empty | What `GET /config` sends to the portal as `chat`, `knowledgeBaseUrl`, `ticketingUrl`, `matomoId`, `matomoUrl`, `googleTagManagerId` and `theme` |
-| `portal.extra` | mapping | `{}` | Anything else that `GET /config` sends, as it is and to every visitor, so nothing secret goes in it. A key that the proxy sets itself (`roles`, `chat`, `defaultId`...) is not taken from it, except that an object such as `roles` is completed with the keys that it has. By variable: `BAE_PORTAL__EXTRA` with a JSON text, or one by one with `BAE_PORTAL__EXTRA__DOME_ABOUT` for `domeAbout` |
-| `stats.ttlMs`, `stats.retryDelayMs` | integer | `86400000`, `600000` | The figures of the landing page (`GET /stats`): the milliseconds that they are kept in Mongo before a request makes the proxy read them again, in the background (the request is answered with what is kept), and the ones to wait before trying again when that read failed |
-| `stats.providerTtlMs` | integer | `60000` | The milliseconds that the counts of an organisation (`GET /stats/provider/{organizationId}`) are kept in memory |
-| `health.mongoPingTimeoutMs` | integer | `1000` | |
+| Key | Environment variable | Type | Default | |
+|---|---|---|---|---|
+| `app.host` | `BAE_APP__HOST` | string | not set | Listening address |
+| `app.port` | `BAE_APP__PORT` | integer 1–65535 | `8004` | Listening port |
+| `app.https.enabled` | `BAE_APP__HTTPS__ENABLED` | boolean | `false` | Serves HTTPS instead of HTTP |
+| `app.https.keyFile`, `app.https.certFile` | `BAE_APP__HTTPS__KEY_FILE`, `BAE_APP__HTTPS__CERT_FILE` | string | not set | PEM files; required when `app.https.enabled` is `true` |
+| `app.https.caFile` | `BAE_APP__HTTPS__CA_FILE` | string | not set | PEM file with the certificate authority chain |
+| `app.shutdownDelayMs` | `BAE_APP__SHUTDOWN_DELAY_MS` | integer ≥ 0 | `0` | Time the server keeps accepting requests, with readiness at 503, after `SIGTERM` |
+| `app.shutdownTimeoutMs` | `BAE_APP__SHUTDOWN_TIMEOUT_MS` | integer, greater than `app.shutdownDelayMs` | `20000` | Maximum duration of the shutdown |
+| `logging.level` | `BAE_LOGGING__LEVEL` | `fatal` `error` `warn` `info` `debug` `trace` `silent` | `info` | |
+| `logging.format` | `BAE_LOGGING__FORMAT` | `json` `pretty` | `pretty` | `pretty` uses pino-pretty |
+| `logging.prettyOptions` | `BAE_LOGGING__PRETTY_OPTIONS` | object | `{ singleLine: true }` | Options for pino-pretty |
+| `mongo.uri` | `BAE_MONGO__URI` | string | `mongodb://localhost:27017/belp` | |
+| `mongo.maxPoolSize` | `BAE_MONGO__MAX_POOL_SIZE` | integer | `10` | |
+| `mongo.serverSelectionTimeoutMs` | `BAE_MONGO__SERVER_SELECTION_TIMEOUT_MS` | integer | `5000` | How long each connection attempt waits for a server |
+| `mongo.heartbeatFrequencyMs` | `BAE_MONGO__HEARTBEAT_FREQUENCY_MS` | integer ≥ 500 | `10000` | |
+| `mongo.retryInitialDelayMs` | `BAE_MONGO__RETRY_INITIAL_DELAY_MS` | integer | `1000` | |
+| `mongo.retryMaxDelayMs` | `BAE_MONGO__RETRY_MAX_DELAY_MS` | integer | `30000` | |
+| `http.uploadLimit` | `BAE_HTTP__UPLOAD_LIMIT` | size | `50mb` | Largest file upload (multipart body) a route accepts; a bigger one is refused with 413 |
+| `http.trustedProxies` | `BAE_HTTP__TRUSTED_PROXIES` | list of addresses | `[]` | Proxies whose `X-Forwarded-For` is believed to know the address of the client; none means it is never believed |
+| `http.bodyLimit` | `BAE_HTTP__BODY_LIMIT` | size | `5mb` | Largest body a route that reads one accepts; a bigger one is refused with 413 |
+| `http.cors.origins` | `BAE_HTTP__CORS__ORIGINS` | list of origins or `"*"` | `["*"]` | Origins that may call the API from a browser; `*` is what version 11 did |
+| `http.cors.exposeRedirect` | `BAE_HTTP__CORS__EXPOSE_REDIRECT` | boolean | `false` | Exposes `X-Redirect-URL` to the browser |
+| `security.csp.reportOnly` | `BAE_SECURITY__CSP__REPORT_ONLY` | boolean | `true` | Sends `Content-Security-Policy-Report-Only` instead of enforcing the policy |
+| `security.hsts.enabled`, `.maxAgeSeconds`, `.includeSubDomains` | `BAE_SECURITY__HSTS__ENABLED`, `BAE_SECURITY__HSTS__MAX_AGE_SECONDS`, `BAE_SECURITY__HSTS__INCLUDE_SUB_DOMAINS` | boolean, integer, boolean | `true`, `31536000`, `false` | `Strict-Transport-Security`; browsers ignore it over plain HTTP |
+| `security.crossOriginResourcePolicy` | `BAE_SECURITY__CROSS_ORIGIN_RESOURCE_POLICY` | `same-origin` `same-site` `cross-origin` | `same-origin` | |
+| `security.csrf.enabled` | `BAE_SECURITY__CSRF__ENABLED` | boolean | `true` | Refuses state-changing requests a browser says come from another site |
+| `security.csrf.trustedOrigins` | `BAE_SECURITY__CSRF__TRUSTED_ORIGINS` | list of origins | `[]` | Origins exempt from that check; meant for tests and development |
+| `auth.propagateToken` | `BAE_AUTH__PROPAGATE_TOKEN` | boolean | `true` | Sends the user's access token to the upstreams as `Authorization: Bearer` |
+| `auth.allowLocalEori` | `BAE_AUTH__ALLOW_LOCAL_EORI` | boolean | `false` | A local IdP user acts under their display name as IdP id |
+| `auth.roles.admin`, `.customer`, `.seller`, `.orgAdmin` | `BAE_AUTH__ROLES__ADMIN`, `BAE_AUTH__ROLES__CUSTOMER`, `BAE_AUTH__ROLES__SELLER`, `BAE_AUTH__ROLES__ORG_ADMIN` | string | `admin`, `Buyer`, `Seller`, `orgAdmin` | Names of the roles in the identity provider |
+| `purchase.enabled` | `BAE_PURCHASE__ENABLED` | boolean | `true` | |
+| `purchase.paymentProvider` | `BAE_PURCHASE__PAYMENT_PROVIDER` | `dpas` `paypal` `stripe` `none` | `none` | |
+| `purchase.paymentGateway` | `BAE_PURCHASE__PAYMENT_GATEWAY` | URL | not set | Required when the provider is `dpas`; there is no default |
+| `quotes.enabled` | `BAE_QUOTES__ENABLED` | boolean | `true` | |
+| `quotes.api` | `BAE_QUOTES__API` | string | `/quote/quoteManagement` | |
+| `tendering.enabled` | `BAE_TENDERING__ENABLED` | boolean | `true` | |
+| `tendering.devButtonsOpenClose` | `BAE_TENDERING__DEV_BUTTONS_OPEN_CLOSE` | boolean | `false` | |
+| `dsp.enabled` | `BAE_DSP__ENABLED` | boolean | `false` | |
+| `dsp.contractDefinitionSchema` | `BAE_DSP__CONTRACT_DEFINITION_SCHEMA` | URL | the `contract-definition.json` of `wistefan/edc-dsc` (branch `init`) | The schema of the EDC contract definition that the portal puts in the offers that use the data space. v11 gave here the schema of the deployment of software by mistake |
+| `launchValidation.enabled`, `dataSpace.enabled` | `BAE_LAUNCH_VALIDATION__ENABLED`, `BAE_DATA_SPACE__ENABLED` | boolean | `false` | |
+| `catalogManagement.enabled` | `BAE_CATALOG_MANAGEMENT__ENABLED` | boolean | `true` | |
+| `catalog.offeringSchema`, `catalog.priceCompSchema`, `catalog.blueprintSchema`, `catalog.partyLocation` | `BAE_CATALOG__OFFERING_SCHEMA`, `BAE_CATALOG__PRICE_COMP_SCHEMA`, `BAE_CATALOG__BLUEPRINT_SCHEMA`, `BAE_CATALOG__PARTY_LOCATION` | URL | the values of version 11 | `@schemaLocation` of offerings, price components, blueprint product specifications and the related parties of what the operator owns |
+| `catalog.defaultCatalogId` | `BAE_CATALOG__DEFAULT_CATALOG_ID` | string | empty | The default catalog, which lists the root categories the marketplace shows; when it is set it is the one used and it has to exist. When it is empty the proxy takes the stored one, the one the catalog API marks with the catalog type `default`, or makes one |
+| `catalog.defaultCatalogName` | `BAE_CATALOG__DEFAULT_CATALOG_NAME` | string | `default` | The name of the default catalog the proxy makes, and with which it recognises the one made before the catalog type existed |
+| `catalog.bootstrap.enabled` | `BAE_CATALOG__BOOTSTRAP__ENABLED` | boolean | `true` | Whether the proxy makes sure, every time it starts, of the default catalog, the system categories (in the default catalog) and the support package spec of the software. Off, it does nothing and what is not there is not made; the default catalog is then the one of `catalog.defaultCatalogId`, if any |
+| `catalog.bootstrap.retryDelayMs` | `BAE_CATALOG__BOOTSTRAP__RETRY_DELAY_MS` | integer | `5000` | The wait before the start-up tries again when the TMForum APIs do not answer |
+| `catalog.bootstrap.records.defaultCatalog`, `catalog.bootstrap.records.supportPackageSpec` | `BAE_CATALOG__BOOTSTRAP__RECORDS__DEFAULT_CATALOG`, `BAE_CATALOG__BOOTSTRAP__RECORDS__SUPPORT_PACKAGE_SPEC` | string | `default`, `global` | The ids of the records (in `defaultcatalog` and `supportpackagespec`) in which the start-up keeps what it found. They are the ones of v11: changing them leaves what it stored unread, and it looks for it again |
+| `catalog.systemCategories` | `BAE_CATALOG__SYSTEM_CATEGORIES` | list of `key`, `name`, `description` | `dataset`, `api`, `blueprint` | The categories of the platform, one per kind of product; the proxy makes them, adds them to the default catalog, and does not let them be retired, renamed or moved. A catalog cannot be named as one of them |
+| `upstreams.timeoutMs` | `BAE_UPSTREAMS__TIMEOUT_MS` | integer | `30000` | Timeout of every upstream that does not set its own |
+| `upstreams.tmforum.host`, `.port`, `.scheme` | `BAE_UPSTREAMS__TMFORUM__HOST`, `BAE_UPSTREAMS__TMFORUM__PORT`, `BAE_UPSTREAMS__TMFORUM__SCHEME` | string, integer, `http` `https` | not set (`http` when no scheme is given) | Default server of every TMForum API |
+| `upstreams.tmforum.apis.<api>.host`, `.port`, `.scheme`, `.path`, `.timeoutMs` | `BAE_UPSTREAMS__TMFORUM__APIS__<API>__HOST`, `__PORT`, `__SCHEME`, `__PATH`, `__TIMEOUT_MS`, with `<API>` the name of the API in upper snake case (`CUSTOMER_BILL`) | | the standard TMForum paths | What one API sets itself; see [Upstreams](#upstreams) |
+| `upstreams.charging`, `.revenue`, `.search` | `BAE_UPSTREAMS__<NAME>__HOST`, `__PORT`, `__SCHEME`, `__PATH`, `__TIMEOUT_MS`, with `<NAME>` as `CHARGING`, `REVENUE` or `SEARCH` | `host`, `port`, `scheme`, `path`, `timeoutMs` | not set (`revenue.path` is `/revenue`) | The services that are not TMForum APIs |
+| `limits.orderItems` | `BAE_LIMITS__ORDER_ITEMS` | integer | `50` | Items that one product order may have |
+| `limits.cartItems` | `BAE_LIMITS__CART_ITEMS` | integer | `100` | Items that the shopping cart of a user may hold |
+| `limits.noteLength`, `limits.notesPerRequest` | `BAE_LIMITS__NOTE_LENGTH`, `BAE_LIMITS__NOTES_PER_REQUEST` | integer | `10000`, `20` | Characters of a note of an order, and notes that one request adds |
+| `limits.nameLength`, `limits.descriptionLength` | `BAE_LIMITS__NAME_LENGTH`, `BAE_LIMITS__DESCRIPTION_LENGTH` | integer | `100`, `100000` | Characters of the name and of the description of a specification or a category |
+| `limits.plansPerQuery` | `BAE_LIMITS__PLANS_PER_QUERY` | integer | `20` | Price plans that one query to the catalog asks for, when the proxy looks for the offers that use a usage specification |
+| `limits.providersPerQuery`, `limits.providerCacheMs` | `BAE_LIMITS__PROVIDERS_PER_QUERY`, `BAE_LIMITS__PROVIDER_CACHE_MS` | integer | `50`, `300000` | The directory of providers, when the marketplace has no search engine: the organisations that one query to the party API asks for, and the milliseconds that the organisations with launched offerings are kept before they are looked for again |
+| `limits.readAll.pageSize`, `limits.readAll.maxPages` | `BAE_LIMITS__READ_ALL__PAGE_SIZE`, `BAE_LIMITS__READ_ALL__MAX_PAGES` | integer | `100`, `100` | When the proxy reads everything that a TMForum collection has (what uses a specification, the catalogs of the start-up): the items it asks for in a page, and the pages it reads at most before it gives up |
+| `portal.chatUrl`, `portal.knowledgeBaseUrl`, `portal.ticketingUrl`, `portal.matomoId`, `portal.matomoUrl`, `portal.googleTagManagerId`, `portal.theme` | `BAE_PORTAL__CHAT_URL`, `BAE_PORTAL__KNOWLEDGE_BASE_URL`, `BAE_PORTAL__TICKETING_URL`, `BAE_PORTAL__MATOMO_ID`, `BAE_PORTAL__MATOMO_URL`, `BAE_PORTAL__GOOGLE_TAG_MANAGER_ID`, `BAE_PORTAL__THEME` | string | empty | What `GET /config` sends to the portal as `chat`, `knowledgeBaseUrl`, `ticketingUrl`, `matomoId`, `matomoUrl`, `googleTagManagerId` and `theme` |
+| `portal.extra` | `BAE_PORTAL__EXTRA` | mapping | `{}` | Anything else that `GET /config` sends, as it is and to every visitor, so nothing secret goes in it. A key that the proxy sets itself (`roles`, `chat`, `defaultId`...) is not taken from it, except that an object such as `roles` is completed with the keys that it has. By variable: `BAE_PORTAL__EXTRA` with a JSON text, or one by one with `BAE_PORTAL__EXTRA__DOME_ABOUT` for `domeAbout` |
+| `stats.ttlMs`, `stats.retryDelayMs` | `BAE_STATS__TTL_MS`, `BAE_STATS__RETRY_DELAY_MS` | integer | `86400000`, `600000` | The figures of the landing page (`GET /stats`): the milliseconds that they are kept in Mongo before a request makes the proxy read them again, in the background (the request is answered with what is kept), and the ones to wait before trying again when that read failed |
+| `stats.providerTtlMs` | `BAE_STATS__PROVIDER_TTL_MS` | integer | `60000` | The milliseconds that the counts of an organisation (`GET /stats/provider/{organizationId}`) are kept in memory |
+| `health.mongoPingTimeoutMs` | `BAE_HEALTH__MONGO_PING_TIMEOUT_MS` | integer | `1000` | |
 
 ## Logging
 
