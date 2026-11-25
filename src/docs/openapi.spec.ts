@@ -13,7 +13,6 @@ import { createApp } from '../bootstrap';
 import { AppConfigService } from '../config/app-config.service';
 import { AppModule } from '../app.module';
 import { HealthModule } from '../health/health.module';
-import { LegacyAuthBridge } from '../legacy/legacy-auth.bridge';
 import { MongoConnectionService } from '../persistence/mongo-connection.service';
 import { ContactUsModule } from '../contact-us/contact-us.module';
 import { VersionModule } from '../version/version.module';
@@ -39,7 +38,7 @@ import { PartyModule } from '../tmf/party/party.module';
 import { QuoteModule } from '../tmf/quote/quote.module';
 import { ServiceModule } from '../tmf/service/service.module';
 import { SearchModule } from '../tmf/search/search.module';
-import { AS_ADMIN, AS_ORGANISATION, AS_SELLER, fakeLogin, LOGGED_IN } from '../testing/fake-login';
+import { AS_ADMIN, AS_ORGANISATION, AS_SELLER, useFakeLogin, LOGGED_IN } from '../testing/fake-login';
 import { FakeUpstream } from '../testing/fake-upstream';
 
 interface ResponseObject {
@@ -973,7 +972,7 @@ describe('responses against docs/openapi.yaml', () => {
         class Contract {}
 
         app = await createApp(express(), Contract);
-        app.get(LegacyAuthBridge).attach([fakeLogin]);
+        useFakeLogin(app);
         await app.listen(0);
         url = await app.getUrl();
     });

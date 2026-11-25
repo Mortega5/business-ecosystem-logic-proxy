@@ -9,10 +9,9 @@ import { createApp } from '../../bootstrap';
 import { AppConfigModule } from '../../config/app-config.module';
 import { FeatureFlagService } from '../../features/feature-flag.service';
 import { FeatureGuard } from '../../features/feature.guard';
-import { LegacyAuthBridge } from '../../legacy/legacy-auth.bridge';
 import { LoggingModule } from '../../logging/logging.module';
 import { ConfigDocumentRepository, type ConfigDocument } from '../../persistence/config-store/config-document.repository';
-import { AS_ADMIN, AS_ORGANISATION, fakeLogin, LOGGED_IN } from '../../testing/fake-login';
+import { AS_ADMIN, AS_ORGANISATION, useFakeLogin, LOGGED_IN } from '../../testing/fake-login';
 import { FakeUpstream } from '../../testing/fake-upstream';
 import { QuoteModule } from './quote.module';
 
@@ -59,7 +58,7 @@ const serve = async (env: NodeJS.ProcessEnv = {}): Promise<string> => {
         ...env
     });
     const app = await createApp(legacy, Root);
-    app.get(LegacyAuthBridge).attach([fakeLogin]);
+    useFakeLogin(app);
     await app.listen(0);
     apps.push(app);
     return app.getUrl();

@@ -45,7 +45,7 @@ const loadedAfter = (ms: number, onlistening = vi.fn()): (() => Promise<LegacySe
     return () =>
         new Promise((resolve) =>
             setTimeout(
-                () => resolve({ app: legacyApp, authPipeline: [], onlistening, stopBackgroundLoaders: vi.fn(), close: vi.fn() }),
+                () => resolve({ app: legacyApp, onlistening, stopBackgroundLoaders: vi.fn(), close: vi.fn() }),
                 ms
             )
         );

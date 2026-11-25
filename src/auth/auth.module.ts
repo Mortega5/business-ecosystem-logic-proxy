@@ -3,8 +3,12 @@ import { APP_GUARD } from '@nestjs/core';
 import { getConnectionToken } from '@nestjs/mongoose';
 import type { Connection, Model } from 'mongoose';
 import { AppConfigService } from '../config/app-config.service';
-import { LegacyAuthBridge } from '../legacy/legacy-auth.bridge';
+import { HttpClientModule } from '../http-client/http-client.module';
 import { AuthGuard } from './auth.guard';
+import { PartyRegistry } from './profile/party-registry';
+import { ProfileService } from './profile/profile.service';
+import { IdentityProviderRegistry } from './providers/identity-provider-registry';
+import { RequestAuthenticator } from './request-authenticator';
 import { AuthCacheEntry, AuthCacheEntrySchema } from './store/auth-cache.schema';
 import { AuthStore } from './store/auth-store';
 import { MemoryAuthStore } from './store/memory-auth-store';
@@ -29,8 +33,12 @@ export const createAuthStore = (config: AppConfigService, connection: Connection
 
 @Global()
 @Module({
+    imports: [HttpClientModule],
     providers: [
-        LegacyAuthBridge,
+        IdentityProviderRegistry,
+        PartyRegistry,
+        ProfileService,
+        RequestAuthenticator,
         { provide: APP_GUARD, useClass: AuthGuard },
         {
             provide: AuthStore,
@@ -39,6 +47,6 @@ export const createAuthStore = (config: AppConfigService, connection: Connection
             useFactory: createAuthStore
         }
     ],
-    exports: [LegacyAuthBridge, AuthStore]
+    exports: [AuthStore, IdentityProviderRegistry, PartyRegistry, ProfileService, RequestAuthenticator]
 })
 export class AuthModule {}

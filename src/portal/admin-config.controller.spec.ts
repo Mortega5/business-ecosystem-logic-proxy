@@ -7,10 +7,9 @@ import { createApp } from '../bootstrap';
 import { AppConfigModule } from '../config/app-config.module';
 import { FeatureFlagService } from '../features/feature-flag.service';
 import { SearchSettings } from '../features/search-settings';
-import { LegacyAuthBridge } from '../legacy/legacy-auth.bridge';
 import { LoggingModule } from '../logging/logging.module';
 import { ConfigDocumentRepository, type ConfigDocument } from '../persistence/config-store/config-document.repository';
-import { AS_ADMIN, fakeLogin, LOGGED_IN } from '../testing/fake-login';
+import { AS_ADMIN, useFakeLogin, LOGGED_IN } from '../testing/fake-login';
 import { AdminConfigController } from './admin-config.controller';
 import { AdminConfigService } from './admin-config.service';
 
@@ -58,7 +57,7 @@ const errorOf = async (res: Response): Promise<string> => ((await res.json()) as
 
 beforeAll(async () => {
     app = await createApp(legacy, Root);
-    app.get(LegacyAuthBridge).attach([fakeLogin]);
+    useFakeLogin(app);
     await app.listen(0);
     url = await app.getUrl();
 });

@@ -4,7 +4,6 @@ import { createApp } from './bootstrap';
 import { loadAppConfig } from './config/config.loader';
 import { envNameFor, type LegacyVariable } from './config/legacy-env';
 import type { AppConfig } from './config/config.schema';
-import { LegacyAuthBridge, type LegacyMiddleware } from './legacy/legacy-auth.bridge';
 import type { LegacyHandler } from './legacy/legacy-fallback.filter';
 import { buildHttpsOptions } from './https/https-options';
 import { configureSecurity } from './security/configure-security';
@@ -12,7 +11,6 @@ import { buildLoggerOptions } from './logging/pino-options';
 
 export interface LegacyServer {
     app: LegacyHandler;
-    authPipeline: LegacyMiddleware[];
     onlistening: () => void;
     stopBackgroundLoaders: () => void;
     close: () => Promise<void>;
@@ -69,7 +67,6 @@ export const start = async (options: StartOptions): Promise<RunningServer> => {
         // The client address (req.ip) comes from X-Forwarded-For only for the proxies the configuration trusts
         configureSecurity(app, config);
         app.set('trust proxy', config.http.trustedProxies.length === 0 ? false : config.http.trustedProxies);
-        app.get(LegacyAuthBridge).attach(legacy.authPipeline);
         await (config.app.host === undefined ? app.listen(config.app.port) : app.listen(config.app.port, config.app.host));
         logger.info({ port: config.app.port }, 'Server listening');
 

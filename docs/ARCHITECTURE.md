@@ -47,7 +47,7 @@ anything unexpected is a 500 with a generic message and the stack goes to the lo
 | `src/tmf` | `TmfProxy`, upstream headers, one folder per API |
 | `src/auth`, `src/features`, `src/security` | guards and the security configuration |
 | `src/persistence` | Mongoose, the base `Repository` and its in-memory fake |
-| `src/legacy` | the bridge to the legacy application; temporary |
+| `src/legacy` | the fallback to the legacy application; temporary |
 | `src/testing` | what the tests share: `FakeUpstream`, `fakeLogin` |
 | `docs/openapi.yaml` | the routes Nest serves, checked against the code and the real answers |
 
@@ -100,10 +100,9 @@ Take [`src/tmf/document/`](../src/tmf/document/) as the model.
 
 ## When the legacy application goes away
 
-The bridge is referenced from a few places outside `src/legacy/`, and those are what changes:
+The only thing outside `src/legacy/` that refers to it is the fallback filter, and what changes is:
 
-- `src/auth/auth.guard.ts` and `auth.module.ts` stop using `LegacyAuthBridge`; the guard resolves the user itself.
-- `src/start.ts` stops attaching `authPipeline` and `src/bootstrap.ts` stops registering the fallback filter.
+- `src/bootstrap.ts` stops registering the fallback filter.
 - The closing `@All` route of each API controller is deleted: Nest's default 404 does the same.
-- `server.js` and its `authPipeline` export go, and so does `src/testing/fake-login.ts` (replaced by a fake strategy).
+- `server.js` goes. `src/testing/fake-login.ts` stays: it replaces the authenticator of the application under test.
 - Then `src/legacy/` is deleted.

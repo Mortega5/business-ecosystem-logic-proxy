@@ -5,10 +5,9 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { AuthModule } from '../auth/auth.module';
 import { createApp } from '../bootstrap';
 import { AppConfigModule } from '../config/app-config.module';
-import { LegacyAuthBridge } from '../legacy/legacy-auth.bridge';
 import { LoggingModule } from '../logging/logging.module';
 import { cartItems, FakeCartModule } from '../testing/fake-cart';
-import { AS_ADMIN, fakeLogin, LOGGED_IN } from '../testing/fake-login';
+import { AS_ADMIN, useFakeLogin, LOGGED_IN } from '../testing/fake-login';
 
 @Module({ imports: [AppConfigModule, LoggingModule, AuthModule, FakeCartModule] })
 class Root {}
@@ -37,7 +36,7 @@ const add = (item: unknown, headers = ANA): Promise<Response> => call('/shopping
 beforeAll(async () => {
     Object.assign(process.env, { BAE_LIMITS__CART_ITEMS: '3' });
     app = await createApp(legacy, Root);
-    app.get(LegacyAuthBridge).attach([fakeLogin]);
+    useFakeLogin(app);
     await app.listen(0);
     url = await app.getUrl();
 });

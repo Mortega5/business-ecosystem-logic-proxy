@@ -5,9 +5,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { AuthModule } from '../../auth/auth.module';
 import { createApp } from '../../bootstrap';
 import { AppConfigModule } from '../../config/app-config.module';
-import { LegacyAuthBridge } from '../../legacy/legacy-auth.bridge';
 import { LoggingModule } from '../../logging/logging.module';
-import { fakeLogin, LOGGED_IN } from '../../testing/fake-login';
+import { useFakeLogin, LOGGED_IN } from '../../testing/fake-login';
 import { FakeUpstream } from '../../testing/fake-upstream';
 import { SearchModule } from './search.module';
 
@@ -35,7 +34,7 @@ beforeAll(async () => {
         BAE_HTTP__BODY_LIMIT: '1kb'
     });
     app = await createApp(legacy, Root);
-    app.get(LegacyAuthBridge).attach([fakeLogin]);
+    useFakeLogin(app);
     await app.listen(0);
     url = await app.getUrl();
 });

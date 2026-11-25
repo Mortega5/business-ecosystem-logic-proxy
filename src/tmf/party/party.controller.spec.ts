@@ -6,9 +6,8 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { AuthModule } from '../../auth/auth.module';
 import { createApp } from '../../bootstrap';
 import { AppConfigModule } from '../../config/app-config.module';
-import { LegacyAuthBridge } from '../../legacy/legacy-auth.bridge';
 import { LoggingModule } from '../../logging/logging.module';
-import { AS_MEMBER, AS_ORGANISATION, fakeLogin, LOGGED_IN } from '../../testing/fake-login';
+import { AS_MEMBER, AS_ORGANISATION, useFakeLogin, LOGGED_IN } from '../../testing/fake-login';
 import { FakeUpstream } from '../../testing/fake-upstream';
 import { PartyModule } from './party.module';
 
@@ -48,7 +47,7 @@ const answerWith = (status: number, body: string): void => upstream.answer((res)
 const serve = async (env: NodeJS.ProcessEnv = {}): Promise<string> => {
     Object.assign(process.env, { BAE_UPSTREAMS__TMFORUM__HOST: '127.0.0.1', BAE_UPSTREAMS__TMFORUM__PORT: String(upstream.port), ...env });
     const server = await createApp(legacy, Root);
-    server.get(LegacyAuthBridge).attach([fakeLogin]);
+    useFakeLogin(server);
     await server.listen(0);
     apps.push(server);
     return server.getUrl();
