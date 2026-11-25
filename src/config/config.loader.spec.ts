@@ -338,6 +338,12 @@ describe('authentication configuration', () => {
         expect(load({ BAE_AUTH__STORE__MEMORY_MAX_ENTRIES: '50' }).auth.store.memoryMaxEntries).toBe(50);
     });
 
+    it('reads the portal of another site and refuses what is not an address', () => {
+        expect(load({ BAE_LP_EXTERNAL_PORTAL: 'https://portal.example.org' }).auth.externalPortal).toBe('https://portal.example.org');
+        expect(load({}).auth.externalPortal).toBeUndefined();
+        expect(() => load({ BAE_LP_EXTERNAL_PORTAL: 'not a url' })).toThrow('externalPortal');
+    });
+
     it('reads the session settings and refuses a secret that is too short', () => {
         const secret = 's'.repeat(32);
         expect(

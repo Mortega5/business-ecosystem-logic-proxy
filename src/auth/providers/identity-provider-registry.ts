@@ -7,13 +7,25 @@ export const LOCAL_IDP = 'local';
 @Injectable()
 export class IdentityProviderRegistry {
     private readonly providers = new Map<string, IdentityProvider>();
+    private readonly callbacks = new Map<string, string>();
 
-    add(provider: IdentityProvider): void {
+    /** `callbackUrl` is where the provider sends the user back after the login, the redirect URI registered with it. */
+    add(provider: IdentityProvider, callbackUrl?: string): void {
         this.providers.set(provider.id, provider);
+        if (callbackUrl === undefined) {
+            this.callbacks.delete(provider.id);
+        } else {
+            this.callbacks.set(provider.id, callbackUrl);
+        }
     }
 
     remove(id: string): void {
         this.providers.delete(id);
+        this.callbacks.delete(id);
+    }
+
+    callbackUrlOf(id: string): string | undefined {
+        return this.callbacks.get(id);
     }
 
     get(id: string): IdentityProvider | undefined {

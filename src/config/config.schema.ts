@@ -185,6 +185,9 @@ export const ConfigSchema = z.object({
                 path: ['encryptionKey'],
                 message: 'is required when auth.store.type is mongo'
             }),
+        // The portal of another site that the user is sent to after the login, with the access token in the address (empty: the one of
+        // the proxy)
+        externalPortal: z.url().optional(),
         // The session of the browser. The secret signs its cookie and has no default: whoever knows it can forge a session
         session: z.object({
             secret: z.string().min(32).optional(),

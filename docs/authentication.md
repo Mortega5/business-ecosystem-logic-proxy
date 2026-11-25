@@ -89,6 +89,7 @@ answering with the renewed profile for a short time, for the requests that were 
 | `BAE_AUTH__STORE__TYPE` | `memory` (default, one process, as in v11) or `mongo` (collection `auth_cache`, shared by every instance) |
 | `BAE_AUTH__STORE__MEMORY_MAX_ENTRIES` | Entries kept in memory before the oldest goes (1000 by default; 50 in v11) |
 | `BAE_AUTH__STORE__ENCRYPTION_KEY` | Required with `mongo`: a random string of 32 characters or more. Profiles hold refresh tokens, so they are stored sealed (AES-256-GCM) and under the hash of the key. Changing it makes the stored entries misses |
+| `BAE_LP_EXTERNAL_PORTAL` | Address of a portal of another site (`auth.externalPortal`). After a login with the main provider the user is sent to `<portal>/dashboard?token=<access token>`, as in v11; without it, to `/dashboard?token=local` |
 | `BAE_AUTH__SESSION__SECRET` | Signs the session cookie: a random string of 32 characters or more, with no default. Required once the login is served by the proxy |
 | `BAE_AUTH__SESSION__MAX_AGE_MS` | How long a session lasts since its last request (24 hours by default) |
 | `BAE_AUTH__SESSION__COOKIE_SECURE` | `auto` (default: Secure when the request came over HTTPS), `true` or `false` |
