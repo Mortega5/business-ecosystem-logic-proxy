@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { AppConfigService } from '../config/app-config.service';
+import { PortalConfigContributors } from './portal-config-contributors';
 import { FeatureFlagService } from '../features/feature-flag.service';
 import { FEATURES, FEATURE_NAMES } from '../features/feature-flags';
 import { ConfigDocumentRepository } from '../persistence/config-store/config-document.repository';
@@ -35,12 +36,13 @@ export class PortalConfigService {
         private readonly flags: FeatureFlagService,
         private readonly documents: ConfigDocumentRepository,
         private readonly defaults: CatalogDefaults,
-        private readonly search: MarketplaceSearch
+        private readonly search: MarketplaceSearch,
+        private readonly contributors: PortalConfigContributors
     ) {}
 
     async read(): Promise<Json> {
         const { auth, portal, quotes, catalog, dsp, fileService } = this.config;
-        const [features, searchFilters] = await Promise.all([this.flags.all(), this.searchFilters()]);
+        const [features, searchFilters, contributed] = await Promise.all([this.flags.all(), this.searchFilters(), this.contributors.collect()]);
         const own: Json = {
             roles: { seller: auth.roles.seller, customer: auth.roles.customer, admin: auth.roles.admin, orgAdmin: auth.roles.orgAdmin },
             chat: portal.chatUrl,
@@ -65,7 +67,8 @@ export class PortalConfigService {
             ...(dsp.contractDefinitionSchema === undefined ? {} : { dspContractDefinitionSchema: dsp.contractDefinitionSchema }),
             ...Object.fromEntries(FEATURE_NAMES.map((feature) => [FEATURES[feature].dbName, features[feature]]))
         };
-        return withExtra(own, portal.extra);
+        // What an extension adds goes first, so that it never replaces what the core says
+        return withExtra({ ...contributed, ...own }, portal.extra);
     }
 
     // The ones the administrator saved; when they cannot be read the portal starts with the ones of a new marketplace

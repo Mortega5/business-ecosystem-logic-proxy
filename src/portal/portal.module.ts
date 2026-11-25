@@ -3,8 +3,9 @@ import { ConfigStoreModule } from '../persistence/config-store/config-store.modu
 import { TmfModule } from '../tmf/tmf.module';
 import { AdminConfigController } from './admin-config.controller';
 import { AdminConfigService } from './admin-config.service';
+import { PortalConfigContributors } from './portal-config-contributors';
 import { PortalConfigController } from './portal-config.controller';
 import { PortalConfigService } from './portal-config.service';
 
-@Module({ imports: [ConfigStoreModule, TmfModule], controllers: [PortalConfigController, AdminConfigController], providers: [PortalConfigService, AdminConfigService] })
+@Module({ imports: [ConfigStoreModule, TmfModule], controllers: [PortalConfigController, AdminConfigController], providers: [PortalConfigService, AdminConfigService, PortalConfigContributors], exports: [PortalConfigContributors] })
 export class PortalModule {}
