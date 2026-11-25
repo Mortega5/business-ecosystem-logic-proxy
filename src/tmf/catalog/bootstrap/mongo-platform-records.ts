@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { getConnectionToken } from '@nestjs/mongoose';
-import type { Connection } from 'mongoose';
+import { ConnectionStates, type Connection } from 'mongoose';
 import { DuplicateRecordError, PlatformRecords, type PlatformCollection, type PlatformRecord } from './platform-records';
 
 const DUPLICATE_KEY = 11000;
@@ -14,7 +14,12 @@ export class MongoPlatformRecords extends PlatformRecords {
         super();
     }
 
-    private collection(name: PlatformCollection): RawCollection {
+    // The connection is made in the background when the server starts, so the first use may come before it is up: it waits for it,
+    // and the connection service says in the log what it is doing meanwhile
+    private async collection(name: PlatformCollection): Promise<RawCollection> {
+        if (this.connection.readyState !== ConnectionStates.connected) {
+            await new Promise<void>((resolve) => this.connection.once('connected', () => resolve()));
+        }
         if (this.connection.db === undefined) {
             throw new Error('MongoDB is not connected');
         }
@@ -22,7 +27,7 @@ export class MongoPlatformRecords extends PlatformRecords {
     }
 
     async list(collection: PlatformCollection): Promise<PlatformRecord[]> {
-        const found = await this.collection(collection).find({}).toArray();
+        const found = await (await this.collection(collection)).find({}).toArray();
         return found.map(({ _id, ...record }) => {
             void _id;
             return record as PlatformRecord;
@@ -31,7 +36,7 @@ export class MongoPlatformRecords extends PlatformRecords {
 
     async insert(collection: PlatformCollection, id: string, fields: Record<string, unknown>): Promise<void> {
         try {
-            await this.collection(collection).insertOne({ ...fields, id });
+            await (await this.collection(collection)).insertOne({ ...fields, id });
         } catch (error) {
             if ((error as { code?: number }).code === DUPLICATE_KEY) {
                 throw new DuplicateRecordError(collection, id);
@@ -41,14 +46,14 @@ export class MongoPlatformRecords extends PlatformRecords {
     }
 
     async update(collection: PlatformCollection, id: string, fields: Record<string, unknown>): Promise<void> {
-        await this.collection(collection).updateOne({ id }, { $set: fields });
+        await (await this.collection(collection)).updateOne({ id }, { $set: fields });
     }
 
     async remove(collection: PlatformCollection, id: string): Promise<void> {
-        await this.collection(collection).deleteOne({ id });
+        await (await this.collection(collection)).deleteOne({ id });
     }
 
     async ensureUniqueIds(collection: PlatformCollection): Promise<void> {
-        await this.collection(collection).createIndex({ id: 1 }, { unique: true });
+        await (await this.collection(collection)).createIndex({ id: 1 }, { unique: true });
     }
 }
