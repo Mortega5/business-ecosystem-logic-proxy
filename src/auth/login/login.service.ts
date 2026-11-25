@@ -23,6 +23,8 @@ declare module 'express-session' {
         logins?: Record<string, PendingLogin>;
         /** The access token of the user who has logged in: the profile is in the authentication store. */
         accessToken?: string;
+        /** Set by a browser that polls for the answer of a verifier, so that the session reaches it and its next poll is known. */
+        vcPolling?: boolean;
     }
 }
 

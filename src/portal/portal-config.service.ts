@@ -59,6 +59,21 @@ export class PortalConfigService {
             reservedCatalogNames: catalog.systemCategories.map((category) => category.name.trim().toLowerCase()),
             searchFilters,
             blueprintSchema: catalog.blueprintSchema,
+            // What the portal needs to log in with a wallet: where the verifier is and how the answer comes back. Without the login with
+            // credentials there is nothing else to say
+            siop: auth.vc.enabled
+                ? {
+                      enabled: true,
+                      isRedirection: auth.vc.isRedirection,
+                      pollPath: '/poll',
+                      pollCertPath: '/cert/poll',
+                      clientID: auth.vc.clientId,
+                      callbackURL: auth.vc.callbackUrl,
+                      verifierHost: auth.vc.verifierHost,
+                      verifierQRCodePath: auth.vc.verifierQrCodePath,
+                      requestUri: auth.vc.requestUri
+                  }
+                : { enabled: false },
             // Whether a dataset can be made from a file: it needs the datasets on and a file service, and the portal offers files of
             // the size and the types that the proxy takes
             datasetFilesEnabled: features.datasets && fileService.enabled,

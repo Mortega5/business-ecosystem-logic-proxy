@@ -91,7 +91,8 @@ describe('GET /config', () => {
         const body = await read();
 
         expect(body['about']).toBe('https://about.example.org');
-        expect(body['siop']).toEqual({ enabled: true });
+        // The login with credentials is the proxy's: it is off here, and what the deployment adds does not turn it on
+        expect(body['siop']).toEqual({ enabled: false });
         expect(body['chat']).toBe('https://chat.example.org');
         expect(body['roles']).toEqual({ seller: 'Seller', customer: 'Buyer', admin: 'admin', orgAdmin: 'orgAdmin', certifier: 'certifier' });
     });

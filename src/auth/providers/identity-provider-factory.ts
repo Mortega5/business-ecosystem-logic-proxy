@@ -9,6 +9,8 @@ import { I4TrustProvider } from './i4trust-provider';
 import { JwksVerifier } from './jwks-verifier';
 import { KeycloakProvider } from './keycloak-provider';
 import { OidcDiscoverProvider } from './oidc-discover-provider';
+import { loadVcPrivateKey } from './vc-key';
+import { VcProvider } from './vc-provider';
 
 type IdpSettings = AppConfig['auth']['idp'];
 
@@ -116,4 +118,47 @@ export const createIdentityProvider = (idp: IdpSettings, dependencies: ProviderD
         default:
             throw new Error(`auth.idp.provider ${idp.provider} is not available yet`);
     }
+};
+
+/**
+ * The main identity provider and the address it sends its users back to: the login with credentials when `auth.vc.enabled` (as in v11,
+ * where it took the place of the other), or else the one of `auth.idp`. It refuses to be built, naming what is missing, when a setting
+ * is not there, and when the key cannot be read.
+ */
+export const createMainIdentityProvider = (
+    auth: AppConfig['auth'],
+    dependencies: ProviderDependencies,
+    id = 'local'
+): { provider: IdentityProvider; callbackUrl: string } => {
+    const { vc } = auth;
+    if (!vc.enabled) {
+        const callbackUrl = auth.idp.callbackUrl;
+        const provider = createIdentityProvider(auth.idp, dependencies, id);
+        if (callbackUrl === undefined) {
+            throw new Error(`auth.idp.callbackUrl required when auth.idp.provider is ${auth.idp.provider}`);
+        }
+        return { provider, callbackUrl };
+    }
+    const { clientId, callbackUrl, verifierHost } = vc;
+    if (clientId === undefined || callbackUrl === undefined || verifierHost === undefined) {
+        throw new Error('auth.vc.clientId, auth.vc.callbackUrl and auth.vc.verifierHost are required when auth.vc.enabled is true');
+    }
+    const provider = new VcProvider({
+        id,
+        clientId,
+        privateKey: loadVcPrivateKey({
+            ...(vc.privateKeyFile === undefined ? {} : { file: vc.privateKeyFile }),
+            ...(vc.privateKey === undefined ? {} : { hex: vc.privateKey })
+        }),
+        signAlgorithm: vc.signAlgorithm,
+        callbackUrl,
+        verifierHost,
+        verifierTokenPath: vc.verifierTokenPath,
+        verifierJwksPath: vc.verifierJwksPath,
+        ...(vc.verifierIssuer === undefined ? {} : { verifierIssuer: vc.verifierIssuer }),
+        policy: { roles: { ...auth.roles, certifier: vc.certifierRole }, operators: vc.operators },
+        timeoutMs: dependencies.timeoutMs,
+        ...(dependencies.fetcher === undefined ? {} : { fetcher: dependencies.fetcher })
+    });
+    return { provider, callbackUrl };
 };

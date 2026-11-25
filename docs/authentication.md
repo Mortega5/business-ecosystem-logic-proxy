@@ -16,7 +16,7 @@ and kept, and how a request is authenticated. What each IdP needs is in its own 
 | Wallets with verifiable credentials (DOME) | `vc` | [vc](authentication/providers/vc.md) |
 
 The provider is chosen with `BAE_LP_OAUTH2_PROVIDER` (`auth.idp.provider`); `fiware` is the default. With
-`BAE_LP_SIOP_ENABLED=true` the main provider is `vc` instead.
+`BAE_LP_SIOP_ENABLED=true` (`auth.vc.enabled`) the main provider is `vc` instead, and `auth.idp` is not used.
 
 The main provider is registered under the name `local`. It is the one that validates a bearer token the proxy has not seen
 before (see [Bearer without a login](#bearer-without-a-login)). Other providers are added at run time when
