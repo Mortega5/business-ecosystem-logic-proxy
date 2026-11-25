@@ -19,7 +19,7 @@ const NOT_INVOLVED = 'You are not authorized to access the specified bill';
 /**
  * The billing API, as far as the portal uses it: the bills of the caller, a bill, the name of a bill, and the rates applied
  * to a bill. A bill is the caller's when they are related to it, as its customer or as its seller. Everything else under
- * /billing is closed here, so it is not handed to the legacy application.
+ * /billing is closed here.
  */
 @UseInterceptors(BodyTextInterceptor)
 @Controller('billing')

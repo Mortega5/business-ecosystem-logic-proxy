@@ -17,7 +17,7 @@ const NOT_THE_OWNER = 'The user making the request is not the specified owner';
 /**
  * The account API, as far as the portal uses it: the billing accounts of the caller. An account is the caller's when they
  * are related to it as its owner, which is the seller role. Everything else under /account, a delete included, is closed
- * here, so it is not handed to the legacy application.
+ * here.
  */
 @UseInterceptors(BodyTextInterceptor)
 @Controller('account')

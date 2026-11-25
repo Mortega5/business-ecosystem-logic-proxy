@@ -13,9 +13,9 @@ import { Offerings } from './offerings';
 import { ProductSpecifications } from './product-specifications';
 
 /**
- * The catalog API, as far as it has been moved here: the categories, which anybody reads and an administrator changes, and the
- * catalogs, the offerings and the product specifications, which a seller makes, changes and retires. What is not here yet (the lists of catalogs and offerings and the prices) is answered by the legacy application, and what is here and is not a route of the portal (the delete of a
- * category, above all) is closed, so it cannot reach it.
+ * The catalog API, as far as the portal uses it: the categories, which anybody reads and an administrator changes, and the
+ * catalogs, the offerings and the product specifications, which a seller makes, changes and retires. What is not a route of the portal (the delete of a
+ * category, above all, and the list of catalogs) is closed.
  */
 @UseInterceptors(BodyTextInterceptor)
 @Controller('catalog')

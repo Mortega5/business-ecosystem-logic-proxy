@@ -13,7 +13,7 @@ const ROOT = 'quoteManagement';
 /**
  * The quote management API, as far as the portal uses it. Quotes need the `quotes` feature and the tendering routes
  * the `tendering` one. The routes that name a user in the path are for the party of the caller. Everything else under
- * /quote is closed here, so it is not handed to the legacy application.
+ * /quote is closed here.
  */
 @UseInterceptors(BodyTextInterceptor)
 @Controller('quote')

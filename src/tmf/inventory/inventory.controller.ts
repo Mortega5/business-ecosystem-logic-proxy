@@ -6,8 +6,7 @@ import { ResourceIdPipe } from '../resource-id.pipe';
 
 /**
  * The product inventory, as far as the portal uses it: the list of what the caller is related to as a customer and one
- * product of it. Everything else under /inventory, a write included, is closed here, so it is not handed to the legacy
- * application.
+ * product of it. Everything else under /inventory, a write included, is closed.
  */
 @Controller('inventory')
 export class InventoryController {

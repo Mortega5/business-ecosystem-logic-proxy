@@ -17,7 +17,7 @@ export class FeatureGuard implements CanActivate {
         if (flag === undefined || (await this.flags.isEnabled(flag))) {
             return true;
         }
-        // NotFoundError and not NotFoundException: the latter is handed to the legacy application
+        // NotFoundError and not NotFoundException: the latter would serve the portal to a browser
         throw new NotFoundError('Not found');
     }
 }

@@ -98,7 +98,7 @@ export const buildUpstreamHeaders = ({ client, user, forwardedFor, policy }: Ups
         set('X-Forwarded-For', forwardedFor);
     }
     if (user !== undefined) {
-        // As the legacy proxy did, an empty X-Roles or X-Ext-Name is still sent
+        // An empty X-Roles or X-Ext-Name is still sent
         for (const [name, value] of Object.entries(identityHeaders(user, policy))) {
             set(name, value, true);
         }

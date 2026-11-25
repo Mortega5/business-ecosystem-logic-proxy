@@ -11,7 +11,7 @@ export class DomeEnabledGuard implements CanActivate {
         if (this.config.dome.enabled) {
             return true;
         }
-        // NotFoundError and not NotFoundException: the latter is handed to the legacy application, which would serve the route
+        // NotFoundError and not NotFoundException: the latter would serve the portal to a browser
         throw new NotFoundError('Not found');
     }
 }

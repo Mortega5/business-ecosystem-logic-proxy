@@ -10,7 +10,7 @@ const InvoiceFormat = { XmlHtml: 'xml-html' } as const;
 /**
  * The invoicing API, as far as the portal uses it: an invoice as an HTML page that the browser opens in a new tab, so
  * the user is the one of the session cookie. The page is served sandboxed and with `no-store`. Everything else under
- * /invoicing is closed here, so it is not handed to the legacy application.
+ * /invoicing is closed here.
  */
 @Controller('invoicing')
 export class InvoicingController {

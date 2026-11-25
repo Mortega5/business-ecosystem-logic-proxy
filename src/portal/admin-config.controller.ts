@@ -7,7 +7,7 @@ import type { SearchFilters } from './search-filters';
 
 /**
  * What the administrator changes of the portal, as far as its pages use it: the features, the filters of the search and the setting of the
- * search engine. The settings of the analytics are not here yet and are not closed, so that the legacy application answers them.
+ * search engine. The settings of the analytics are in the analytics module.
  */
 @UseInterceptors(BodyTextInterceptor)
 @UseGuards(AdministratorGuard)

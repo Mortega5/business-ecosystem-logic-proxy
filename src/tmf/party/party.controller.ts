@@ -36,7 +36,7 @@ const PUBLIC_INDIVIDUAL = ['id', 'href', '@type', 'givenName', 'familyName'];
  * The party API, as far as the portal uses it. The organisations are public, as the directory of providers and the offers
  * show them. An individual is read by a logged-in user, whole by themselves and only by name by anybody else, and a party
  * is changed only by itself. Everything else under /party, the list of individuals and the writes but the patch included,
- * is closed here, so it is not handed to the legacy application.
+ * is closed here.
  */
 @UseInterceptors(BodyTextInterceptor)
 @Controller('party')

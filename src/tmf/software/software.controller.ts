@@ -46,7 +46,7 @@ const PACKAGES: SpecificationApi = {
 /**
  * The software API, as far as the portal uses it: the specifications of software and the support packages that go with them (see
  * `SoftwareSpecifications` for what that means). A support package has the deployment characteristics, so it is read only by the
- * seller who owns it. Everything else under /software is closed here, so it is not handed to the legacy application.
+ * seller who owns it. Everything else under /software is closed here.
  */
 @UseInterceptors(BodyTextInterceptor)
 @Controller('software')

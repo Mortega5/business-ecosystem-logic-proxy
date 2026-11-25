@@ -8,7 +8,7 @@ import { Catalogs } from './catalogs';
 
 /**
  * The catalogs as an administrator changes them, as far as the portal uses it: the name and the description of a catalog, which is how the
- * default catalog is edited. The other routes under /admin are not here and are not closed, so that the legacy application answers them.
+ * default catalog is edited. There are no other routes under /admin.
  */
 @UseInterceptors(BodyTextInterceptor)
 @UseGuards(AdministratorGuard)

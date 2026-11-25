@@ -11,7 +11,7 @@ export class VcEnabledGuard implements CanActivate {
         if (this.config.auth.vc.enabled) {
             return true;
         }
-        // NotFoundError and not NotFoundException: the latter is handed to the legacy application
+        // NotFoundError and not NotFoundException: the latter would serve the portal to a browser
         throw new NotFoundError('Not found');
     }
 }

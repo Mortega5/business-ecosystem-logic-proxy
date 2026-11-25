@@ -28,7 +28,7 @@ const RESOURCE_SPECIFICATIONS: SpecificationApi = {
 
 /**
  * The resource specifications of the resource catalog, as far as the portal uses them (see `Specifications` for the rules).
- * Everything else under /resource is closed here, so it is not handed to the legacy application.
+ * Everything else under /resource is closed here.
  */
 @UseInterceptors(BodyTextInterceptor)
 @Controller('resource')

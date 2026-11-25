@@ -8,7 +8,7 @@ import { Orders } from './orders';
 
 /**
  * The product orders of the ordering API, as far as the portal uses them: the list of the caller, one order, a new order and a
- * change (see `Orders`). Everything else under /ordering is closed here, so it is not handed to the legacy application.
+ * change (see `Orders`). Everything else under /ordering is closed here.
  */
 @UseInterceptors(BodyTextInterceptor)
 @Controller('ordering')

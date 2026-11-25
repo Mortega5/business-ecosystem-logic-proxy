@@ -16,7 +16,7 @@ const ORDERS = '/charging/api/orderManagement';
 /**
  * The charging backend, as far as the portal uses it: the confirmation of an order, which is signed by the payment provider, the
  * configuration of the e-mail of the administrator, and the upload of a file. Everything else under /charging, the refund of an
- * order included, is closed here, so it is not handed to the legacy application.
+ * order included, is closed here.
  */
 @UseInterceptors(BodyTextInterceptor)
 @Controller('charging')

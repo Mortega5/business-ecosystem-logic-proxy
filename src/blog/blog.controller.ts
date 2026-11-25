@@ -12,8 +12,7 @@ import { BlogService } from './blog.service';
 
 /**
  * The blog, the news and the questions of the marketplace. Anybody reads them, and only an administrator writes them.
- * It is at `/blog`, and also at `/domeblog` while the DOME extension is on. Anything else under either is closed here, so it is not
- * handed to the legacy application.
+ * It is at `/blog`, and also at `/domeblog` while the DOME extension is on. Anything else under either is closed.
  */
 @RequireFeature('blog')
 @UseGuards(BlogAliasGuard)

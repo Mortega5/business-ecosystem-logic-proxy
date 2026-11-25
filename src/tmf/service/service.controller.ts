@@ -9,7 +9,7 @@ import { ServiceSpecifications } from './service-specifications';
 
 /**
  * The service specifications of the service catalog, as far as the portal uses them (see `Specifications` for the rules).
- * Everything else under /service is closed here, so it is not handed to the legacy application.
+ * Everything else under /service is closed here.
  */
 @UseInterceptors(BodyTextInterceptor)
 @Controller('service')

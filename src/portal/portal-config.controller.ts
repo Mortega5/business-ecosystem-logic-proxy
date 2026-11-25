@@ -4,7 +4,7 @@ import { PortalConfigService } from './portal-config.service';
 
 /**
  * The settings that the portal reads when it starts, before anybody has logged in. The routes under /config that are for the
- * administrator are not here yet and are not closed, so that the legacy application answers them.
+ * administrator are in `AdminConfigController` and in the analytics.
  */
 @Public()
 @Controller('config')
