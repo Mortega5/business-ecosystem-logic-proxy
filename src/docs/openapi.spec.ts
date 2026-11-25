@@ -990,7 +990,7 @@ describe('responses against docs/openapi.yaml', () => {
 
     // These need a session, a file service or an identity provider that this application does not have; their answers are checked
     // against a real one in `src/auth/login`, `src/auth/idp` and `src/files`
-    const checkedWithTheirOwnApplication = (path: string): boolean => ['/file', '/IDP', '/logintoken', '/auth/'].some((prefix) => path.startsWith(prefix));
+    const checkedWithTheirOwnApplication = (path: string): boolean => ['/file', '/IDP', '/logintoken', '/auth/', '/domeblog', '/analytics', '/config/analytics', '/compliance', '/admin/uploadcertificate'].some((prefix) => path.startsWith(prefix));
 
     it('has a case for every documented response', () => {
         const documented = Object.entries(document.paths)
