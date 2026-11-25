@@ -1,5 +1,5 @@
-import { normalizeCountry } from '../../auth/profile/countries';
-import { isRecord } from '../../tmf/related-party';
+import { normalizeCountry } from '../auth/profile/countries';
+import { isRecord } from '../tmf/related-party';
 
 type Json = Record<string, unknown>;
 

@@ -1,13 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type { Request } from 'express';
 import { z } from 'zod';
-import { BadGatewayError, DomainError, ForbiddenError, NotFoundError } from '../../common/domain-error';
-import { AppConfigService } from '../../config/app-config.service';
-import { isResourceId } from '../../tmf/resource-id.pipe';
-import { callerParty, isRecord, isRelatedAs } from '../../tmf/related-party';
-import { parseJson } from '../../tmf/specification/specifications';
-import { TmfProxy } from '../../tmf/tmf-proxy';
-import type { UpstreamUser } from '../../tmf/upstream-headers';
+import { BadGatewayError, DomainError, ForbiddenError, NotFoundError } from '../common/domain-error';
+import { AppConfigService } from '../config/app-config.service';
+import { isResourceId } from '../tmf/resource-id.pipe';
+import { callerParty, isRecord, isRelatedAs } from '../tmf/related-party';
+import { parseJson } from '../tmf/specification/specifications';
+import { TmfProxy } from '../tmf/tmf-proxy';
+import type { UpstreamUser } from '../tmf/upstream-headers';
 import { complianceFileAddresses, organizationFields } from './compliance-form';
 import { fetchPublicFile, PublicFileError, type PublicFile } from './public-file';
 
@@ -38,7 +38,7 @@ export class ComplianceService {
     ) {}
 
     async requestCertificate(req: Request, body: string): Promise<CertificateRequestResult> {
-        const settings = this.config.dome.compliance;
+        const settings = this.config.compliance;
         if (settings.serverUrl === '') {
             throw new DomainError('The compliance service is not configured', 503);
         }
@@ -105,7 +105,7 @@ export class ComplianceService {
     }
 
     private async files(spec: Json): Promise<PublicFile[]> {
-        const { maxFiles, maxFileMb, fileOrigins, timeoutMs } = this.config.dome.compliance;
+        const { maxFiles, maxFileMb, fileOrigins, timeoutMs } = this.config.compliance;
         const addresses = complianceFileAddresses(spec);
         if (addresses.length > maxFiles) {
             throw new DomainError(`A certificate can be asked for with at most ${maxFiles} files`, 422);
@@ -137,7 +137,7 @@ export class ComplianceService {
     }
 
     private async send(req: Request, form: FormData, specId: string): Promise<CertificateRequestResult> {
-        const { serverUrl, timeoutMs } = this.config.dome.compliance;
+        const { serverUrl, timeoutMs } = this.config.compliance;
         const token = (req as Request & { user?: UpstreamUser }).user?.accessToken;
         let response: Response;
         try {

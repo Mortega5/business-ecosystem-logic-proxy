@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { AppConfigService } from '../../config/app-config.service';
-import { ConfigDocumentRepository } from '../../persistence/config-store/config-document.repository';
+import { AppConfigService } from '../config/app-config.service';
+import { ConfigDocumentRepository } from '../persistence/config-store/config-document.repository';
 import { parseAnalyticsConfig, type AnalyticsConfig } from './analytics-config';
 
 export const ANALYTICS_DOCUMENT_ID = 'analytics';
@@ -44,7 +44,7 @@ export class AnalyticsSettings {
     }
 
     private fromConfiguration(): AnalyticsConfig {
-        const { enabled, url, guestTokenPath, dashboards } = this.config.dome.analytics;
+        const { enabled, url, guestTokenPath, dashboards } = this.config.analytics;
         return {
             analytics: url,
             analyticsEnabled: enabled,

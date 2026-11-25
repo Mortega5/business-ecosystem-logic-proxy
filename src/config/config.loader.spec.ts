@@ -498,16 +498,83 @@ describe('datasets, file service and the other features of the portal', () => {
     });
 });
 
-describe('the DOME extension', () => {
+describe('the blog, the analytics, the compliance and the DOME extension', () => {
     const load = (env: NodeJS.ProcessEnv) => loadStaticConfig({ defaultsPath: DEFAULTS_PATH, env });
 
     it('has the compliance settings of v11 and takes the address of its service from the legacy variable', () => {
-        expect(load({}).dome.compliance).toMatchObject({ serverUrl: '', timeoutMs: 120000, maxFiles: 20, maxFileMb: 20, fileOrigins: [], certifierRole: 'certifier' });
-        expect(load({ BAE_LP_COMPLIANCE_SERVER_URL: 'https://compliance.example.org' }).dome.compliance.serverUrl).toBe('https://compliance.example.org');
+        expect(load({}).compliance).toMatchObject({ enabled: true, serverUrl: '', timeoutMs: 120000, maxFiles: 20, maxFileMb: 20, fileOrigins: [], certifierRole: 'certifier' });
+        expect(load({ BAE_LP_COMPLIANCE_SERVER_URL: 'https://compliance.example.org' }).compliance.serverUrl).toBe('https://compliance.example.org');
+        expect(load({ BAE_COMPLIANCE__ENABLED: 'false' }).compliance.enabled).toBe(false);
+    });
+
+    it('has the analytics settings of v11, from the legacy variables, and the blog on', () => {
+        expect(load({ BAE_LP_ANALYTICS_URL: 'https://superset.example.org' }).analytics.url).toBe('https://superset.example.org');
+        expect(load({ BAE_LP_ANALYTICS_ENABLED: 'true' }).analytics.enabled).toBe(true);
+        expect(load({}).blog.enabled).toBe(true);
+        expect(load({ BAE_BLOG__ENABLED: 'false' }).blog.enabled).toBe(false);
     });
 
     it('is on by default, as v11 had it, and is turned off with BAE_DOME__ENABLED', () => {
         expect(load({}).dome.enabled).toBe(true);
         expect(load({ BAE_DOME__ENABLED: 'false' }).dome.enabled).toBe(false);
+    });
+});
+
+describe('the login with verifiable credentials', () => {
+    const load = (env: NodeJS.ProcessEnv) => loadStaticConfig({ defaultsPath: DEFAULTS_PATH, env });
+    const complete = {
+        BAE_LP_SIOP_ENABLED: 'true',
+        BAE_LP_SIOP_CLIENT_ID: 'bae-client',
+        BAE_LP_SIOP_PRIVATE_KEY: 'a'.repeat(64),
+        BAE_LP_SIOP_CALLBACK_PATH: 'https://bae.example.org/auth/vc/callback',
+        BAE_LP_SIOP_VERIFIER_HOST: 'https://verifier.example.org'
+    };
+
+    it('is off by default, with the paths of v11, and with no operator and no certifier issuer', () => {
+        expect(load({}).auth.vc).toEqual({
+            enabled: false,
+            isRedirection: false,
+            signAlgorithm: 'ES256',
+            requestUri: '/auth/vc/request.jwt',
+            verifierQrCodePath: '/api/v1/loginQR',
+            verifierTokenPath: '/token',
+            verifierJwksPath: '/.well-known/jwks',
+            operators: [],
+            certIssuers: [],
+            certifierRole: 'certifier',
+            bindPollToSession: true
+        });
+    });
+
+    it('accepts the legacy variables, the one of the algorithm with its name without the P, and the lists separated by commas', () => {
+        const vc = load({
+            ...complete,
+            BAE_LP_SIOP_IS_REDIRECTION: 'true',
+            BAE_LP_SIO_SIGN_ALGORITHM: 'ES384',
+            BAE_LP_SIOP_VERIFIER_TOKEN_PATH: '/oidc/token',
+            BAE_LP_SIOP_OPERATORS: 'did:elsi:A, VATES-1,',
+            BAE_LP_SIOP_CERT_ISSUERS: 'did:web:certifier.example.org',
+            BAE_LP_OAUTH2_ORG_CERTIFIER_ROLE: 'auditor'
+        }).auth.vc;
+        expect(vc).toMatchObject({
+            enabled: true,
+            isRedirection: true,
+            clientId: 'bae-client',
+            privateKey: 'a'.repeat(64),
+            callbackUrl: 'https://bae.example.org/auth/vc/callback',
+            verifierHost: 'https://verifier.example.org',
+            signAlgorithm: 'ES384',
+            verifierTokenPath: '/oidc/token',
+            operators: ['did:elsi:A', 'VATES-1'],
+            certIssuers: ['did:web:certifier.example.org'],
+            certifierRole: 'auditor'
+        });
+    });
+
+    it('turns on only with "true", and refuses to be on without what it needs', () => {
+        expect(load({ ...complete, BAE_LP_SIOP_ENABLED: 'yes' }).auth.vc.enabled).toBe(false);
+        expect(() => load({ BAE_LP_SIOP_ENABLED: 'true' })).toThrow('required when auth.vc.enabled');
+        expect(() => load({ ...complete, BAE_LP_SIOP_PRIVATE_KEY: '' })).toThrow('required when auth.vc.enabled');
+        expect(load({ ...complete, BAE_LP_SIOP_PRIVATE_KEY: '', BAE_LP_SIOP_PRIVATE_KEY_PEM: '/keys/proxy.pem' }).auth.vc.privateKeyFile).toBe('/keys/proxy.pem');
     });
 });

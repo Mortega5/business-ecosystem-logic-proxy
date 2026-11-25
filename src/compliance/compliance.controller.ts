@@ -1,13 +1,13 @@
 import { All, Body, Controller, HttpCode, Post, Req, Res, UseInterceptors } from '@nestjs/common';
 import type { Request, Response } from 'express';
-import { NotFoundError } from '../../common/domain-error';
-import { BodyTextInterceptor } from '../../tmf/body-text.interceptor';
-import { JsonObjectBodyPipe } from '../../tmf/json-body.pipe';
-import { DomeRoutes } from '../dome-enabled.guard';
+import { NotFoundError } from '../common/domain-error';
+import { BodyTextInterceptor } from '../tmf/body-text.interceptor';
+import { JsonObjectBodyPipe } from '../tmf/json-body.pipe';
+import { RequireFeature } from '../features/require-feature';
 import { ComplianceService } from './compliance.service';
 
 /** The compliance certificate of a product, which its seller asks for. Anything else under /compliance is closed. */
-@DomeRoutes()
+@RequireFeature('compliance')
 @UseInterceptors(BodyTextInterceptor)
 @Controller('compliance')
 export class ComplianceController {

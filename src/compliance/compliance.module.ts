@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { TmfModule } from '../../tmf/tmf.module';
+import { TmfModule } from '../tmf/tmf.module';
 import { CertificateController } from './certificate.controller';
 import { CertificateService } from './certificate.service';
 import { ComplianceController } from './compliance.controller';

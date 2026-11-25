@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { BadGatewayError, DomainError, ForbiddenError } from '../../common/domain-error';
-import type { AppConfigService } from '../../config/app-config.service';
-import { FakeUpstream } from '../../testing/fake-upstream';
+import { BadGatewayError, DomainError, ForbiddenError } from '../common/domain-error';
+import type { AppConfigService } from '../config/app-config.service';
+import { FakeUpstream } from '../testing/fake-upstream';
 import type { AnalyticsConfig } from './analytics-config';
 import type { AnalyticsSettings } from './analytics-settings';
 import { GuestTokens } from './guest-token.service';
@@ -13,7 +13,7 @@ let tokens: GuestTokens;
 const configFor = (timeoutMs = 2000) =>
     ({
         auth: { roles: { admin: 'admin', customer: 'Buyer', seller: 'Seller', orgAdmin: 'orgAdmin' } },
-        dome: { analytics: { timeoutMs } }
+        analytics: { timeoutMs }
     }) as unknown as AppConfigService;
 const user = (roles: string[], accessToken: string | undefined = 'tok-ana') => ({
     id: 'u1',

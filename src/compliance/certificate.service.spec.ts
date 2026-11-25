@@ -1,9 +1,9 @@
 import jwt from 'jsonwebtoken';
 import type { Request } from 'express';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { BadGatewayError, ForbiddenError, NotFoundError } from '../../common/domain-error';
-import type { AppConfigService } from '../../config/app-config.service';
-import type { TmfProxy } from '../../tmf/tmf-proxy';
+import { BadGatewayError, ForbiddenError, NotFoundError } from '../common/domain-error';
+import type { AppConfigService } from '../config/app-config.service';
+import type { TmfProxy } from '../tmf/tmf-proxy';
 import { CertificateService } from './certificate.service';
 
 const SPEC_ID = 'urn:ngsi-ld:product-specification:7a1c0f3e';
@@ -19,7 +19,7 @@ const service = new CertificateService(
     { send } as unknown as TmfProxy,
     {
         auth: { roles: { admin: 'admin' } },
-        dome: { compliance: { certifierRole: 'certifier' } }
+        compliance: { certifierRole: 'certifier' }
     } as unknown as AppConfigService
 );
 

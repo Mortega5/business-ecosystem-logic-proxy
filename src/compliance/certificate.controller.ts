@@ -1,17 +1,17 @@
 import { All, Body, Controller, HttpCode, Param, Patch, Req, UseInterceptors } from '@nestjs/common';
 import type { Request } from 'express';
-import { NotFoundError } from '../../common/domain-error';
-import { BodyTextInterceptor } from '../../tmf/body-text.interceptor';
-import { JsonObjectBodyPipe } from '../../tmf/json-body.pipe';
-import { ResourceIdPipe } from '../../tmf/resource-id.pipe';
-import { DomeRoutes } from '../dome-enabled.guard';
+import { NotFoundError } from '../common/domain-error';
+import { BodyTextInterceptor } from '../tmf/body-text.interceptor';
+import { JsonObjectBodyPipe } from '../tmf/json-body.pipe';
+import { ResourceIdPipe } from '../tmf/resource-id.pipe';
+import { RequireFeature } from '../features/require-feature';
 import { CertificateService } from './certificate.service';
 
 /**
  * The credential of a product, for administrators and certifiers. It is under /admin, where the core closes only the routes it serves
  * itself, so this closes just its own prefix.
  */
-@DomeRoutes()
+@RequireFeature('compliance')
 @UseInterceptors(BodyTextInterceptor)
 @Controller('admin/uploadcertificate')
 export class CertificateController {

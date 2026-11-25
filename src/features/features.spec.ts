@@ -23,7 +23,9 @@ const staticValues = {
     datasets: { enabled: false },
     apiAccess: { enabled: false },
     blueprints: { enabled: true },
-    software: { enabled: true }
+    software: { enabled: true },
+    blog: { enabled: true },
+    compliance: { enabled: true }
 };
 const staticConfig = staticValues as unknown as AppConfigService;
 
@@ -39,6 +41,8 @@ const staticFeatures = {
     apiAccess: false,
     blueprints: true,
     software: true,
+    blog: true,
+    compliance: true,
     tenderDevButtons: false
 };
 

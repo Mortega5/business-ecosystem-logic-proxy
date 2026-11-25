@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import { DomainError, NotFoundError } from '../../common/domain-error';
-import type { AppConfigService } from '../../config/app-config.service';
+import { DomainError, NotFoundError } from '../common/domain-error';
+import type { AppConfigService } from '../config/app-config.service';
 import type { BlogFields, BlogRecord, BlogRepository } from './blog.repository';
 import { BlogService, slugBaseOf, viewOf } from './blog.service';
 
@@ -60,11 +60,11 @@ class MemoryEntries {
     });
 }
 
-const setup = (domeEnabled = true) => {
+const setup = (blogEnabled = true) => {
     const entries = new MemoryEntries();
     const service = new BlogService(
         entries as unknown as BlogRepository,
-        { dome: { enabled: domeEnabled } } as AppConfigService
+        { blog: { enabled: blogEnabled } } as AppConfigService
     );
     return { entries, service };
 };

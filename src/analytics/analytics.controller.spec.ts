@@ -2,17 +2,16 @@ import { Module } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import express from 'express';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { AuthModule } from '../../auth/auth.module';
-import { createApp } from '../../bootstrap';
-import { AppConfigModule } from '../../config/app-config.module';
-import { LoggingModule } from '../../logging/logging.module';
+import { AuthModule } from '../auth/auth.module';
+import { createApp } from '../bootstrap';
+import { AppConfigModule } from '../config/app-config.module';
+import { LoggingModule } from '../logging/logging.module';
 import {
     ConfigDocumentRepository,
     type ConfigDocument
-} from '../../persistence/config-store/config-document.repository';
-import { AS_ADMIN, AS_ORGANISATION, LOGGED_IN, useFakeLogin } from '../../testing/fake-login';
-import { FakeUpstream } from '../../testing/fake-upstream';
-import { DomeEnabledGuard } from '../dome-enabled.guard';
+} from '../persistence/config-store/config-document.repository';
+import { AS_ADMIN, AS_ORGANISATION, LOGGED_IN, useFakeLogin } from '../testing/fake-login';
+import { FakeUpstream } from '../testing/fake-upstream';
 import { AnalyticsConfigController } from './analytics-config.controller';
 import { AnalyticsController } from './analytics.controller';
 import { AnalyticsSettings } from './analytics-settings';
@@ -41,7 +40,6 @@ const superset = new FakeUpstream();
     providers: [
         AnalyticsSettings,
         GuestTokens,
-        DomeEnabledGuard,
         { provide: ConfigDocumentRepository, useValue: documents }
     ]
 })
@@ -53,10 +51,10 @@ legacy.use((_req, res) => {
 });
 
 const ENV = [
-    'BAE_DOME__ANALYTICS__URL',
-    'BAE_DOME__ANALYTICS__DASHBOARDS__BUSINESS_INSIGHTS_NON_LEAR',
-    'BAE_DOME__ANALYTICS__DASHBOARDS__BUSINESS_INSIGHTS_LEAR',
-    'BAE_DOME__ANALYTICS__DASHBOARDS__USAGE_MONITOR',
+    'BAE_ANALYTICS__URL',
+    'BAE_ANALYTICS__DASHBOARDS__BUSINESS_INSIGHTS_NON_LEAR',
+    'BAE_ANALYTICS__DASHBOARDS__BUSINESS_INSIGHTS_LEAR',
+    'BAE_ANALYTICS__DASHBOARDS__USAGE_MONITOR',
     'BAE_DOME__ENABLED'
 ];
 const JSON_HEADERS = { 'content-type': 'application/json' };
@@ -65,10 +63,10 @@ let url: string;
 
 const start = async (env: Record<string, string> = {}): Promise<void> => {
     Object.assign(process.env, {
-        BAE_DOME__ANALYTICS__URL: `http://127.0.0.1:${superset.port}`,
-        BAE_DOME__ANALYTICS__DASHBOARDS__BUSINESS_INSIGHTS_NON_LEAR: 'dash-non',
-        BAE_DOME__ANALYTICS__DASHBOARDS__BUSINESS_INSIGHTS_LEAR: 'dash-lear',
-        BAE_DOME__ANALYTICS__DASHBOARDS__USAGE_MONITOR: 'dash-usage',
+        BAE_ANALYTICS__URL: `http://127.0.0.1:${superset.port}`,
+        BAE_ANALYTICS__DASHBOARDS__BUSINESS_INSIGHTS_NON_LEAR: 'dash-non',
+        BAE_ANALYTICS__DASHBOARDS__BUSINESS_INSIGHTS_LEAR: 'dash-lear',
+        BAE_ANALYTICS__DASHBOARDS__USAGE_MONITOR: 'dash-usage',
         ...env
     });
     app = await createApp(legacy, Root);
@@ -179,11 +177,11 @@ describe('GET and PATCH /config/analytics', () => {
     });
 });
 
-describe('with the extension off', () => {
-    it('answers 404 to every route', async () => {
+describe('with the DOME extension off', () => {
+    it('is still served: the analytics are not a piece of the extension', async () => {
         await stop();
         await start({ BAE_DOME__ENABLED: 'false' });
-        expect((await post(LOGGED_IN, { tab: 'businessInsights' })).status).toBe(404);
-        expect((await config('GET', AS_ADMIN)).status).toBe(404);
+        expect((await config('GET', AS_ADMIN)).status).toBe(200);
+        expect((await post(LOGGED_IN, { tab: 'businessInsights' })).status).not.toBe(404);
     });
 });

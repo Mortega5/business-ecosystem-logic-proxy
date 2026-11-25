@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import type { AppConfigService } from '../../config/app-config.service';
+import type { AppConfigService } from '../config/app-config.service';
 import {
     ConfigDocumentRepository,
     type ConfigDocument
-} from '../../persistence/config-store/config-document.repository';
+} from '../persistence/config-store/config-document.repository';
 import { AnalyticsSettings } from './analytics-settings';
 
 class Documents extends ConfigDocumentRepository {
@@ -24,14 +24,12 @@ class Documents extends ConfigDocumentRepository {
 }
 
 const config = {
-    dome: {
-        analytics: {
-            enabled: true,
-            url: 'https://configured.example.org',
-            guestTokenPath: '/api/v1/dome/guest_token/',
-            dashboards: { businessInsightsNonLear: 'n', businessInsightsLear: 'l', usageMonitor: 'u' },
-            timeoutMs: 1000
-        }
+    analytics: {
+        enabled: true,
+        url: 'https://configured.example.org',
+        guestTokenPath: '/api/v1/dome/guest_token/',
+        dashboards: { businessInsightsNonLear: 'n', businessInsightsLear: 'l', usageMonitor: 'u' },
+        timeoutMs: 1000
     }
 } as unknown as AppConfigService;
 

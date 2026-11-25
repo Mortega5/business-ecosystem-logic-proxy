@@ -1,17 +1,23 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import express from 'express';
 import jwt from 'jsonwebtoken';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { AuthModule } from '../../auth/auth.module';
-import { createApp } from '../../bootstrap';
-import { AppConfigModule } from '../../config/app-config.module';
-import { LoggingModule } from '../../logging/logging.module';
-import { AS_ADMIN, AS_SELLER, LOGGED_IN, useFakeLogin } from '../../testing/fake-login';
-import { FakeUpstream } from '../../testing/fake-upstream';
-import { DomeModule } from '../dome.module';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { AuthModule } from '../auth/auth.module';
+import { createApp } from '../bootstrap';
+import { AppConfigModule } from '../config/app-config.module';
+import { FeatureGuard } from '../features/feature.guard';
+import { LoggingModule } from '../logging/logging.module';
+import { FakeFeaturesModule, featuresOn } from '../testing/fake-features';
+import { AS_ADMIN, AS_SELLER, LOGGED_IN, useFakeLogin } from '../testing/fake-login';
+import { FakeUpstream } from '../testing/fake-upstream';
+import { ComplianceModule } from './compliance.module';
 
-@Module({ imports: [AppConfigModule, LoggingModule, AuthModule, DomeModule] })
+@Module({
+    imports: [AppConfigModule, LoggingModule, FakeFeaturesModule, AuthModule, ComplianceModule],
+    providers: [{ provide: APP_GUARD, useClass: FeatureGuard }]
+})
 class Root {}
 
 const legacy = express();
@@ -27,8 +33,7 @@ const json = { 'content-type': 'application/json' };
 const KEYS = [
     'BAE_UPSTREAMS__TMFORUM__HOST',
     'BAE_UPSTREAMS__TMFORUM__PORT',
-    'BAE_DOME__COMPLIANCE__SERVER_URL',
-    'BAE_DOME__ENABLED'
+    'BAE_COMPLIANCE__SERVER_URL'
 ];
 
 let seen: { method?: string, url?: string, body: string }[] = [];
@@ -39,7 +44,7 @@ const serve = async (env: Record<string, string> = {}): Promise<string> => {
     Object.assign(process.env, {
         BAE_UPSTREAMS__TMFORUM__HOST: '127.0.0.1',
         BAE_UPSTREAMS__TMFORUM__PORT: String(tmforum.port),
-        BAE_DOME__COMPLIANCE__SERVER_URL: `http://127.0.0.1:${compliance.port}`,
+        BAE_COMPLIANCE__SERVER_URL: `http://127.0.0.1:${compliance.port}`,
         ...env
     });
     const app = await createApp(legacy, Root);
@@ -50,13 +55,11 @@ const serve = async (env: Record<string, string> = {}): Promise<string> => {
 };
 
 let url: string;
-let off: string;
 
 beforeAll(async () => {
     await tmforum.start();
     await compliance.start();
     url = await serve();
-    off = await serve({ BAE_DOME__ENABLED: 'false' });
 });
 afterAll(async () => {
     await Promise.all(apps.map((app) => app.close()));
@@ -65,6 +68,7 @@ afterAll(async () => {
     await compliance.stop();
 });
 beforeEach(() => {
+    featuresOn.add('compliance');
     seen = [];
     stored = {
         id: SPEC_ID,
@@ -189,10 +193,13 @@ describe('PATCH /admin/uploadcertificate/:specId', () => {
     });
 });
 
-describe('with the DOME extension off', () => {
-    it('has none of these routes', async () => {
-        expect((await certificate(AS_SELLER, off)).status).toBe(404);
-        expect((await upload(AS_ADMIN, { vc: credential }, off)).status).toBe(404);
+describe('with the compliance feature off', () => {
+    it('has none of these routes, and does not depend on the DOME extension', async () => {
+        featuresOn.clear();
+        expect((await certificate(AS_SELLER)).status).toBe(404);
+        expect((await upload(AS_ADMIN, { vc: credential })).status).toBe(404);
         expect(compliance.seen).toBeUndefined();
     });
 });
+
+afterEach(() => featuresOn.clear());

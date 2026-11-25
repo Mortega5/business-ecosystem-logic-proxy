@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { BadGatewayError, DomainError, ForbiddenError } from '../../common/domain-error';
-import { AppConfigService } from '../../config/app-config.service';
-import type { UpstreamUser } from '../../tmf/upstream-headers';
+import { BadGatewayError, DomainError, ForbiddenError } from '../common/domain-error';
+import { AppConfigService } from '../config/app-config.service';
+import type { UpstreamUser } from '../tmf/upstream-headers';
 import { guestTokenPath, supersetUrl } from './analytics-config';
 import { AnalyticsSettings } from './analytics-settings';
 
@@ -69,7 +69,7 @@ export class GuestTokens {
                 body: JSON.stringify({ dashboard: dashboardId }),
                 // A redirect would take the token of the user to another place
                 redirect: 'manual',
-                signal: AbortSignal.timeout(this.config.dome.analytics.timeoutMs)
+                signal: AbortSignal.timeout(this.config.analytics.timeoutMs)
             });
         } catch (error) {
             if (error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError')) {

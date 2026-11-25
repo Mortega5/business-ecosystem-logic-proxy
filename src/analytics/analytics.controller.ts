@@ -1,17 +1,15 @@
 import { All, Body, Controller, HttpCode, Post, Req, UseInterceptors } from '@nestjs/common';
 import type { Request } from 'express';
 import { z } from 'zod';
-import { DomainError, NotFoundError } from '../../common/domain-error';
-import { JsonObjectBodyPipe } from '../../tmf/json-body.pipe';
-import { BodyTextInterceptor } from '../../tmf/body-text.interceptor';
-import type { UpstreamUser } from '../../tmf/upstream-headers';
-import { DomeRoutes } from '../dome-enabled.guard';
+import { DomainError, NotFoundError } from '../common/domain-error';
+import { JsonObjectBodyPipe } from '../tmf/json-body.pipe';
+import { BodyTextInterceptor } from '../tmf/body-text.interceptor';
+import type { UpstreamUser } from '../tmf/upstream-headers';
 import { GuestTokens, TABS } from './guest-token.service';
 
 const guestTokenForm = z.object({ tab: z.string().trim() });
 
 /** The token to embed a dashboard of the analytics: for who is logged in. Anything else under /analytics is closed. */
-@DomeRoutes()
 @UseInterceptors(BodyTextInterceptor)
 @Controller('analytics')
 export class AnalyticsController {

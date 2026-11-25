@@ -36,23 +36,35 @@ const VALUE: AppConfig = {
         defaultTokenLifetimeSeconds: 1800,
         store: { type: 'memory', memoryMaxEntries: 1000 },
         externalLogin: { enabled: false },
+        vc: {
+            enabled: false,
+            isRedirection: false,
+            signAlgorithm: 'ES256',
+            requestUri: '/auth/vc/request.jwt',
+            verifierQrCodePath: '/api/v1/loginQR',
+            verifierTokenPath: '/token',
+            verifierJwksPath: '/.well-known/jwks',
+            operators: [],
+            certIssuers: [],
+            certifierRole: 'certifier',
+            bindPollToSession: true
+        },
         session: { maxAgeMs: 86400000, cookieSecure: 'auto', cookieSameSite: 'lax' }
     },
     purchase: { enabled: true, paymentProvider: 'none' },
     quotes: { enabled: true, api: '/quote/quoteManagement' },
     tendering: { enabled: true, devButtonsOpenClose: false },
     party: { editEnabled: true },
-    dome: {
+    dome: { enabled: true },
+    blog: { enabled: true },
+    analytics: {
         enabled: true,
-        analytics: {
-            enabled: true,
-            url: '',
-            guestTokenPath: '/api/v1/dome/guest_token/',
-            dashboards: { businessInsightsNonLear: '', businessInsightsLear: '', usageMonitor: '' },
-            timeoutMs: 10000
-        },
-        compliance: { serverUrl: '', timeoutMs: 120000, maxFiles: 20, maxFileMb: 20, fileOrigins: [], certifierRole: 'certifier' }
+        url: '',
+        guestTokenPath: '/api/v1/dome/guest_token/',
+        dashboards: { businessInsightsNonLear: '', businessInsightsLear: '', usageMonitor: '' },
+        timeoutMs: 10000
     },
+    compliance: { enabled: true, serverUrl: '', timeoutMs: 120000, maxFiles: 20, maxFileMb: 20, fileOrigins: [], certifierRole: 'certifier' },
     datasets: { enabled: false },
     apiAccess: { enabled: false },
     blueprints: { enabled: true },

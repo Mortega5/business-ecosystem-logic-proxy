@@ -37,6 +37,18 @@ export class AppConfigService {
         return this.value.dome;
     }
 
+    get blog(): AppConfig['blog'] {
+        return this.value.blog;
+    }
+
+    get analytics(): AppConfig['analytics'] {
+        return this.value.analytics;
+    }
+
+    get compliance(): AppConfig['compliance'] {
+        return this.value.compliance;
+    }
+
     get datasets(): AppConfig['datasets'] {
         return this.value.datasets;
     }

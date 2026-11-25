@@ -1,5 +1,6 @@
+import { PATH_METADATA } from '@nestjs/common/constants';
 import { describe, expect, it, vi } from 'vitest';
-import { DomainError, NotFoundError } from '../../common/domain-error';
+import { DomainError, NotFoundError } from '../common/domain-error';
 import { BlogController } from './blog.controller';
 import type { BlogService } from './blog.service';
 
@@ -56,7 +57,11 @@ describe('BlogController', () => {
         });
     });
 
-    it('closes everything else under /domeblog', () => {
+    it('serves /blog and, as another name for it, /domeblog', () => {
+        expect(Reflect.getMetadata(PATH_METADATA, BlogController)).toEqual(['blog', 'domeblog']);
+    });
+
+    it('closes everything else under /blog and /domeblog', () => {
         expect(() => setup().controller.closed()).toThrow(NotFoundError);
     });
 });

@@ -1,6 +1,6 @@
 import { Injectable, Logger, type OnModuleInit } from '@nestjs/common';
-import { DomainError, NotFoundError } from '../../common/domain-error';
-import { AppConfigService } from '../../config/app-config.service';
+import { DomainError, NotFoundError } from '../common/domain-error';
+import { AppConfigService } from '../config/app-config.service';
 import type { BlogChangeForm, BlogView, NewBlogForm } from './blog-form';
 import { OBJECT_ID } from './blog-form';
 import { BlogRepository, type BlogFields, type BlogRecord } from './blog.repository';
@@ -61,7 +61,7 @@ export class BlogService implements OnModuleInit {
 
     /** The entries that v11 left without slug get one now, so that reading never has to write. */
     async onModuleInit(): Promise<void> {
-        if (!this.config.dome.enabled) {
+        if (!this.config.blog.enabled) {
             return;
         }
         try {

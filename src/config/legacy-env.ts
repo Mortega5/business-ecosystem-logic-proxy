@@ -38,7 +38,7 @@ const SWITCHES: [string, string][] = [
     ['auth.allowLocalEori', 'BAE_LP_ALLOW_LOCAL_EORI'],
     ['auth.idp.oidcEnabled', 'BAE_LP_OIDC_ENABLED'],
     ['purchase.enabled', 'BAE_LP_PURCHASE_ENABLED'],
-    ['dome.analytics.enabled', 'BAE_LP_ANALYTICS_ENABLED'],
+    ['analytics.enabled', 'BAE_LP_ANALYTICS_ENABLED'],
     ['datasets.enabled', 'BAE_LP_DATASETS_ENABLED'],
     ['apiAccess.enabled', 'BAE_LP_API_ACCESS_ENABLED'],
     ['fileService.enabled', 'BAE_LP_FILE_SERVICE_ENABLED'],
@@ -50,7 +50,9 @@ const SWITCHES: [string, string][] = [
     ['party.editEnabled', 'BAE_LP_EDIT_PARTY'],
     ['launchValidation.enabled', 'BAE_LP_LAUNCH_VALIDATION_ENABLED'],
     ['launchValidation.allowUntrustedCertificates', 'BAE_LP_LAUNCH_VALIDATION_ALLOW_UNTRUSTED_CERTIFICATES'],
-    ['tendering.devButtonsOpenClose', 'BAE_LP_TENDER_DEV_BUTTON_ENABLED']
+    ['tendering.devButtonsOpenClose', 'BAE_LP_TENDER_DEV_BUTTON_ENABLED'],
+    ['auth.vc.enabled', 'BAE_LP_SIOP_ENABLED'],
+    ['auth.vc.isRedirection', 'BAE_LP_SIOP_IS_REDIRECTION']
 ];
 
 const VALUES: [string, string][] = [
@@ -97,13 +99,25 @@ const VALUES: [string, string][] = [
     ['fileService.timeoutMs', 'BAE_LP_FILE_SERVICE_TIMEOUT'],
     ['fileService.maxSizeMb', 'BAE_LP_FILE_SERVICE_MAX_SIZE_MB'],
     ['fileService.acceptedTypes', 'BAE_LP_FILE_SERVICE_ACCEPTED_TYPES'],
-    ['dome.compliance.serverUrl', 'BAE_LP_COMPLIANCE_SERVER_URL'],
-    ['dome.compliance.certifierRole', 'BAE_LP_OAUTH2_ORG_CERTIFIER_ROLE'],
-    ['dome.analytics.url', 'BAE_LP_ANALYTICS_URL'],
-    ['dome.analytics.guestTokenPath', 'BAE_LP_ANALYTICS_SUPERSET_GUEST_TOKEN_PATH'],
-    ['dome.analytics.dashboards.businessInsightsNonLear', 'BAE_LP_ANALYTICS_DASHBOARD_BUSINESS_INSIGHTS_NON_LEAR'],
-    ['dome.analytics.dashboards.businessInsightsLear', 'BAE_LP_ANALYTICS_DASHBOARD_BUSINESS_INSIGHTS_LEAR'],
-    ['dome.analytics.dashboards.usageMonitor', 'BAE_LP_ANALYTICS_DASHBOARD_USAGE_MONITOR']
+    ['compliance.serverUrl', 'BAE_LP_COMPLIANCE_SERVER_URL'],
+    ['compliance.certifierRole', 'BAE_LP_OAUTH2_ORG_CERTIFIER_ROLE'],
+    ['analytics.url', 'BAE_LP_ANALYTICS_URL'],
+    ['analytics.guestTokenPath', 'BAE_LP_ANALYTICS_SUPERSET_GUEST_TOKEN_PATH'],
+    ['analytics.dashboards.businessInsightsNonLear', 'BAE_LP_ANALYTICS_DASHBOARD_BUSINESS_INSIGHTS_NON_LEAR'],
+    ['analytics.dashboards.businessInsightsLear', 'BAE_LP_ANALYTICS_DASHBOARD_BUSINESS_INSIGHTS_LEAR'],
+    ['analytics.dashboards.usageMonitor', 'BAE_LP_ANALYTICS_DASHBOARD_USAGE_MONITOR'],
+    ['auth.vc.clientId', 'BAE_LP_SIOP_CLIENT_ID'],
+    ['auth.vc.privateKey', 'BAE_LP_SIOP_PRIVATE_KEY'],
+    ['auth.vc.privateKeyFile', 'BAE_LP_SIOP_PRIVATE_KEY_PEM'],
+    ['auth.vc.callbackUrl', 'BAE_LP_SIOP_CALLBACK_PATH'],
+    ['auth.vc.requestUri', 'BAE_LP_SIOP_REQUEST_URI'],
+    ['auth.vc.verifierHost', 'BAE_LP_SIOP_VERIFIER_HOST'],
+    ['auth.vc.verifierQrCodePath', 'BAE_LP_SIOP_VERIFIER_QRCODE_PATH'],
+    ['auth.vc.verifierTokenPath', 'BAE_LP_SIOP_VERIFIER_TOKEN_PATH'],
+    ['auth.vc.verifierJwksPath', 'BAE_LP_SIOP_VERIFIER_JWKS_PATH'],
+    // The variable is called SIO and not SIOP, as v11 had it
+    ['auth.vc.signAlgorithm', 'BAE_LP_SIO_SIGN_ALGORITHM'],
+    ['auth.vc.certifierRole', 'BAE_LP_OAUTH2_ORG_CERTIFIER_ROLE']
 ];
 
 // Anything other than "true" turns a switch off
@@ -178,6 +192,25 @@ const PORTAL_EXTRA_VARIABLES: [key: string, variable: string][] = [
     ['portal.extra.learUrl', 'BAE_LP_LEAR_URL'],
     ['portal.extra.roles.certifier', 'BAE_LP_OAUTH2_ORG_CERTIFIER_ROLE']
 ];
+
+// The lists of the login with credentials are separated by commas
+const COMMA_LISTS: [string, string][] = [
+    ['auth.vc.operators', 'BAE_LP_SIOP_OPERATORS'],
+    ['auth.vc.certIssuers', 'BAE_LP_SIOP_CERT_ISSUERS']
+];
+const commaListRules: LegacyRule[] = COMMA_LISTS.map(([key, variable]) => ({
+    key,
+    variables: [variable],
+    build: (env) =>
+        present(env[variable])
+            ? JSON.stringify(
+                  env[variable]
+                      .split(',')
+                      .map((entry) => entry.trim())
+                      .filter((entry) => entry !== '')
+              )
+            : undefined
+}));
 
 const portalExtraRules: LegacyRule[] = [
     ...PORTAL_EXTRA_VARIABLES.map(([key, variable]) => ({ key, variables: [variable], build: (env: NodeJS.ProcessEnv) => env[variable] })),
@@ -279,6 +312,7 @@ const RULES: LegacyRule[] = [
     ...switchRules,
     ...offOnlyByFalseRules,
     ...valueRules,
+    ...commaListRules,
     ...portalExtraRules,
     contactUsRule,
     ...endpointRules

@@ -1,9 +1,9 @@
 import type { Request } from 'express';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { BadGatewayError, DomainError, ForbiddenError, NotFoundError } from '../../common/domain-error';
-import type { AppConfigService } from '../../config/app-config.service';
-import { FakeUpstream } from '../../testing/fake-upstream';
-import type { TmfProxy } from '../../tmf/tmf-proxy';
+import { BadGatewayError, DomainError, ForbiddenError, NotFoundError } from '../common/domain-error';
+import type { AppConfigService } from '../config/app-config.service';
+import { FakeUpstream } from '../testing/fake-upstream';
+import type { TmfProxy } from '../tmf/tmf-proxy';
 import { ComplianceService } from './compliance.service';
 import { fetchPublicFile, PublicFileError } from './public-file';
 
@@ -48,7 +48,7 @@ const settings = (extra: Record<string, unknown> = {}) => ({
 const serviceWith = (dome: Record<string, unknown> = {}) =>
     new ComplianceService(
         { send } as unknown as TmfProxy,
-        { auth: { roles: { seller: 'Seller' } }, dome: { compliance: settings(dome) } } as unknown as AppConfigService
+        { auth: { roles: { seller: 'Seller' } }, compliance: settings(dome) } as unknown as AppConfigService
     );
 const as = (partyId: string | undefined, accessToken = 'user-token') =>
     ({ user: { partyId, accessToken } }) as unknown as Request;

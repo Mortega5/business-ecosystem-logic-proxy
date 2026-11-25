@@ -1,21 +1,24 @@
 import { All, Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, UseGuards, UseInterceptors } from '@nestjs/common';
-import { Public } from '../../auth/public.decorator';
-import { NotFoundError } from '../../common/domain-error';
-import { AdministratorGuard } from '../../tmf/administrator.guard';
-import { BodyTextInterceptor } from '../../tmf/body-text.interceptor';
-import { JsonObjectBodyPipe } from '../../tmf/json-body.pipe';
-import { parseRequest } from '../../tmf/schemas/parse';
-import { DomeRoutes } from '../dome-enabled.guard';
+import { Public } from '../auth/public.decorator';
+import { NotFoundError } from '../common/domain-error';
+import { AdministratorGuard } from '../tmf/administrator.guard';
+import { BodyTextInterceptor } from '../tmf/body-text.interceptor';
+import { JsonObjectBodyPipe } from '../tmf/json-body.pipe';
+import { parseRequest } from '../tmf/schemas/parse';
+import { RequireFeature } from '../features/require-feature';
+import { BlogAliasGuard } from './blog-alias.guard';
 import { blogChangeForm, newBlogForm, type BlogView } from './blog-form';
 import { BlogService } from './blog.service';
 
 /**
  * The blog, the news and the questions of the marketplace. Anybody reads them, and only an administrator writes them.
- * Anything else under /domeblog is closed here, so it is not handed to the legacy application.
+ * It is at `/blog`, and also at `/domeblog` while the DOME extension is on. Anything else under either is closed here, so it is not
+ * handed to the legacy application.
  */
-@DomeRoutes()
+@RequireFeature('blog')
+@UseGuards(BlogAliasGuard)
 @UseInterceptors(BodyTextInterceptor)
-@Controller('domeblog')
+@Controller(['blog', 'domeblog'])
 export class BlogController {
     constructor(private readonly blog: BlogService) {}
 
@@ -53,7 +56,7 @@ export class BlogController {
         return { message: 'Blog entry deleted successfully', deletedBlog };
     }
 
-    // Nothing else is under /domeblog
+    // Nothing else is under /blog or /domeblog
     @All(['', '{*path}'])
     closed(): never {
         throw new NotFoundError('Not found');

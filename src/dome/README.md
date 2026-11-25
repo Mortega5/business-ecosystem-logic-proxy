@@ -1,6 +1,6 @@
 # DOME extension
 
-What the DOME marketplace adds to the core: the blog, the analytics, the compliance certificates and the verifiable credentials.
+What belongs only to the DOME marketplace and not to the core. For now it has no pieces of its own: the blog (`src/blog`, which `/domeblog` also reaches while `dome.enabled` is on), the analytics (`src/analytics`) and the compliance (`src/compliance`) are part of the core, each with its own setting, and the login with verifiable credentials is one more identity provider.
 
 Rules, so that it can be taken out:
 

@@ -197,6 +197,46 @@ export const ConfigSchema = z.object({
             .refine((login) => !login.enabled || (login.eori !== undefined && login.tokenKey !== undefined && login.tokenCrt !== undefined), {
                 message: 'eori, tokenKey and tokenCrt are required when auth.externalLogin.enabled is true'
             }),
+        // The login with verifiable credentials (SIOP). With it on it is the main identity provider, instead of the one of `auth.idp`.
+        // Where the proxy is a client of a verifier: it signs with its key (a PEM file, or 32 bytes in hexadecimal), and a wallet shows
+        // the user's credential to the verifier. `isRedirection`: the user comes back to the proxy with the code; otherwise the verifier
+        // tells the proxy and the browser polls for it
+        vc: z
+            .object({
+                enabled: booleanLike,
+                isRedirection: booleanLike,
+                clientId: z.string().min(1).optional(),
+                privateKey: z.string().min(1).optional(),
+                privateKeyFile: z.string().min(1).optional(),
+                signAlgorithm: z.string().min(1),
+                callbackUrl: z.url().optional(),
+                requestUri: z.string().startsWith('/'),
+                verifierHost: z.url().optional(),
+                verifierQrCodePath: z.string().startsWith('/'),
+                verifierTokenPath: z.string().startsWith('/'),
+                verifierJwksPath: z.string().startsWith('/'),
+                // When set, a token has to be issued by it (not checked when it is not set)
+                verifierIssuer: z.string().min(1).optional(),
+                // Issuers, or organisation identifiers, whose users are administrators of the platform
+                operators: z.array(z.string().min(1)),
+                // Issuers trusted to certify a product; with none, no certificate is accepted
+                certIssuers: z.array(z.string().min(1)),
+                certifierRole: z.string().min(1),
+                // The first browser that asks for the answer of a verifier is the only one that gets it; it needs the session cookie to
+                // reach the proxy in each poll
+                bindPollToSession: booleanLike
+            })
+            .refine(
+                (vc) =>
+                    !vc.enabled ||
+                    (vc.clientId !== undefined &&
+                        (vc.privateKey !== undefined || vc.privateKeyFile !== undefined) &&
+                        vc.callbackUrl !== undefined &&
+                        vc.verifierHost !== undefined),
+                {
+                    message: 'clientId, a private key (privateKey or privateKeyFile), callbackUrl and verifierHost are required when auth.vc.enabled is true'
+                }
+            ),
         // The portal of another site that the user is sent to after the login, with the access token in the address (empty: the one of
         // the proxy)
         externalPortal: z.url().optional(),
@@ -222,40 +262,41 @@ export const ConfigSchema = z.object({
     quotes: z.object({ enabled: booleanLike, api: z.string().min(1) }),
     tendering: z.object({ enabled: booleanLike, devButtonsOpenClose: booleanLike }),
     party: z.object({ editEnabled: booleanLike }),
-    // The DOME extension (the blog, the analytics, the compliance certificates and the verifiable credentials): with it off none of its
-    // routes exists. It lives in `src/dome` and nothing of the core depends on it
-    dome: z.object({
+    // The extension of DOME. It has no pieces of its own for now: its routes exist only while `dome.enabled` is on, and it lives in `src/dome`
+    dome: z.object({ enabled: booleanLike }),
+    // The blog, the news and the questions of the marketplace. `/domeblog` is another name for `/blog` that exists while `dome.enabled` is on
+    blog: z.object({ enabled: booleanLike }),
+    // The analytics: dashboards of an Apache Superset that the portal embeds. What an administrator saves from the portal wins over
+    // these values, which are the starting ones
+    analytics: z.object({
         enabled: booleanLike,
-        // The analytics: dashboards of an Apache Superset that the portal embeds. What an administrator saves from the portal wins over
-        // these values, which are the starting ones
-        analytics: z.object({
-            enabled: booleanLike,
-            // Where Superset is; empty while there is none
-            url: z.union([z.literal(''), z.url()]),
-            guestTokenPath: z.string().min(1),
-            dashboards: z.object({
-                businessInsightsNonLear: z.string(),
-                businessInsightsLear: z.string(),
-                usageMonitor: z.string()
-            }),
-            // Longest time to wait for Superset
-            timeoutMs: z.coerce.number().int().positive()
+        // Where Superset is; empty while there is none
+        url: z.union([z.literal(''), z.url()]),
+        guestTokenPath: z.string().min(1),
+        dashboards: z.object({
+            businessInsightsNonLear: z.string(),
+            businessInsightsLear: z.string(),
+            usageMonitor: z.string()
         }),
-        // The compliance service, which issues the certificate of a product that a seller asks for, and the credential that a certifier
-        // uploads for it
-        compliance: z.object({
-            // Where the compliance service is; empty while there is none, and then a certificate cannot be asked for
-            serverUrl: z.union([z.literal(''), z.url()]),
-            // Longest time to wait for it: it analyses the files it is given
-            timeoutMs: z.coerce.number().int().positive(),
-            // The files that go with a request are read from the addresses the product names: how many, how big each is, and the
-            // origins they may be at (empty: any public address)
-            maxFiles: z.coerce.number().int().positive(),
-            maxFileMb: z.coerce.number().int().positive(),
-            fileOrigins: z.array(z.string().min(1)),
-            // Whoever has this role, besides the administrators, uploads the credential of a product
-            certifierRole: z.string().min(1)
-        })
+        // Longest time to wait for Superset
+        timeoutMs: z.coerce.number().int().positive()
+    }),
+    // The compliance service, which issues the certificate of a product that a seller asks for, and the credential that a certifier
+    // uploads for it
+    compliance: z.object({
+        // With it off the two routes (the certificate of a product and the upload of its credential) do not exist
+        enabled: booleanLike,
+        // Where the compliance service is; empty while there is none, and then a certificate cannot be asked for
+        serverUrl: z.union([z.literal(''), z.url()]),
+        // Longest time to wait for it: it analyses the files it is given
+        timeoutMs: z.coerce.number().int().positive(),
+        // The files that go with a request are read from the addresses the product names: how many, how big each is, and the
+        // origins they may be at (empty: any public address)
+        maxFiles: z.coerce.number().int().positive(),
+        maxFileMb: z.coerce.number().int().positive(),
+        fileOrigins: z.array(z.string().min(1)),
+        // Whoever has this role, besides the administrators, uploads the credential of a product
+        certifierRole: z.string().min(1)
     }),
     // What the portal can offer, as the starting value of the flags that an administrator switches from the portal
     datasets: z.object({ enabled: booleanLike }),

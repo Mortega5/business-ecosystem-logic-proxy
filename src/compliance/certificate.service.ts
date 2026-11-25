@@ -3,13 +3,13 @@ import jwt from 'jsonwebtoken';
 import { randomUUID } from 'node:crypto';
 import type { Request } from 'express';
 import { z } from 'zod';
-import { BadGatewayError, DomainError, ForbiddenError, NotFoundError } from '../../common/domain-error';
-import { AppConfigService } from '../../config/app-config.service';
-import type { UserProfile } from '../../auth/profile/user-profile';
-import { isRecord } from '../../tmf/related-party';
-import { parseJson } from '../../tmf/specification/specifications';
-import { TmfProxy } from '../../tmf/tmf-proxy';
-import type { UpstreamUser } from '../../tmf/upstream-headers';
+import { BadGatewayError, DomainError, ForbiddenError, NotFoundError } from '../common/domain-error';
+import { AppConfigService } from '../config/app-config.service';
+import type { UserProfile } from '../auth/profile/user-profile';
+import { isRecord } from '../tmf/related-party';
+import { parseJson } from '../tmf/specification/specifications';
+import { TmfProxy } from '../tmf/tmf-proxy';
+import type { UpstreamUser } from '../tmf/upstream-headers';
 
 const CREDENTIAL = 'compliance:vc';
 // A credential is a signed token with a certificate chain: a few kilobytes
@@ -104,7 +104,7 @@ export class CertificateService {
         if (user === undefined) {
             return false;
         }
-        const certifier = this.config.dome.compliance.certifierRole;
+        const certifier = this.config.compliance.certifierRole;
         return (
             hasRole(user.roles, this.config.auth.roles.admin) ||
             hasRole(user.roles, certifier) ||
