@@ -29,6 +29,17 @@ export interface FileContent {
     stream: Readable;
 }
 
+/** The error of the client that made the request fail, wherever the HTTP client has wrapped it. */
+const causeOf = (error: unknown): DomainError | undefined => {
+    for (let current = error, depth = 0; current instanceof Error && depth < 5; depth += 1) {
+        if (current instanceof DomainError) {
+            return current;
+        }
+        current = (current as { cause?: unknown }).cause;
+    }
+    return undefined;
+};
+
 // What the file service can tell a client that is its fault; anything else is the file service's, and the client is told it is a 502
 const CLIENT_STATUSES = [400, 404, 409, 413, 415, 416, 422];
 
@@ -154,6 +165,12 @@ export class FileServiceClient {
                 ...(body === undefined ? {} : { body, duplex: 'half' })
             } as RequestInit);
         } catch (error) {
+            // An upload that the client broke (a file that is too big, a body that was cut) fails here with its own error: it is the
+            // client's, and it is told as it is
+            const own = causeOf(error);
+            if (own !== undefined) {
+                throw own;
+            }
             this.logger.error(`${method} ${path} could not reach the file service: ${error instanceof Error ? error.message : 'unknown error'}`);
             throw new BadGatewayError('The file service is not reachable');
         }

@@ -199,6 +199,9 @@ importers:
       body-parser:
         specifier: ^1.18.3
         version: 1.20.6(supports-color@5.5.0)
+      busboy:
+        specifier: 1.6.0
+        version: 1.6.0
       cookie-parser:
         specifier: 1.4.0
         version: 1.4.0
@@ -356,6 +359,9 @@ importers:
       '@swc/core':
         specifier: ^1.16.20
         version: 1.16.20
+      '@types/busboy':
+        specifier: 1.5.4
+        version: 1.5.4
       '@types/express':
         specifier: ^4.17.25
         version: 4.17.25
@@ -1164,6 +1170,9 @@ packages:
 
   '@types/body-parser@1.19.6':
     resolution: {integrity: sha512-HLFeCYgz89uk22N5Qg3dvGvsv46B8GLvKKo1zKG4NybA8U2DiEO3w9lqGg29t/tfLRJpJ6iQxnVw4OnB7MoM9g==}
+
+  '@types/busboy@1.5.4':
+    resolution: {integrity: sha512-kG7WrUuAKK0NoyxfQHsVE6j1m01s6kMma64E+OZenQABMQyTJop1DumUWcLwAQ2JzpefU7PDYoRDKl8uZosFjw==}
 
   '@types/cacheable-request@6.0.3':
     resolution: {integrity: sha512-IQ3EbTzGxIigb1I3qPZc1rWJnH0BmSKv5QYTalEwweFvyBDLSAe24zP0le/hyi7ecGfZVlIVAg4BZqb8WBwKqw==}
@@ -5130,6 +5139,10 @@ snapshots:
   '@types/body-parser@1.19.6':
     dependencies:
       '@types/connect': 3.4.38
+      '@types/node': 26.4.0
+
+  '@types/busboy@1.5.4':
+    dependencies:
       '@types/node': 26.4.0
 
   '@types/cacheable-request@6.0.3':
