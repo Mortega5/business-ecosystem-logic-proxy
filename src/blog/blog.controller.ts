@@ -38,7 +38,7 @@ export class BlogController {
     @UseGuards(AdministratorGuard)
     @Post()
     @HttpCode(201)
-    create(@Body(JsonObjectBodyPipe) body: string): Promise<BlogView> {
+    async create(@Body(JsonObjectBodyPipe) body: string): Promise<BlogView> {
         return this.blog.create(parseRequest(newBlogForm, JSON.parse(body), 'Validation failed'));
     }
 
