@@ -27,6 +27,19 @@ const keepQuery = (req: IncomingMessage): void => {
     }
 };
 
+// The legacy application knows nobody by the session of v12: whoever logged in at the browser is given to it as the bearer token that
+// it asks for, unless the request carries a token of its own
+const lendSessionToken = (req: IncomingMessage): void => {
+    const token = (req as IncomingMessage & { session?: { accessToken?: string } }).session?.accessToken;
+    if (
+        token !== undefined &&
+        req.headers['authorization'] === undefined &&
+        req.headers['x-auth-token'] === undefined
+    ) {
+        req.headers['authorization'] = `Bearer ${token}`;
+    }
+};
+
 /** Hands every request Nest has no route for to the legacy Express app. */
 @Catch(NotFoundException)
 export class LegacyFallbackFilter implements ExceptionFilter {
@@ -40,6 +53,7 @@ export class LegacyFallbackFilter implements ExceptionFilter {
         const req = http.getRequest<IncomingMessage>();
         const res = http.getResponse<ServerResponse>();
         keepQuery(req);
+        lendSessionToken(req);
         this.legacy(req, res, (error?: unknown) => {
             if (error === undefined) {
                 sendNotFound(req, res);
