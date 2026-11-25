@@ -282,7 +282,20 @@ describe('authentication configuration', () => {
             defaultTokenLifetimeSeconds: 1800,
             store: { type: 'memory', memoryMaxEntries: 1000 },
             externalLogin: { enabled: false },
-            session: { maxAgeMs: 86400000, cookieSecure: 'auto', cookieSameSite: 'lax' }
+            session: { maxAgeMs: 86400000, cookieSecure: 'auto', cookieSameSite: 'lax' },
+            vc: {
+                enabled: false,
+                isRedirection: false,
+                signAlgorithm: 'ES256',
+                requestUri: '/auth/vc/request.jwt',
+                verifierQrCodePath: '/api/v1/loginQR',
+                verifierTokenPath: '/token',
+                verifierJwksPath: '/.well-known/jwks',
+                operators: [],
+                certIssuers: [],
+                certifierRole: 'certifier',
+                bindPollToSession: true
+            }
         });
     });
 

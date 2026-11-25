@@ -198,6 +198,7 @@ const COMMA_LISTS: [string, string][] = [
     ['auth.vc.operators', 'BAE_LP_SIOP_OPERATORS'],
     ['auth.vc.certIssuers', 'BAE_LP_SIOP_CERT_ISSUERS']
 ];
+const LIST_KEYS = new Set(COMMA_LISTS.map(([key]) => key));
 const commaListRules: LegacyRule[] = COMMA_LISTS.map(([key, variable]) => ({
     key,
     variables: [variable],
@@ -335,7 +336,7 @@ export const legacyEnvToObject = (env: NodeJS.ProcessEnv): { values: PlainObject
             continue;
         }
         if (typeof built === 'string') {
-            setPath(values, rule.key.split('.'), built);
+            setPath(values, rule.key.split('.'), LIST_KEYS.has(rule.key) ? (JSON.parse(built) as string[]) : built);
         } else {
             for (const [name, value] of Object.entries(built)) {
                 setPath(values, [...rule.key.split('.'), name], value);
