@@ -177,7 +177,15 @@ export const ConfigSchema = z.object({
             .refine((store) => store.type !== 'mongo' || store.encryptionKey !== undefined, {
                 path: ['encryptionKey'],
                 message: 'is required when auth.store.type is mongo'
-            })
+            }),
+        // The session of the browser. The secret signs its cookie and has no default: whoever knows it can forge a session
+        session: z.object({
+            secret: z.string().min(32).optional(),
+            maxAgeMs: z.coerce.number().int().positive(),
+            // `auto` sets the Secure flag when the request came over HTTPS (behind a proxy, trust proxy has to be on)
+            cookieSecure: z.enum(['auto', 'true', 'false']),
+            cookieSameSite: z.enum(['lax', 'strict'])
+        })
     }),
     purchase: z
         .object({

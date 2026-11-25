@@ -280,7 +280,8 @@ describe('authentication configuration', () => {
             profileTtlMs: 7200000,
             refreshMarginSeconds: 5,
             defaultTokenLifetimeSeconds: 1800,
-            store: { type: 'memory', memoryMaxEntries: 1000 }
+            store: { type: 'memory', memoryMaxEntries: 1000 },
+            session: { maxAgeMs: 86400000, cookieSecure: 'auto', cookieSameSite: 'lax' }
         });
     });
 
@@ -335,6 +336,18 @@ describe('authentication configuration', () => {
             encryptionKey: key
         });
         expect(load({ BAE_AUTH__STORE__MEMORY_MAX_ENTRIES: '50' }).auth.store.memoryMaxEntries).toBe(50);
+    });
+
+    it('reads the session settings and refuses a secret that is too short', () => {
+        const secret = 's'.repeat(32);
+        expect(
+            load({
+                BAE_AUTH__SESSION__SECRET: secret,
+                BAE_AUTH__SESSION__COOKIE_SECURE: 'true',
+                BAE_AUTH__SESSION__MAX_AGE_MS: '60000'
+            }).auth.session
+        ).toEqual({ secret, maxAgeMs: 60000, cookieSecure: 'true', cookieSameSite: 'lax' });
+        expect(() => load({ BAE_AUTH__SESSION__SECRET: 'short' })).toThrow('auth.session.secret');
     });
 
     it('accepts the legacy variables', () => {

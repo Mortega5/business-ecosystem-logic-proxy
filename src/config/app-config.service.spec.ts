@@ -34,7 +34,8 @@ const VALUE: AppConfig = {
         profileTtlMs: 7200000,
         refreshMarginSeconds: 5,
         defaultTokenLifetimeSeconds: 1800,
-        store: { type: 'memory', memoryMaxEntries: 1000 }
+        store: { type: 'memory', memoryMaxEntries: 1000 },
+        session: { maxAgeMs: 86400000, cookieSecure: 'auto', cookieSameSite: 'lax' }
     },
     purchase: { enabled: true, paymentProvider: 'none' },
     quotes: { enabled: true, api: '/quote/quoteManagement' },
