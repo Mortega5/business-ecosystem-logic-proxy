@@ -78,6 +78,7 @@ const mongo = { ping: vi.fn<(timeoutMs: number) => Promise<boolean>>() };
                 stats: { ttlMs: 86400000, retryDelayMs: 600000, providerTtlMs: 60000 },
                 purchase: { enabled: true, paymentProvider: 'dpas', get paymentGateway() { return `http://127.0.0.1:${tmforum.port}/`; } },
                 auth: { store: { type: 'memory', memoryMaxEntries: 10 }, propagateToken: true, allowLocalEori: false, roles: { admin: 'admin', customer: 'Buyer', seller: 'Seller', orgAdmin: 'orgAdmin' } },
+                fileService: { enabled: false, url: 'http://file-service:8081', timeoutMs: 1000, maxSizeMb: 100, acceptedTypes: '' },
                 hasUpstream: () => false,
                 upstream: (name: string) => ({ baseUrl: `http://127.0.0.1:${tmforum.port}/${name}`, timeoutMs: 300 })
             }
@@ -987,8 +988,13 @@ describe('responses against docs/openapi.yaml', () => {
         tmforum.reset();
     });
 
+    // These need a session, a file service or an identity provider that this application does not have; their answers are checked
+    // against a real one in `src/auth/login`, `src/auth/idp` and `src/files`
+    const checkedWithTheirOwnApplication = (path: string): boolean => ['/file', '/IDP', '/logintoken', '/auth/'].some((prefix) => path.startsWith(prefix));
+
     it('has a case for every documented response', () => {
         const documented = Object.entries(document.paths)
+            .filter(([path]) => !checkedWithTheirOwnApplication(path))
             .flatMap(([path, operations]) =>
                 Object.entries(operations).flatMap(([method, operation]) =>
                     Object.keys(operation.responses).map((status) => `${method} ${path} ${status}`)

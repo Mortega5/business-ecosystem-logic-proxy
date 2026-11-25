@@ -19,6 +19,10 @@ tags:
     description: The figures of the landing page and the counts of an organisation.
   - name: feedback
     description: The feedback that the portal asks of its visitors.
+  - name: auth
+    description: The login of the portal and the external identity providers.
+  - name: file
+    description: The files of the datasets, which the proxy keeps in the file service for the seller who uploaded them.
   - name: config
     description: The settings that the portal reads when it starts.
   - name: payment
@@ -414,6 +418,677 @@ paths:
                 $ref: '#/components/schemas/ErrorResult'
               example:
                 error: The payment gateway could not be reached
+  /file:
+    post:
+      tags: [file]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      operationId: uploadFile
+      summary: Upload a file
+      description: |
+        Only for sellers, and only while the datasets are on and there is a file service (`datasets.enabled`, `fileService.enabled`); otherwise 404. A `multipart/form-data` body with an optional `visibility` field (`private`, the default, or `public`) and then one part `file`, which has to come last. The file is streamed to the file service, labelled with the party that uploads it, and never kept by the proxy. It may be as large as `fileService.maxSizeMb`.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                visibility:
+                  type: string
+                  enum: [private, public]
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '201':
+          description: The file the file service made.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/File'
+        '400':
+          description: The body is not a multipart body, has other parts than `visibility` and `file`, or has no file.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: The request has no part "file"
+        '401':
+          description: Nobody is logged in.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: You need to be authenticated to perform this request
+        '403':
+          description: The caller is not a seller.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: You need the seller role to manage files
+        '404':
+          description: The datasets are off, or there is no file service.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: Files are not enabled in this marketplace
+        '413':
+          description: The file is larger than `fileService.maxSizeMb`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: The file is larger than the 104857600 bytes allowed
+        '422':
+          description: The visibility is not `private` or `public`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: 'The visibility of a file must be one of: private, public'
+        '502':
+          description: The file service did not answer, or answered something that is not for the client.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: The file service is not reachable
+  /file/{id}:
+    get:
+      tags: [file]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - name: id
+          in: path
+          required: true
+          description: The id the file service gave the file.
+          schema:
+            type: string
+      operationId: getFile
+      summary: A file of the seller
+      description: Only for sellers. A file of another party is answered as one that does not exist.
+      responses:
+        '200':
+          description: The file, without the labels that the proxy gave it.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/File'
+        '401':
+          description: Nobody is logged in.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: You need to be authenticated to perform this request
+        '403':
+          description: The caller is not a seller.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: You need the seller role to manage files
+        '404':
+          description: There is no such file, or it is another party's.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: The file does not exist
+        '502':
+          description: The file service did not answer.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: The file service is not reachable
+    put:
+      tags: [file]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - name: id
+          in: path
+          required: true
+          description: The id the file service gave the file.
+          schema:
+            type: string
+      operationId: replaceFile
+      summary: Replace the bytes of a file
+      description: Only for sellers, and only a file of their own. A `multipart/form-data` body with one part `file`, streamed to the file service.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: The file with its new bytes.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/File'
+        '400':
+          description: The body is not a multipart body with one file.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: The request has no part "file"
+        '401':
+          description: Nobody is logged in.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: You need to be authenticated to perform this request
+        '403':
+          description: The caller is not a seller.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: You need the seller role to manage files
+        '404':
+          description: There is no such file, or it is another party's.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: The file does not exist
+        '413':
+          description: The file is larger than `fileService.maxSizeMb`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: The file is larger than the 104857600 bytes allowed
+        '502':
+          description: The file service did not answer.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: The file service is not reachable
+    delete:
+      tags: [file]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - name: id
+          in: path
+          required: true
+          description: The id the file service gave the file.
+          schema:
+            type: string
+      operationId: deleteFile
+      summary: Remove a file
+      description: Only for sellers, and only a file of their own.
+      responses:
+        '204':
+          description: The file is gone.
+        '401':
+          description: Nobody is logged in.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: You need to be authenticated to perform this request
+        '403':
+          description: The caller is not a seller.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: You need the seller role to manage files
+        '404':
+          description: There is no such file, or it is another party's.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: The file does not exist
+        '502':
+          description: The file service did not answer.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: The file service is not reachable
+  /file/{id}/content:
+    get:
+      tags: [file]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - name: id
+          in: path
+          required: true
+          description: The id the file service gave the file.
+          schema:
+            type: string
+      operationId: getFileContent
+      summary: The bytes of a file
+      description: |
+        Only for sellers, and only a file of their own. The bytes are streamed as the file service sends them, with `Range`, `If-Range` and `If-None-Match` passed on and the headers that describe the content (type, length, range, disposition, `ETag`, digest and cache headers) given back.
+      responses:
+        '200':
+          description: The whole file.
+          content:
+            '*/*':
+              schema:
+                type: string
+                format: binary
+        '206':
+          description: The part of the file that was asked for.
+          content:
+            '*/*':
+              schema:
+                type: string
+                format: binary
+        '304':
+          description: The file has not changed.
+        '401':
+          description: Nobody is logged in.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: You need to be authenticated to perform this request
+        '403':
+          description: The caller is not a seller.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: You need the seller role to manage files
+        '404':
+          description: There is no such file, or it is another party's.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: The file does not exist
+        '416':
+          description: The range cannot be given.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: The file service answered 416
+        '502':
+          description: The file service did not answer.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: The file service is not reachable
+  /logintoken:
+    get:
+      tags: [auth]
+      operationId: getLoginToken
+      summary: The profile of who is logged in
+      description: |
+        For the portal, which has to call the API with the token of who logged in. It answers the whole profile, the access token and the refresh token included. A portal of another site may send the cookie of the session when its origin is one of `http.cors.origins`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      responses:
+        '200':
+          description: The profile.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, accessToken]
+                properties:
+                  id:
+                    type: string
+                  accessToken:
+                    type: string
+        '401':
+          description: Nobody is logged in.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: 'You need to be authenticated to perform this request'
+  /auth/{idp}/callback:
+    get:
+      tags: [auth]
+      operationId: finishLogin
+      summary: Where an identity provider sends the user back to
+      description: |
+        Finishes a login. `idp` is the name of the main provider (`keycloak`, `fiware`...) or the id of an external one. The `state` has to be one the session started and is good for one try. It answers a redirect: to the portal when it works, and to `/error` when it does not. `/login` and `/login/{idp}` start the login, and `/logOut` ends the session; they redirect and are not described here.
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - name: idp
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: code
+          in: query
+          schema:
+            type: string
+        - name: state
+          in: query
+          schema:
+            type: string
+      responses:
+        '302':
+          description: To the portal, or to `/error` when the login could not be completed.
+          headers:
+            Location:
+              schema:
+                type: string
+        '404':
+          description: There is no such identity provider.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: 'There is no such identity provider'
+  /IDP:
+    get:
+      tags: [auth]
+      operationId: listIdentityProviders
+      summary: The external identity providers
+      description: Only for administrators, and only with `auth.externalLogin.enabled`; otherwise 404.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - name: search
+          in: query
+          description: Words of the name or the description.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The providers.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/IdentityProvider'
+        '401':
+          description: Nobody is logged in.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: 'You need to be authenticated to perform this request'
+        '403':
+          description: The caller is not an administrator.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: 'You are not allowed to access this resource'
+        '404':
+          description: The external login is off.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: 'Not found'
+    post:
+      tags: [auth]
+      operationId: addIdentityProvider
+      summary: Add an external identity provider
+      description: Only for administrators. It is available for login at `/login/{idpId}` at once.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IdentityProviderForm'
+      responses:
+        '200':
+          description: Added; its address is in `Location`.
+          headers:
+            Location:
+              schema:
+                type: string
+        '400':
+          description: The body is not an identity provider.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: 'The identity provider is not correct'
+        '401':
+          description: Nobody is logged in.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: 'You need to be authenticated to perform this request'
+        '403':
+          description: The caller is not an administrator.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: 'You are not allowed to access this resource'
+        '404':
+          description: The external login is off.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: 'Not found'
+        '409':
+          description: The id is taken.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: 'The provided IDP ID is already registered'
+  /IDP/{idpId}:
+    get:
+      tags: [auth]
+      operationId: getIdentityProvider
+      summary: One external identity provider
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - name: idpId
+          in: path
+          required: true
+          description: The EORI of the identity provider.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The provider.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdentityProvider'
+        '401':
+          description: Nobody is logged in.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: 'You need to be authenticated to perform this request'
+        '403':
+          description: The caller is not an administrator.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: 'You are not allowed to access this resource'
+        '404':
+          description: There is no such provider, or the external login is off.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: 'Idp not found'
+    put:
+      tags: [auth]
+      operationId: changeIdentityProvider
+      summary: Change an external identity provider
+      description: Only for administrators. All the fields are sent; what is left out is removed.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - name: idpId
+          in: path
+          required: true
+          description: The EORI of the identity provider.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IdentityProviderChange'
+      responses:
+        '200':
+          description: Changed.
+        '400':
+          description: The body is not an identity provider.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: 'The identity provider is not correct'
+        '401':
+          description: Nobody is logged in.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: 'You need to be authenticated to perform this request'
+        '403':
+          description: The caller is not an administrator.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: 'You are not allowed to access this resource'
+        '404':
+          description: There is no such provider, or the external login is off.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: 'Idp not found'
+    delete:
+      tags: [auth]
+      operationId: removeIdentityProvider
+      summary: Remove an external identity provider
+      description: Only for administrators.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - name: idpId
+          in: path
+          required: true
+          description: The EORI of the identity provider.
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Removed.
+        '401':
+          description: Nobody is logged in.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: 'You need to be authenticated to perform this request'
+        '403':
+          description: The caller is not an administrator.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: 'You are not allowed to access this resource'
+        '404':
+          description: The external login is off.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+              example:
+                error: 'Not found'
   /feedback:
     post:
       tags: [feedback]
@@ -5542,6 +6217,69 @@ components:
           type: integer
         Obsolete:
           type: integer
+    File:
+      type: object
+      required: [fileId]
+      properties:
+        fileId:
+          type: string
+        url:
+          type: string
+        checksum:
+          type: string
+        size:
+          type: integer
+        mimeType:
+          type: string
+        originalName:
+          type: string
+        visibility:
+          type: string
+          enum: [private, public]
+    IdentityProvider:
+      type: object
+      required: [name, server, idpId]
+      properties:
+        name:
+          type: string
+        server:
+          type: string
+        idpId:
+          type: string
+        issuerDid:
+          type: string
+        description:
+          type: string
+    IdentityProviderForm:
+      type: object
+      additionalProperties: false
+      required: [idpId, name, server]
+      properties:
+        idpId:
+          type: string
+          pattern: '^[A-Za-z0-9._:-]{1,128}$'
+        name:
+          type: string
+        server:
+          type: string
+          description: An http or https address.
+        issuerDid:
+          type: string
+        description:
+          type: string
+    IdentityProviderChange:
+      type: object
+      additionalProperties: false
+      required: [name, server]
+      properties:
+        name:
+          type: string
+        server:
+          type: string
+        issuerDid:
+          type: string
+        description:
+          type: string
     ErrorResult:
       type: object
       required: [error]
