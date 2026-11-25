@@ -3,28 +3,9 @@ import type { Request, Response } from 'express';
 import { BodyTextInterceptor } from '../body-text.interceptor';
 import { OptionalAuth } from '../../auth/public.decorator';
 import { NotFoundError } from '../../common/domain-error';
-import { AppConfigService } from '../../config/app-config.service';
 import { JsonBodyPipe } from '../json-body.pipe';
-import { OwnedResources } from '../owned-resources';
 import { ResourceIdPipe } from '../resource-id.pipe';
-import { SellerParties } from '../seller-parties';
-import { Specifications, type SpecificationApi } from '../specification/specifications';
-import { TmfProxy } from '../tmf-proxy';
-
-const SERVICE_SPECIFICATIONS: SpecificationApi = {
-    upstream: 'tmforum.service',
-    collection: 'serviceSpecification',
-    dependents: { upstream: 'tmforum.catalog', path: '/productSpecification', field: 'serviceSpecification.id', noun: 'product specs' },
-    noun: 'Service spec',
-    messages: {
-        list: 'You are not authorized to list the service specs',
-        read: 'Unauthorized to read a service spec that is not launched',
-        create: 'Unauthorized to create non-owned/non-seller service specs',
-        update: 'Unauthorized to update non-owned/non-seller services',
-        missing: 'The required service does not exist',
-        retireInUse: () => 'Cannot retire a service spec without retiring all service specs linked with it'
-    }
-};
+import { ServiceSpecifications } from './service-specifications';
 
 /**
  * The service specifications of the service catalog, as far as the portal uses them (see `Specifications` for the rules).
@@ -33,11 +14,7 @@ const SERVICE_SPECIFICATIONS: SpecificationApi = {
 @UseInterceptors(BodyTextInterceptor)
 @Controller('service')
 export class ServiceController {
-    private readonly specifications: Specifications;
-
-    constructor(proxy: TmfProxy, owned: OwnedResources, config: AppConfigService, sellers: SellerParties) {
-        this.specifications = new Specifications(proxy, owned, config, sellers, SERVICE_SPECIFICATIONS);
-    }
+    constructor(private readonly specifications: ServiceSpecifications) {}
 
     @Get('serviceSpecification')
     list(@Req() req: Request, @Res() res: Response): Promise<void> {

@@ -15,6 +15,7 @@ import { parseRequest } from '../schemas/parse';
 import { SellerParties } from '../seller-parties';
 import { parseJson, Specifications, type SpecificationApi, type Undo } from '../specification/specifications';
 import { TmfProxy } from '../tmf-proxy';
+import { FileGuards } from '../../files/file-guards';
 import { hasInvalidProfilePicture } from './launch-requirements';
 import { orchestrationPlanProblem } from './orchestration-plan';
 import { PriceReferences } from './price-references';
@@ -74,7 +75,8 @@ export class ProductSpecifications extends Specifications {
         config: AppConfigService,
         sellers: SellerParties,
         private readonly charging: ChargingAssets,
-        private readonly prices: PriceReferences
+        private readonly prices: PriceReferences,
+        private readonly files: FileGuards
     ) {
         super(proxy, owned, config, sellers, PRODUCT);
     }
@@ -244,6 +246,8 @@ export class ProductSpecifications extends Specifications {
 
     /** The characteristics, the picture, the plan and the bundle of what the seller sends; `previous` is what the product has now, nothing when it is made. */
     private async assertValid(req: Request, product: Json, previous: unknown[] | null): Promise<void> {
+        // The access policy of a product grants reading the files it names: they have to be the seller's
+        await this.files.checkProductSpecFiles(product, (req as Request & { user?: { partyId?: string } }).user?.partyId);
         if (hasInvalidProfilePicture(product)) {
             throw new DomainError('Product profile picture must use a valid image format (SVG, PNG, JPEG or GIF)', 422);
         }
