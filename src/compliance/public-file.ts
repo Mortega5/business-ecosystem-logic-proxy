@@ -53,7 +53,6 @@ for (const [network, bits] of [
 for (const [network, bits] of [
     ['::', 128],
     ['::1', 128],
-    ['::ffff:0:0', 96],
     ['64:ff9b::', 96],
     ['100::', 64],
     ['2001:db8::', 32],
@@ -65,9 +64,26 @@ for (const [network, bits] of [
     NOT_PUBLIC.addSubnet(network, bits, 'ipv6');
 }
 
+// An IPv4 address written inside an IPv6 one is the IPv4 address. It is not a rule of the list because the list takes every IPv4 address
+// as one of these, and it would refuse them all
+const MAPPED = /^(?:0{0,4}:){0,5}ffff:(\d{1,3}(?:\.\d{1,3}){3})$/i;
+
 export const isPublicAddress = (address: string): boolean => {
     const family = isIP(address);
-    return family !== 0 && !NOT_PUBLIC.check(address, family === 4 ? 'ipv4' : 'ipv6');
+    if (family === 0) {
+        return false;
+    }
+    if (family === 6) {
+        const mapped = MAPPED.exec(address);
+        if (mapped !== null) {
+            return isPublicAddress(mapped[1] as string);
+        }
+        // The same address written in hexadecimal is not told apart: it is refused
+        if (/^(?:0{0,4}:){0,5}ffff:/i.test(address)) {
+            return false;
+        }
+    }
+    return !NOT_PUBLIC.check(address, family === 4 ? 'ipv4' : 'ipv6');
 };
 
 // The check is made on the addresses the connection is made to, so a name that answers a public address to a check and a private one
