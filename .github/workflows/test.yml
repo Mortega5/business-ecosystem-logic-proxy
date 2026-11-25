@@ -23,11 +23,6 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm run --if-present build
       - run: pnpm test
-      - name: Coveralls
-        continue-on-error: true
-        uses: coverallsapp/github-action@v2
-        with:
-          github-token: ${{ secrets.github_token }}
 
   build-docker:
     runs-on: ubuntu-latest
