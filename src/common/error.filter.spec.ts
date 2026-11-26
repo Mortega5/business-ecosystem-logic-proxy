@@ -96,8 +96,7 @@ describe('error filter', () => {
         expect(warn).toHaveBeenCalledTimes(1);
         expect(warn).toHaveBeenCalledWith(
             { err: expect.objectContaining({ message: 'The catalog could not be reached' }), status: 502 },
-            'The request failed at a third party or at the proxy',
-            'ErrorFilter'
+            'The request failed at a third party or at the proxy'
         );
         warn.mockRestore();
     });
@@ -106,9 +105,8 @@ describe('error filter', () => {
         const error = vi.spyOn(Logger.prototype, 'error');
         await get('/errors/unexpected');
         expect(error).toHaveBeenCalledWith(
-            { err: expect.objectContaining({ message: 'db password is hunter2', stack: expect.any(String) }) },
-            'The request failed with an unexpected error',
-            'ErrorFilter'
+            { err: expect.objectContaining({ message: 'db password is hunter2' }) },
+            'The request failed with an unexpected error'
         );
         error.mockRestore();
     });

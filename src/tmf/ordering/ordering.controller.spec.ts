@@ -369,7 +369,7 @@ describe('PATCH /ordering/productOrder/:id by the customer', () => {
         const log = vi.spyOn(Logger.prototype, 'log');
         await patch(ana(), { state: 'Cancelled' });
 
-        expect(log).toHaveBeenCalledWith({ orderId: ID, change: 'cancelled' }, 'A product order was changed by its customer', 'Orders');
+        expect(log).toHaveBeenCalledWith({ orderId: ID, change: 'cancelled' }, 'A product order was changed by its customer');
         log.mockRestore();
     });
 

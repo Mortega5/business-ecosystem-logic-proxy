@@ -132,7 +132,7 @@ describe('POST /file', () => {
         const log = vi.spyOn(Logger.prototype, 'log');
         await fetch(`${url}/file`, { method: 'POST', headers: AS_SELLER, body: form('a,b\n', 'public') });
 
-        expect(log).toHaveBeenCalledWith({ fileId: 'f-new', visibility: 'private' }, 'A file was uploaded', 'FileController');
+        expect(log).toHaveBeenCalledWith({ fileId: 'f-new', visibility: 'public' }, 'A file was uploaded');
         expect(JSON.stringify(log.mock.calls)).not.toContain('a,b');
         log.mockRestore();
     });

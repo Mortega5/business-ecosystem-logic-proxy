@@ -182,7 +182,7 @@ describe('FetchUpstreamClient error detail', () => {
 
         handler = (_req, res) => reply(res, 200, '{"message":"fine"}');
         await clientFor(`http://127.0.0.1:${port}`).send({ upstream: 'charging', path: '/x' });
-        expect(logger.info.mock.calls.at(-1)?.[0]).not.toHaveProperty('upstreamError');
+        expect(logger.debug.mock.calls.at(-1)?.[0]).not.toHaveProperty('upstreamError');
     });
 });
 
