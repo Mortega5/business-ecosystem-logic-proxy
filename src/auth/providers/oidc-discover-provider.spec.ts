@@ -199,7 +199,9 @@ describe('OidcDiscoverProvider: a token that carries a credential', () => {
         expect(claims.id).toBe('did:key:ana');
         expect(claims.email).toBe('ana@acme.org');
         expect(claims.organizations).toMatchObject([{ id: 'VATES-1', name: 'Acme' }]);
-        expect(claims.roles.map((role) => role.name)).toContain('seller');
+        // The seller role is the one the powers give in the organisation, not a role of the user in the platform
+        expect(claims.roles).toEqual([]);
+        expect(claims.organizations[0]?.roles.map((role) => role.name)).toContain('seller');
     });
 
     it('is the same person at the login, from the ID token that the library validated', () => {

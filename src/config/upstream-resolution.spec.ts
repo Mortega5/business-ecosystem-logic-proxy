@@ -38,8 +38,13 @@ describe('resolveUpstream', () => {
     });
 
     it('omits the port when none is set at any level', () => {
+        const config = upstreams({ BAE_UPSTREAMS__SEARCH__HOST: 'search', BAE_UPSTREAMS__SEARCH__SCHEME: 'https' });
+        expect(resolveUpstream(config, 'search').baseUrl).toBe('https://search');
+    });
+
+    it('gives the charging backend its usual port when none is set', () => {
         const config = upstreams({ BAE_UPSTREAMS__CHARGING__HOST: 'charging', BAE_UPSTREAMS__CHARGING__SCHEME: 'https' });
-        expect(resolveUpstream(config, 'charging').baseUrl).toBe('https://charging');
+        expect(resolveUpstream(config, 'charging').baseUrl).toBe('https://charging:8006');
     });
 
     it('applies the path of a standalone upstream', () => {
