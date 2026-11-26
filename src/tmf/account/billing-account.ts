@@ -27,3 +27,46 @@ export const validateContacts = (account: Record<string, unknown>): void => {
         validateContactMedia(contact['contactMedium']);
     }
 };
+
+const POSTAL_FIELDS = ['contactType', 'street1', 'city', 'stateOrProvince', 'postCode', 'country'];
+const CONTACT_FIELDS: Record<string, string[]> = {
+    Email: ['contactType', 'emailAddress'],
+    PostalAddress: POSTAL_FIELDS,
+    TelephoneNumber: ['contactType', 'phoneNumber']
+};
+
+const pick = (source: Record<string, unknown>, fields: string[]): Record<string, unknown> => {
+    const picked: Record<string, unknown> = {};
+    for (const field of fields) {
+        if (field in source) {
+            picked[field] = source[field];
+        }
+    }
+    return picked;
+};
+
+const contactMediumView = (medium: unknown): Record<string, unknown>[] => {
+    if (!isRecord(medium) || typeof medium['mediumType'] !== 'string') {
+        return [];
+    }
+    const fields = CONTACT_FIELDS[medium['mediumType']];
+    if (fields === undefined) {
+        return [];
+    }
+    const characteristic = isRecord(medium['characteristic']) ? medium['characteristic'] : {};
+    return [{ mediumType: medium['mediumType'], characteristic: pick(characteristic, fields) }];
+};
+
+/**
+ * What the seller of an order gets of the billing account of its buyer: the name and the ways to reach and bill them,
+ * and nothing else. Only the fields listed are kept, so a field the account gets later is not given by accident; the
+ * order of the contact media is kept, as the portal reads them by position.
+ */
+export const sellerView = (account: Record<string, unknown>): Record<string, unknown> => {
+    const view = pick(account, ['id', 'href', 'name']);
+    const contacts = Array.isArray(account['contact']) ? (account['contact'] as unknown[]) : [];
+    view['contact'] = contacts.filter(isRecord).map((contact) => ({
+        contactMedium: (Array.isArray(contact['contactMedium']) ? (contact['contactMedium'] as unknown[]) : []).flatMap(contactMediumView)
+    }));
+    return view;
+};
