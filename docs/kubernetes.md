@@ -122,7 +122,9 @@ Every metric, with its labels and what it measures, is in [metrics.md](metrics.m
 
 1. `/health/ready` answers `503` with status `shutting_down`. On `SIGTERM` the server keeps accepting requests
    for `app.shutdownDelayMs` (no wait when it is `0`, and none for `SIGINT`); `/health/live` keeps answering `200`.
-2. The HTTP server stops accepting connections and waits for the requests in flight to finish.
+2. The HTTP server stops accepting connections and waits for the requests in flight to finish, uploads that are still
+   arriving included. The connections that are left idle are closed as soon as they are, so the shutdown does not wait for
+   the keep-alive timeout of the server after the last answer.
 3. The MongoDB connection is closed.
 4. The process exits with code 0.
 

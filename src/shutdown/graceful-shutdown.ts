@@ -4,7 +4,12 @@ export interface ShutdownTarget {
     app: { close(signal?: string): Promise<void> };
     logger: Pick<Logger, 'info' | 'fatal'>;
     timeoutMs: number;
+    /** The HTTP server, to close the connections that are left idle once it has stopped accepting new ones. */
+    server?: { listening: boolean; closeIdleConnections(): void };
 }
+
+// How often the connections that have gone idle are closed while the server drains
+const IDLE_SWEEP_MS = 250;
 
 export interface ShutdownHooks {
     signals?: Pick<NodeJS.Process, 'on'>;
@@ -24,7 +29,7 @@ const exitSoon = (code: number): void => {
  * longer than timeoutMs the process exits with code 1.
  */
 export const installGracefulShutdown = (target: ShutdownTarget, hooks: ShutdownHooks = {}): ((signal: string) => Promise<void>) => {
-    const { app, logger, timeoutMs } = target;
+    const { app, logger, timeoutMs, server } = target;
     const exit = hooks.exit ?? exitSoon;
     let running = false;
 
@@ -41,12 +46,23 @@ export const installGracefulShutdown = (target: ShutdownTarget, hooks: ShutdownH
         }, timeoutMs);
         forced.unref();
 
+        // The server closes the idle connections once, when it stops listening. The one that served the last request in flight is idle only
+        // afterwards, and it would be kept for the whole keep-alive timeout of the server (5 seconds by default) before the shutdown ends.
+        const sweep = setInterval(() => {
+            if (server?.listening === false) {
+                server.closeIdleConnections();
+            }
+        }, IDLE_SWEEP_MS);
+        sweep.unref();
+
         try {
             await app.close(signal);
+            clearInterval(sweep);
             clearTimeout(forced);
             logger.info('Shutdown complete');
             exit(0);
         } catch (error) {
+            clearInterval(sweep);
             clearTimeout(forced);
             logger.fatal({ err: error }, 'Shutdown failed');
             exit(1);

@@ -14,7 +14,7 @@ installCrashHandlers(() => crashLogger);
 start({ env: process.env })
     .then(({ app, logger, config }) => {
         crashLogger = logger;
-        installGracefulShutdown({ app, logger, timeoutMs: config.app.shutdownTimeoutMs });
+        installGracefulShutdown({ app, logger, timeoutMs: config.app.shutdownTimeoutMs, server: app.getHttpServer() });
         stopEarlyHandling();
     })
     .catch(() => {
