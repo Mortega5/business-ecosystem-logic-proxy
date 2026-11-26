@@ -17,9 +17,14 @@ The application serves the APIs and the compiled portal on the same port. A requ
 of the portal when a browser asks for it (it accepts HTML), so that a link into the portal opens directly, and a 404 for
 anything else.
 
-The image built from `docker/Dockerfile` runs `pnpm build` and its entrypoint ends with `exec node dist/main`, so
-the process receiving `SIGTERM` is the Node.js one. Its `HEALTHCHECK` requests `/health/live` over HTTP, with a
-start period of 120 seconds; with `app.https.enabled` set it needs to be overridden.
+The image built from `docker/Dockerfile` is based on the distroless Node.js image: it has no shell and no package
+manager, only Node.js, the compiled application and its production dependencies. It runs as the user `65532`, never
+writes to its file system, and starts `node dist/main`, so the process receiving `SIGTERM` is the Node.js one. Its
+`HEALTHCHECK` requests `/health/live` over HTTP with Node.js, with a start period of 120 seconds; with `app.https.enabled`
+set it needs to be overridden. Files that the application reads, such as the certificate and the key of HTTPS, have to be
+readable by that user. To look inside a running container, build the image with `--build-arg DISTROLESS_TAG=debug-nonroot`,
+which uses the variant of the base image that adds a shell (`docker run --rm -it --entrypoint sh <image>`), or use an
+ephemeral container (`kubectl debug`). `PNPM_VERSION` sets the version of pnpm that builds the image, `12` by default.
 
 ## HTTPS
 
@@ -129,8 +134,8 @@ Every metric, with its labels and what it measures, is in [metrics.md](metrics.m
 4. The process exits with code 0.
 
 Before the application is up (while it waits for MongoDB, for instance) there is nothing to drain: a signal ends the
-process at once, and `docker/entrypoint.sh` does the same. As PID 1 a process
-without a handler ignores `SIGTERM`, so a pod stuck at start-up would otherwise only stop when Kubernetes kills it.
+process at once. As PID 1 a process without a handler ignores `SIGTERM`, so the handler is installed as the first thing
+the process does, and a pod stuck at start-up does not wait for Kubernetes to kill it.
 
 If the shutdown has not finished `app.shutdownTimeoutMs` after the signal, the process exits with code 1.
 `app.shutdownTimeoutMs` must be greater than `app.shutdownDelayMs`. Kubernetes sends `SIGKILL` when

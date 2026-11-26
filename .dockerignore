@@ -1,0 +1,11 @@
+# Only what the image is built from; everything else, local files included, stays out of the build context
+*
+!package.json
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+!tsconfig.json
+!tsconfig.build.json
+!nest-cli.json
+!src
+!config
+!portal
