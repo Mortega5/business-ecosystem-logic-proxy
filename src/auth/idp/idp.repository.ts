@@ -10,7 +10,7 @@ export class IdpRepository extends MongooseRepository<Idp> {
         super(model);
     }
 
-    /** The ones whose name or description has the words; the text is data for the search and nothing else. */
+    /** The ones whose name has the words; the text is data for the search and nothing else. */
     async search(text: string): Promise<Idp[]> {
         const found = await this.model.find({ $text: { $search: String(text) } }).lean<(Idp & { _id?: unknown })[]>();
         return found.map(({ _id, ...idp }) => {

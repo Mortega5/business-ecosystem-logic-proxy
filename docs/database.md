@@ -102,7 +102,7 @@ Each has a unique index on `id`. Do not delete them by hand: without them the pr
 | `auth_cache` | TTL on `expiresAt` | Removes expired entries |
 | `blogs` | Unique on `slugNormalized`, only when the slug exists | One slug per entry, whatever its case |
 | `cartitems` | Unique on `user` and `itemId` | One line per item in a cart |
-| `idps` | Unique on `idpId`, and text on `name` and `description` | One provider per id, and search by text |
+| `idps` | Unique on `idpId`, and text on `name` | One provider per id, and search by name. MongoDB allows one text index per collection, so a search does not look at `description` |
 | `defaultcatalog`, `systemcategory`, `supportpackagespec` | Unique on `id` | One record per id |
 
 ## Upgrading from version 11

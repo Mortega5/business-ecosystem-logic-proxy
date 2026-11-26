@@ -36,4 +36,4 @@ export class Idp {
 }
 
 export const IdpSchema = SchemaFactory.createForClass(Idp);
-IdpSchema.index({ name: 'text', description: 'text' });
+IdpSchema.index({ name: 'text' });
