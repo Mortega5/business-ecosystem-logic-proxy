@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { PinoLogger } from 'nestjs-pino';
 import type { AppConfigService } from '../config/app-config.service';
+import { listenToMetricEvents, type MetricEvents } from '../metrics/metric-events';
 import type { StatsReader } from './stats-reader';
 import { StatsService } from './stats.service';
 import { StatsStore, type Figures, type StoredFigures } from './stats.store';
@@ -119,5 +120,27 @@ describe('StatsService', () => {
 
         expect(read).toHaveBeenCalledTimes(1);
         expect(store.saved).toEqual([]);
+    });
+});
+
+describe('StatsService: the metrics', () => {
+    const tell = async (read: StatsReader['read']): Promise<unknown[][]> => {
+        const statsRefresh = vi.fn();
+        const stop = listenToMetricEvents({ statsRefresh } as unknown as MetricEvents);
+        try {
+            await build(new FakeStore(), read).current();
+            await settle();
+        } finally {
+            stop();
+        }
+        return statsRefresh.mock.calls;
+    };
+
+    it('tells a read that ended well', async () => {
+        expect(await tell(() => Promise.resolve(FRESH))).toEqual([['success']]);
+    });
+
+    it('tells a read that failed', async () => {
+        expect(await tell(() => Promise.reject(new Error('down')))).toEqual([['failure']]);
     });
 });

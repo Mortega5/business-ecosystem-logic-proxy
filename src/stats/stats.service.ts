@@ -1,6 +1,7 @@
 import { Injectable, type OnApplicationShutdown } from '@nestjs/common';
 import { PinoLogger } from 'nestjs-pino';
 import { AppConfigService } from '../config/app-config.service';
+import { metric } from '../metrics/metric-events';
 import { StatsReader } from './stats-reader';
 import { StatsStore, type Figures } from './stats.store';
 
@@ -42,10 +43,12 @@ export class StatsService implements OnApplicationShutdown {
             .read(this.stop.signal)
             .then(async (figures) => {
                 await this.store.save(figures, new Date());
+                metric.statsRefresh('success');
                 this.logger.info({ services: figures.services.length, organizations: figures.organizations.length }, 'The figures of the landing page were read');
             })
             .catch((err: unknown) => {
                 if (!this.stop.signal.aborted) {
+                    metric.statsRefresh('failure');
                     this.retryAt = Date.now() + this.config.stats.retryDelayMs;
                     this.logger.warn({ err, retryDelayMs: this.config.stats.retryDelayMs }, 'The figures of the landing page could not be read: the ones kept stay');
                 }

@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { PinoLogger } from 'nestjs-pino';
 import { DomainError, NotFoundError, UnauthorizedError } from '../../common/domain-error';
 import { AppConfigService } from '../../config/app-config.service';
+import { metric } from '../../metrics/metric-events';
 import { ProfileService } from '../profile/profile.service';
 import type { UserProfile } from '../profile/user-profile';
 import { IdentityProviderRegistry, LOCAL_IDP } from '../providers/identity-provider-registry';
@@ -168,8 +169,11 @@ export class VcLoginService {
     private async admit(code: string, authenticated: boolean): Promise<UserProfile> {
         try {
             const { tokens, claims } = await this.provider().login(code, authenticated);
-            return await this.profiles.admit(claims, tokens, LOCAL_IDP);
+            const profile = await this.profiles.admit(claims, tokens, LOCAL_IDP);
+            metric.login('vc', 'success');
+            return profile;
         } catch (error) {
+            metric.login('vc', 'failure');
             if (error instanceof UnauthorizedError) {
                 throw error;
             }

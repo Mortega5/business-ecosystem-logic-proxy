@@ -3,6 +3,7 @@ import type { SessionData } from 'express-session';
 import { PinoLogger } from 'nestjs-pino';
 import { NotFoundError, UnauthorizedError } from '../../common/domain-error';
 import { AppConfigService } from '../../config/app-config.service';
+import { metric } from '../../metrics/metric-events';
 import type { IdentityProvider, LoginCapable } from '../providers/identity-provider';
 import { IdentityProviderRegistry, LOCAL_IDP } from '../providers/identity-provider-registry';
 import { ProfileService } from '../profile/profile.service';
@@ -92,6 +93,7 @@ export class LoginService {
         delete logins[state];
         session.logins = logins;
         if (pending === undefined || pending.idp !== idp) {
+            metric.login(idp, 'failure');
             throw new UnauthorizedError('The login is not valid or has expired');
         }
 
@@ -108,8 +110,10 @@ export class LoginService {
             );
             const profile = await this.profiles.admit(claims, tokens, idp);
             session.accessToken = profile.accessToken;
+            metric.login(idp, 'success');
             return { profile, redirectTo: this.redirectFor(idp, profile, pending) };
         } catch (error) {
+            metric.login(idp, 'failure');
             this.logger.warn(
                 { idp, failure: error instanceof Error ? error.name : 'unknown' },
                 'A login could not be completed'

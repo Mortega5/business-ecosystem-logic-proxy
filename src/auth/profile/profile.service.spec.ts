@@ -1,7 +1,8 @@
 import type { AppConfigService } from '../../config/app-config.service';
 import type { PinoLogger } from 'nestjs-pino';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { BadGatewayError, UnauthorizedError } from '../../common/domain-error';
+import { listenToMetricEvents, type MetricEvents } from '../../metrics/metric-events';
 import type { IdentityProvider, IdentityTokens } from '../providers/identity-provider';
 import { IdentityProviderRegistry } from '../providers/identity-provider-registry';
 import { MemoryAuthStore } from '../store/memory-auth-store';
@@ -260,5 +261,22 @@ describe('ProfileService: forgetting', () => {
         await service.authenticate('api-token');
 
         expect(local.claimsCalls).toHaveLength(2);
+    });
+});
+
+describe('ProfileService: the metrics', () => {
+    it('tells a token it has not seen as a miss, and the next one as a hit', async () => {
+        const { local, service } = setup();
+        local.valid.set('api-token', ana);
+        const profileCache = vi.fn();
+        const stop = listenToMetricEvents({ profileCache } as unknown as MetricEvents);
+        try {
+            await service.authenticate('api-token');
+            await service.authenticate('api-token');
+        } finally {
+            stop();
+        }
+
+        expect(profileCache.mock.calls).toEqual([['miss'], ['hit']]);
     });
 });

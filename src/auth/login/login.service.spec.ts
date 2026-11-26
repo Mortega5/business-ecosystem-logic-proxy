@@ -3,6 +3,7 @@ import type { PinoLogger } from 'nestjs-pino';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { NotFoundError, UnauthorizedError } from '../../common/domain-error';
 import type { AppConfigService } from '../../config/app-config.service';
+import { listenToMetricEvents, type MetricEvents } from '../../metrics/metric-events';
 import type { ProfileService } from '../profile/profile.service';
 import type { UserProfile } from '../profile/user-profile';
 import type { IdentityProvider, LoginCapable, LoginChecks, LoginOutcome } from '../providers/identity-provider';
@@ -205,5 +206,41 @@ describe('sitePath', () => {
         ]) {
             expect(sitePath(bad)).toBe('/');
         }
+    });
+});
+
+describe('LoginService: the metrics', () => {
+    const tell = async (run: (harness: ReturnType<typeof setup>) => Promise<unknown>): Promise<unknown[][]> => {
+        const login = vi.fn();
+        const stop = listenToMetricEvents({ login } as unknown as MetricEvents);
+        try {
+            await run(setup()).catch(() => undefined);
+        } finally {
+            stop();
+        }
+        return login.mock.calls;
+    };
+
+    it('tells a login that was completed', async () => {
+        const calls = await tell(async ({ service }) => {
+            const session = {} as SessionData;
+            await service.begin(session, 'local', '/');
+            await service.complete(session, 'local', { code: 'abc', state: 'state-local-1' });
+        });
+
+        expect(calls).toEqual([['local', 'success']]);
+    });
+
+    it('tells a login that the provider refused, and one that has no pending state', async () => {
+        const refused = await tell(async ({ service, local }) => {
+            const session = {} as SessionData;
+            await service.begin(session, 'local', '/');
+            local.fails = true;
+            await service.complete(session, 'local', { code: 'abc', state: 'state-local-1' });
+        });
+        const unknown = await tell(({ service }) => service.complete({} as SessionData, 'local', { state: 'other' }));
+
+        expect(refused).toEqual([['local', 'failure']]);
+        expect(unknown).toEqual([['local', 'failure']]);
     });
 });

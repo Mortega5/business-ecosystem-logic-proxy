@@ -6,6 +6,7 @@ import { AuthStore } from '../store/auth-store';
 import type { IdentityProvider, IdentityTokens } from '../providers/identity-provider';
 import { IdentityProviderRegistry, LOCAL_IDP } from '../providers/identity-provider-registry';
 import { PartyRegistry } from './party-registry';
+import { metric } from '../../metrics/metric-events';
 import { SingleFlight } from './single-flight';
 import { isUserProfile, type IdentityClaims, type UserProfile } from './user-profile';
 
@@ -34,6 +35,7 @@ export class ProfileService {
     /** The profile of the access token; rejects with `UnauthorizedError` when the token is not valid. */
     async authenticate(accessToken: string): Promise<UserProfile> {
         const kept = await this.store.get(profileKey(accessToken));
+        metric.profileCache(isUserProfile(kept) ? 'hit' : 'miss');
         if (!isUserProfile(kept)) {
             return this.loading.run(accessToken, () => this.loadUnknown(accessToken));
         }
