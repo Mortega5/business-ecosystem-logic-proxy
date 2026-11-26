@@ -313,7 +313,7 @@ describe('what the portal does not use, and what is not here yet', () => {
     });
 
     it('has no route for the rest of the catalog API', async () => {
-        const res = await call('/catalog/catalog', { headers: admin() });
+        const res = await call('/catalog/catalog/c-1/x', { headers: admin() });
 
         expect(res.status).toBe(404);
         expect(seen).toEqual([]);

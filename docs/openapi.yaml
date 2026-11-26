@@ -5952,12 +5952,73 @@ paths:
         '504':
           $ref: '#/components/responses/UpstreamUnreachable'
   /catalog/catalog:
+    get:
+      tags: [catalog]
+      operationId: listCatalogs
+      summary: List of the catalogs
+      description: |
+        The catalogs as the catalog API pages them. Open to anybody for the ones that are launched, retired or obsolete, those of a seller
+        included, so `lifecycleStatus` is mandatory and only has those states. The drafts are for their owner, who asks for them with
+        `relatedParty.id` set to their own party, and an administrator lists them all.
+
+        When the query asks for the launched catalogs of nobody in particular, the page only has the ones with an offering that anybody
+        may buy. The API cannot say which, so the page is filled by reading it in turns: the total is not known, and when there is more
+        the answer carries `X-Filtered-Pagination-Token`, to be sent back as the same header with the next `offset`.
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - name: X-Filtered-Pagination-Token
+          in: header
+          required: false
+          description: The token of the previous page of a list that is filled by reading in turns.
+          schema:
+            type: string
+        - name: filters
+          in: query
+          required: false
+          description: |
+            `limit`, `offset`, `sort`, `lifecycleStatus` (several, separated by commas) and `relatedParty.id`, each once; any other is
+            refused.
+          style: form
+          explode: true
+          schema:
+            type: object
+            additionalProperties:
+              type: string
+      responses:
+        '200':
+          description: The catalogs, as the catalog API answers them.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+            X-Filtered-Pagination-Token:
+              description: Where the next page starts, when there is one.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
+              example: []
+        '400':
+          $ref: '#/components/responses/InvalidQuery'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '502':
+          $ref: '#/components/responses/BadGateway'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
     post:
       tags: [catalog]
       operationId: createCatalog
       summary: Create a catalog
       description: |
-        A seller makes a catalog of their own: the related parties are the caller as the seller, the name is mandatory, has no `<>%'"|` and is not taken by another catalog, and `validFor` is set to now when it is missing. A root category of the catalog is made with it, with the same name, and is the one that the offerings of the catalog carry. When the catalog cannot be made the category is retired again; when that cannot be done either the answer says that the category was made. `id` and `href` are dropped. The list of catalogs is answered by the legacy application.
+        A seller makes a catalog of their own: the related parties are the caller as the seller, the name is mandatory, has no `<>%'"|` and is not taken by another catalog, and `validFor` is set to now when it is missing. A root category of the catalog is made with it, with the same name, and is the one that the offerings of the catalog carry. When the catalog cannot be made the category is retired again; when that cannot be done either the answer says that the category was made. `id` and `href` are dropped.
       security:
         - bearerAuth: []
       parameters:
