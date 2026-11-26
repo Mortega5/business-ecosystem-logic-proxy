@@ -129,6 +129,10 @@ export class AppConfigService {
         return this.value.health;
     }
 
+    get metrics(): AppConfig['metrics'] {
+        return this.value.metrics;
+    }
+
     /** Whether the upstream has a host, so that it can be called. */
     hasUpstream(name: UpstreamName): boolean {
         try {

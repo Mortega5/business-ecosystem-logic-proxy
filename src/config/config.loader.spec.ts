@@ -620,3 +620,52 @@ describe('the settings of MongoDB', () => {
         expect(() => load({ BAE_MONGO__PASSWORD: 'x' })).toThrow('mongo.user and mongo.password go together');
     });
 });
+
+describe('metrics configuration', () => {
+    const load = (env: NodeJS.ProcessEnv) => loadStaticConfig({ defaultsPath: DEFAULTS_PATH, env });
+
+    it('is off by default, on a port of its own', () => {
+        const { metrics, app } = load({});
+        expect(metrics).toEqual({
+            enabled: false,
+            port: 9464,
+            path: '/metrics',
+            prefix: 'bae_proxy',
+            defaultMetrics: true,
+            httpDurationBuckets: [0.005, 0.025, 0.1, 0.25, 0.5, 1, 2.5, 5, 10]
+        });
+        expect(metrics.port).not.toBe(app.port);
+    });
+
+    it('is configured from the environment', () => {
+        const { metrics } = load({
+            BAE_METRICS__ENABLED: 'true',
+            BAE_METRICS__HOST: '127.0.0.1',
+            BAE_METRICS__PORT: '9100',
+            BAE_METRICS__PATH: '/prom',
+            BAE_METRICS__PREFIX: 'bae',
+            BAE_METRICS__DEFAULT_METRICS: 'false',
+            BAE_METRICS__HTTP_DURATION_BUCKETS: '[0.1, 1]'
+        });
+        expect(metrics).toEqual({
+            enabled: true,
+            host: '127.0.0.1',
+            port: 9100,
+            path: '/prom',
+            prefix: 'bae',
+            defaultMetrics: false,
+            httpDurationBuckets: [0.1, 1]
+        });
+    });
+
+    it('refuses the port of the application, a path that is not absolute and a prefix that is not a name', () => {
+        expect(() => load({ BAE_METRICS__ENABLED: 'true', BAE_METRICS__PORT: '8004' })).toThrow('must differ from app.port');
+        expect(() => load({ BAE_METRICS__PATH: 'metrics' })).toThrow('metrics.path');
+        expect(() => load({ BAE_METRICS__PREFIX: '1-bad' })).toThrow('metrics.prefix');
+        expect(() => load({ BAE_METRICS__PREFIX: 'bae_' })).toThrow('must not end with an underscore')
+    });
+
+    it('does not mind the port of the application while it is off', () => {
+        expect(load({ BAE_METRICS__PORT: '8004' }).metrics.enabled).toBe(false);
+    });
+});

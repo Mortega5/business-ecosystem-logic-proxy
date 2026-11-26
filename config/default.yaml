@@ -208,6 +208,14 @@ stats:
 health:
   mongoPingTimeoutMs: 1000
 
+metrics:
+  enabled: false
+  port: 9464
+  path: /metrics
+  prefix: bae_proxy
+  defaultMetrics: true
+  httpDurationBuckets: [0.005, 0.025, 0.1, 0.25, 0.5, 1, 2.5, 5, 10]
+
 upstreams:
   timeoutMs: 30000
   tmforum:

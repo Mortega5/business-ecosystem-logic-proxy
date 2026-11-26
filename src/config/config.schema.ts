@@ -411,7 +411,24 @@ export const ConfigSchema = z.object({
     health: z.object({
         mongoPingTimeoutMs: z.coerce.number().int().positive()
     }),
+    // Prometheus metrics, served on a port of their own so they are never reachable through the public one
+    metrics: z.object({
+        enabled: booleanLike,
+        host: z.string().min(1).optional(),
+        port: z.coerce.number().int().min(1).max(65535),
+        path: z.string().regex(/^\/[^\s?#]*$/, 'must be an absolute path such as /metrics'),
+        // Put, with an underscore, before the name of the metrics of the proxy; empty for none
+        prefix: z
+            .string()
+            .regex(/^([a-zA-Z_:][a-zA-Z0-9_:]*)?$/, 'must be a valid metric name prefix')
+            .refine((prefix) => !prefix.endsWith('_'), 'must not end with an underscore, it is added'),
+        defaultMetrics: booleanLike,
+        httpDurationBuckets: z.array(z.coerce.number().positive()).min(1)
+    }),
     upstreams: upstreamsSchema
+}).refine((config) => !config.metrics.enabled || config.metrics.port !== config.app.port, {
+    path: ['metrics', 'port'],
+    message: 'must differ from app.port'
 });
 
 export type AppConfig = z.infer<typeof ConfigSchema>;
