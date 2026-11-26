@@ -356,11 +356,14 @@ export class Orders {
         try {
             response = await this.proxy.send(req, { upstream: 'tmforum.ordering', path: this.path(id), body: JSON.stringify({ state: 'cancelled', productOrderItem: cancelled }), ...AS_JSON, search: '' });
         } catch {
+            this.logger.warn({ orderId: id }, 'An order was refunded and could not be cancelled');
             throw new BadGatewayError(left);
         }
         if (response.status >= 400) {
+            this.logger.warn({ orderId: id, statusCode: response.status }, 'An order was refunded and could not be cancelled');
             throw new BadGatewayError(left);
         }
+        this.logger.log({ orderId: id, change: 'cancelled' }, 'A product order was changed by its customer');
         this.answer(res, response, partyId);
     }
 
@@ -381,8 +384,11 @@ export class Orders {
             ...AS_JSON,
             search: ''
         });
-        if (response.status < 400 && state === 'completed') {
-            await this.notifyCompleted(req, id);
+        if (response.status < 400) {
+            this.logger.log({ orderId: id, change: 'items', ...(state === undefined ? {} : { state }) }, 'A product order was changed by a seller');
+            if (state === 'completed') {
+                await this.notifyCompleted(req, id);
+            }
         }
         this.answer(res, response, partyId);
     }
@@ -393,6 +399,7 @@ export class Orders {
             await this.charging(req, `${ORDERS}/completed/${encodeURIComponent(id)}`, '{}', 'The server has failed processing your order');
         } catch (error) {
             const reason = error instanceof DomainError ? error.message : 'The server has failed processing your order';
+            this.logger.warn({ orderId: id, err: error }, 'An order was completed and the charging backend could not be notified');
             throw new BadGatewayError(`The order ${id} was completed and the charging backend could not be notified: ${reason}. Send the state again to notify it`);
         }
     }
@@ -400,6 +407,9 @@ export class Orders {
     private async addNotes(req: Request, res: Response, id: string, previous: Json, sent: unknown, partyId: string): Promise<void> {
         const note = notesWith(previous['note'], sent, partyId, new Date(), this.config.limits);
         const response = await this.proxy.send(req, { upstream: 'tmforum.ordering', path: this.path(id), body: JSON.stringify({ note }), ...AS_JSON, search: '' });
+        if (response.status < 400) {
+            this.logger.log({ orderId: id, change: 'note' }, 'A note was added to a product order');
+        }
         this.answer(res, response, partyId);
     }
 

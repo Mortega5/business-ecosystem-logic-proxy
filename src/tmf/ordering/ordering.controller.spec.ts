@@ -1,6 +1,6 @@
-import { Module } from '@nestjs/common';
+import { Logger, Module } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthModule } from '../../auth/auth.module';
 import { createApp } from '../../bootstrap';
 import { AppConfigModule } from '../../config/app-config.module';
@@ -363,6 +363,14 @@ describe('PATCH /ordering/productOrder/:id by the customer', () => {
         expect(sent['state']).toBe('cancelled');
         expect((sent['productOrderItem'] as { state: string }[]).map((i) => i.state)).toEqual(['cancelled', 'cancelled']);
         expect(Object.keys(sent).sort()).toEqual(['productOrderItem', 'state']);
+    });
+
+    it('writes down with its id that the customer cancelled the order', async () => {
+        const log = vi.spyOn(Logger.prototype, 'log');
+        await patch(ana(), { state: 'Cancelled' });
+
+        expect(log).toHaveBeenCalledWith({ orderId: ID, change: 'cancelled' }, 'A product order was changed by its customer', 'Orders');
+        log.mockRestore();
     });
 
     it('is not cancelled when an item has started, or has no state', async () => {
