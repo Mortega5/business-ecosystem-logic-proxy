@@ -3,6 +3,7 @@ import { PinoLogger } from 'nestjs-pino';
 import { DomainError } from '../common/domain-error';
 import { AppConfigService } from '../config/app-config.service';
 import { sanitizeUrl } from '../logging/pino-options';
+import { currentRequestId } from '../logging/request-id';
 import { assertSafePath } from './safe-path';
 import { upstreamErrorDetail } from './upstream-error-detail';
 import { UpstreamClient, UpstreamError, type UpstreamRequest, type UpstreamResponse } from './upstream-client';
@@ -42,13 +43,15 @@ export class FetchUpstreamClient extends UpstreamClient {
         const url = buildUrl(upstream.baseUrl, request);
         const method = request.method ?? 'GET';
         const logged = { upstream: request.upstream, method, url: sanitizeUrl(url.toString()) };
+        const requestId = currentRequestId();
+        const headers = requestId === undefined ? request.headers : { 'x-request-id': requestId, ...request.headers };
         const started = performance.now();
         const elapsed = (): number => Math.round(performance.now() - started);
 
         try {
             const response = await fetch(url, {
                 method,
-                ...(request.headers === undefined ? {} : { headers: request.headers }),
+                ...(headers === undefined ? {} : { headers }),
                 ...(request.body === undefined ? {} : { body: request.body }),
                 ...(request.body instanceof ReadableStream ? { duplex: 'half' } : {}),
                 redirect: 'manual',

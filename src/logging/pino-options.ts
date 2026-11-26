@@ -3,6 +3,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { LoggerOptions } from 'pino';
 import type { Options } from 'pino-http';
 import type { AppConfig } from '../config/config.schema';
+import { enterRequest } from './request-id';
 
 const REDACT_PATHS = [
     'req.headers.authorization',
@@ -104,6 +105,7 @@ const generateRequestId = (req: IncomingMessage, res: ServerResponse): string =>
     const incoming = req.headers['x-request-id'];
     const id = typeof incoming === 'string' && incoming !== '' ? incoming : randomUUID();
     res.setHeader('x-request-id', id);
+    enterRequest(id);
     return id;
 };
 

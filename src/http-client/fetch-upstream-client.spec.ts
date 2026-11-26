@@ -2,6 +2,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { gzipSync } from 'node:zlib';
 import type { PinoLogger } from 'nestjs-pino';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { enterRequest } from '../logging/request-id';
 import { AppConfigService } from '../config/app-config.service';
 import type { AppConfig } from '../config/config.schema';
 import { FetchUpstreamClient } from './fetch-upstream-client';
@@ -160,6 +161,14 @@ describe('FetchUpstreamClient logging', () => {
             .send({ upstream: 'charging', path: '/x' })
             .catch(() => undefined);
         expect(logger.error).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe('FetchUpstreamClient request id', () => {
+    it('passes on the id of the request that is being served', async () => {
+        enterRequest('req-77');
+        await clientFor(`http://127.0.0.1:${port}`).send({ upstream: 'charging', path: '/x' });
+        expect(seen?.headers['x-request-id']).toBe('req-77');
     });
 });
 
