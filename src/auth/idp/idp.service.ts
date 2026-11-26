@@ -1,8 +1,9 @@
-import { Injectable, type OnModuleInit } from '@nestjs/common';
+import { Injectable, Optional, type OnApplicationBootstrap } from '@nestjs/common';
 import { readFileSync } from 'node:fs';
 import { PinoLogger } from 'nestjs-pino';
 import { DomainError, NotFoundError } from '../../common/domain-error';
 import { AppConfigService } from '../../config/app-config.service';
+import { MongoConnectionService } from '../../persistence/mongo-connection.service';
 import { I4TrustProvider } from '../providers/i4trust-provider';
 import { IdentityProviderRegistry, LOCAL_IDP } from '../providers/identity-provider-registry';
 import type { IdpChangeForm, IdpView, NewIdpForm } from './idp-form';
@@ -25,23 +26,37 @@ const viewOf = (idp: Idp): IdpView => ({
  * EORI. They are kept in MongoDB, and the ones that are there are available for login from the start.
  */
 @Injectable()
-export class IdpService implements OnModuleInit {
+export class IdpService implements OnApplicationBootstrap {
     private keys: { keyPem: string, certificatePem: string } | undefined;
 
     constructor(
         private readonly idps: IdpRepository,
         private readonly registry: IdentityProviderRegistry,
         private readonly config: AppConfigService,
-        private readonly logger: PinoLogger
+        private readonly logger: PinoLogger,
+        @Optional() private readonly mongo?: MongoConnectionService
     ) {
         this.logger.setContext(IdpService.name);
     }
 
-    async onModuleInit(): Promise<void> {
+    /** The server does not wait for it: the stored providers are available for login when the database is there. */
+    onApplicationBootstrap(): void {
+        void this.loadStored();
+    }
+
+    async loadStored(): Promise<void> {
         if (!this.config.auth.externalLogin.enabled) {
             return;
         }
-        for (const idp of await this.idps.find()) {
+        let stored: Idp[];
+        try {
+            await this.mongo?.whenUp();
+            stored = await this.idps.find();
+        } catch (error) {
+            this.logger.error({ failure: error instanceof Error ? error.message : 'unknown' }, 'The identity providers could not be read');
+            return;
+        }
+        for (const idp of stored) {
             // One that cannot be loaded does not stop the others, or the start
             try {
                 this.register(idp);

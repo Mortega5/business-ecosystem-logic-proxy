@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { DomainError, NotFoundError } from '../common/domain-error';
 import type { AppConfigService } from '../config/app-config.service';
 import type { BlogFields, BlogRecord, BlogRepository } from './blog.repository';
+import type { MongoConnectionService } from '../persistence/mongo-connection.service';
 import { BlogService, slugBaseOf, viewOf } from './blog.service';
 
 const ID = '64b7f0a1c2d3e4f5a6b7c8d9';
@@ -209,17 +210,33 @@ describe('BlogService: when it starts', () => {
     it('gives a slug to the entries that have none, one that is free for each', async () => {
         const { service, entries } = setup();
         entries.records = [record({ title: 'Same' }), record({ _id: OTHER, title: 'Same' })];
-        await service.onModuleInit();
+        await service.giveSlugs();
         expect(entries.records.map((entry) => entry.slug)).toEqual(['same', 'same-1']);
+    });
+
+    it('waits for the database before it reads the entries, and does not hold the start while it waits', async () => {
+        let connect: () => void = () => undefined;
+        const mongo = { whenUp: () => new Promise<void>((resolve) => (connect = resolve)) } as unknown as MongoConnectionService;
+        const entries = new MemoryEntries();
+        entries.records = [record({ title: 'Late' })];
+        const service = new BlogService(entries as unknown as BlogRepository, { blog: { enabled: true } } as AppConfigService, mongo);
+
+        service.onApplicationBootstrap();
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        expect(entries.withoutSlug).not.toHaveBeenCalled();
+
+        connect();
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        expect(entries.records.map((entry) => entry.slug)).toEqual(['late']);
     });
 
     it('does nothing with the extension off, and does not stop the start when the database fails', async () => {
         const off = setup(false);
-        await off.service.onModuleInit();
+        await off.service.giveSlugs();
         expect(off.entries.withoutSlug).not.toHaveBeenCalled();
 
         const failing = setup();
         failing.entries.withoutSlug.mockRejectedValue(new Error('down'));
-        await expect(failing.service.onModuleInit()).resolves.toBeUndefined();
+        await expect(failing.service.giveSlugs()).resolves.toBeUndefined();
     });
 });

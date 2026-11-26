@@ -193,7 +193,7 @@ describe('IdpService', () => {
         });
         repository.records = [record('a'), record('old', 'other'), record('b')];
 
-        await service.onModuleInit();
+        await service.loadStored();
 
         expect(registry.get('a')).toBeDefined();
         expect(registry.get('b')).toBeDefined();
@@ -206,7 +206,7 @@ describe('IdpService', () => {
             logger
         );
         repository.find.mockClear();
-        await closed.onModuleInit();
+        await closed.loadStored();
         expect(repository.find).not.toHaveBeenCalled();
     });
 });

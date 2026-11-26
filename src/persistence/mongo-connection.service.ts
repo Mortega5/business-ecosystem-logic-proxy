@@ -10,6 +10,10 @@ export const mongoTarget = (uri: string): string => uri.split('?')[0]!.replace(/
 @Injectable()
 export class MongoConnectionService implements OnApplicationBootstrap, OnApplicationShutdown {
     private stopped = false;
+    private resolveUp: () => void = () => undefined;
+    private readonly up = new Promise<void>((resolve) => {
+        this.resolveUp = resolve;
+    });
     private cancelWait: (() => void) | undefined;
 
     constructor(
@@ -29,6 +33,11 @@ export class MongoConnectionService implements OnApplicationBootstrap, OnApplica
         this.stopped = true;
         this.cancelWait?.();
         await this.connection.close();
+    }
+
+    /** Resolves once the connection has been made for the first time; what must read the database at start-up waits for it. */
+    whenUp(): Promise<void> {
+        return this.up;
     }
 
     isUp(): boolean {
@@ -66,6 +75,7 @@ export class MongoConnectionService implements OnApplicationBootstrap, OnApplica
                     serverSelectionTimeoutMS: serverSelectionTimeoutMs,
                     heartbeatFrequencyMS: heartbeatFrequencyMs
                 });
+                this.resolveUp();
                 return;
             } catch (error) {
                 const delayMs = Math.min(retryInitialDelayMs * 2 ** (attempt - 1), retryMaxDelayMs);

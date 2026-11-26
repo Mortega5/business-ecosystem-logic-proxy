@@ -1,6 +1,7 @@
-import { Injectable, Logger, type OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, Optional, type OnApplicationBootstrap } from '@nestjs/common';
 import { DomainError, NotFoundError } from '../common/domain-error';
 import { AppConfigService } from '../config/app-config.service';
+import { MongoConnectionService } from '../persistence/mongo-connection.service';
 import type { BlogChangeForm, BlogView, NewBlogForm } from './blog-form';
 import { OBJECT_ID } from './blog-form';
 import { BlogRepository, type BlogFields, type BlogRecord } from './blog.repository';
@@ -51,20 +52,27 @@ export const viewOf = (record: BlogRecord): BlogView => ({
  * entry has a slug, which is unique whatever its case and which the proxy makes from the title when the administrator gives none.
  */
 @Injectable()
-export class BlogService implements OnModuleInit {
+export class BlogService implements OnApplicationBootstrap {
     private readonly logger = new Logger(BlogService.name);
 
     constructor(
         private readonly entries: BlogRepository,
-        private readonly config: AppConfigService
+        private readonly config: AppConfigService,
+        @Optional() private readonly mongo?: MongoConnectionService
     ) {}
 
-    /** The entries that v11 left without slug get one now, so that reading never has to write. */
-    async onModuleInit(): Promise<void> {
+    /** The server does not wait for it: the entries get their slug when the database is there. */
+    onApplicationBootstrap(): void {
+        void this.giveSlugs();
+    }
+
+    /** The entries that v11 left without slug get one, so that reading never has to write. */
+    async giveSlugs(): Promise<void> {
         if (!this.config.blog.enabled) {
             return;
         }
         try {
+            await this.mongo?.whenUp();
             for (const entry of await this.entries.withoutSlug()) {
                 await this.entries.giveSlug(
                     entry._id.toString(),

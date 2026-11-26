@@ -62,6 +62,7 @@ describe('MongoConnectionService', () => {
 
         await mongod.start();
         await waitFor(() => service.isUp(), 20_000);
+        await expect(service.whenUp()).resolves.toBeUndefined();
 
         const repository = module.get(ConfigDocumentRepository);
         await repository.upsert('feature-flags', { purchaseEnabled: true });
