@@ -423,7 +423,8 @@ export const ConfigSchema = z.object({
             .regex(/^([a-zA-Z_:][a-zA-Z0-9_:]*)?$/, 'must be a valid metric name prefix')
             .refine((prefix) => !prefix.endsWith('_'), 'must not end with an underscore, it is added'),
         defaultMetrics: booleanLike,
-        httpDurationBuckets: z.array(z.coerce.number().positive()).min(1)
+        httpDurationBuckets: z.array(z.coerce.number().positive()).min(1),
+        upstreamDurationBuckets: z.array(z.coerce.number().positive()).min(1)
     }),
     upstreams: upstreamsSchema
 }).refine((config) => !config.metrics.enabled || config.metrics.port !== config.app.port, {

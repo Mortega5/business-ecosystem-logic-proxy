@@ -4,6 +4,7 @@ import { DomainError } from '../common/domain-error';
 import { AppConfigService } from '../config/app-config.service';
 import { sanitizeUrl } from '../logging/pino-options';
 import { currentRequestId } from '../logging/request-id';
+import { metric } from '../metrics/metric-events';
 import { assertSafePath } from './safe-path';
 import { upstreamErrorDetail } from './upstream-error-detail';
 import { UpstreamClient, UpstreamError, type UpstreamRequest, type UpstreamResponse } from './upstream-client';
@@ -59,6 +60,7 @@ export class FetchUpstreamClient extends UpstreamClient {
                 signal: AbortSignal.timeout(request.timeoutMs ?? upstream.timeoutMs)
             });
             const body = await response.text();
+            metric.upstreamCall(request.upstream, method, `${Math.floor(response.status / 100)}xx`, (performance.now() - started) / 1000);
             // The access line of the request already says that it went well
             const level = response.status >= 500 ? 'warn' : response.status >= 400 ? 'info' : 'debug';
             const detail = response.status >= 400 ? upstreamErrorDetail(body) : undefined;
@@ -74,6 +76,7 @@ export class FetchUpstreamClient extends UpstreamClient {
                 throw raised;
             }
             const timedOut = error instanceof DOMException && error.name === 'TimeoutError';
+            metric.upstreamCall(request.upstream, method, timedOut ? 'timeout' : 'network', (performance.now() - started) / 1000);
             this.logger.error({ ...logged, durationMs: elapsed(), err: error }, 'upstream request failed');
             throw new UpstreamError(
                 timedOut ? 'timeout' : 'network',

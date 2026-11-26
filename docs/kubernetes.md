@@ -323,6 +323,7 @@ Keys read by the application:
 | `metrics.prefix` | `BAE_METRICS__PREFIX` | metric name prefix, with no final underscore | `bae_proxy` | Put before the name of the metrics of the proxy; empty for none |
 | `metrics.defaultMetrics` | `BAE_METRICS__DEFAULT_METRICS` | boolean | `true` | Metrics of the process: CPU, memory, event loop, garbage collection |
 | `metrics.httpDurationBuckets` | `BAE_METRICS__HTTP_DURATION_BUCKETS` | list of seconds | `[0.005, 0.025, 0.1, 0.25, 0.5, 1, 2.5, 5, 10]` | Buckets of the duration of the requests |
+| `metrics.upstreamDurationBuckets` | `BAE_METRICS__UPSTREAM_DURATION_BUCKETS` | list of seconds | `[0.01, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30]` | Buckets of the duration of the calls to third parties |
 
 ## Logging
 

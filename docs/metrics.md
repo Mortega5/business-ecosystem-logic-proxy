@@ -38,6 +38,46 @@ sum(rate(bae_proxy_http_server_request_duration_seconds_count{status_class="5xx"
 histogram_quantile(0.95, sum by (le, route) (rate(bae_proxy_http_server_request_duration_seconds_bucket[5m])))
 ```
 
+## Calls to third parties
+
+| Metric | Type | Labels | Unit |
+|---|---|---|---|
+| `bae_proxy_upstream_request_duration_seconds` | histogram | `upstream`, `method`, `outcome` | seconds |
+
+The time taken by every call that the proxy makes to a service it depends on: the TMForum APIs, the charging backend,
+the billing engine, the search service, and the payment, compliance, file and analytics services.
+
+| Label | Values |
+|---|---|
+| `upstream` | The name of the service, such as `tmforum` or `charging`; never its address |
+| `method` | The HTTP method of the call |
+| `outcome` | The class of the status of the answer (`2xx`...`5xx`), `timeout` when it did not answer in time, or `network` when it could not be reached |
+
+The buckets are `metrics.upstreamDurationBuckets`, in seconds. The calls that the proxy makes to the identity provider
+while a user logs in are not included.
+
+```promql
+# Share of the calls to each service that fail
+sum by (upstream) (rate(bae_proxy_upstream_request_duration_seconds_count{outcome=~"5xx|timeout|network"}[5m]))
+  / sum by (upstream) (rate(bae_proxy_upstream_request_duration_seconds_count[5m]))
+```
+
+## Authentication
+
+| Metric | Type | Labels | Meaning |
+|---|---|---|---|
+| `bae_proxy_auth_failures_total` | counter | `status`, `api` | Requests answered `401` or `403`. `api` is the first segment of the route, such as `catalog`, and `unmatched` for no route |
+| `bae_proxy_login_total` | counter | `provider`, `result` | Logins that ended. `provider` is the identity provider, or `vc` for a login with a credential; `result` is `success` or `failure` |
+| `bae_proxy_profile_cache_total` | counter | `result` | Requests whose token had its profile kept (`hit`) or had to be asked for (`miss`) |
+
+## State of the process
+
+| Metric | Type | Meaning |
+|---|---|---|
+| `bae_proxy_draining` | gauge | `1` once the shutdown has started and the process stops taking traffic, `0` before |
+| `bae_proxy_mongo_up` | gauge | `1` when MongoDB answered the last readiness check, `0` when it did not. It has no value until the first check, so it needs the readiness probe |
+| `bae_proxy_stats_refresh_total` | counter | Reads of the figures of the landing page (`result` is `success` or `failure`) |
+
 ## Process and Node.js
 
 Present while `metrics.defaultMetrics` is on. They come from the Prometheus client library and keep its standard

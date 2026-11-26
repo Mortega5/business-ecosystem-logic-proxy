@@ -632,7 +632,8 @@ describe('metrics configuration', () => {
             path: '/metrics',
             prefix: 'bae_proxy',
             defaultMetrics: true,
-            httpDurationBuckets: [0.005, 0.025, 0.1, 0.25, 0.5, 1, 2.5, 5, 10]
+            httpDurationBuckets: [0.005, 0.025, 0.1, 0.25, 0.5, 1, 2.5, 5, 10],
+            upstreamDurationBuckets: [0.01, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30]
         });
         expect(metrics.port).not.toBe(app.port);
     });
@@ -645,7 +646,8 @@ describe('metrics configuration', () => {
             BAE_METRICS__PATH: '/prom',
             BAE_METRICS__PREFIX: 'bae',
             BAE_METRICS__DEFAULT_METRICS: 'false',
-            BAE_METRICS__HTTP_DURATION_BUCKETS: '[0.1, 1]'
+            BAE_METRICS__HTTP_DURATION_BUCKETS: '[0.1, 1]',
+            BAE_METRICS__UPSTREAM_DURATION_BUCKETS: '[1, 5]'
         });
         expect(metrics).toEqual({
             enabled: true,
@@ -654,7 +656,8 @@ describe('metrics configuration', () => {
             path: '/prom',
             prefix: 'bae',
             defaultMetrics: false,
-            httpDurationBuckets: [0.1, 1]
+            httpDurationBuckets: [0.1, 1],
+            upstreamDurationBuckets: [1, 5]
         });
     });
 

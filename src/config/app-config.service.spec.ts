@@ -89,7 +89,7 @@ const VALUE: AppConfig = {
     portal: { chatUrl: '', knowledgeBaseUrl: '', ticketingUrl: '', matomoId: '', matomoUrl: '', googleTagManagerId: '', theme: '', extra: {} },
     stats: { ttlMs: 86400000, retryDelayMs: 600000, providerTtlMs: 60000 },
     health: { mongoPingTimeoutMs: 1000 },
-    metrics: { enabled: false, port: 9464, path: '/metrics', prefix: '', defaultMetrics: true, httpDurationBuckets: [0.1, 1] },
+    metrics: { enabled: false, port: 9464, path: '/metrics', prefix: '', defaultMetrics: true, httpDurationBuckets: [0.1, 1], upstreamDurationBuckets: [0.1, 1] },
     upstreams: {
         timeoutMs: 5000,
         tmforum: { host: 'tmforum', port: 8080, apis: { ...EMPTY_APIS, catalog: { path: '/catalog' } } },

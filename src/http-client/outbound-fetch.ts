@@ -1,6 +1,7 @@
 import { Logger } from '@nestjs/common';
 import { sanitizeUrl } from '../logging/pino-options';
 import { currentRequestId } from '../logging/request-id';
+import { metric } from '../metrics/metric-events';
 
 const logger = new Logger('OutboundFetch');
 
@@ -20,6 +21,7 @@ export const outboundFetch = async (target: string, url: string | URL, init: Req
     const elapsed = (): number => Math.round(performance.now() - started);
     try {
         const response = await fetch(url, { ...init, headers });
+        metric.upstreamCall(target, logged.method, `${Math.floor(response.status / 100)}xx`, (performance.now() - started) / 1000);
         const fields = { ...logged, statusCode: response.status, durationMs: elapsed() };
         if (response.status >= 500) {
             logger.warn(fields, 'outbound request completed');
@@ -30,6 +32,8 @@ export const outboundFetch = async (target: string, url: string | URL, init: Req
         }
         return response;
     } catch (error) {
+        const timedOut = error instanceof DOMException && error.name === 'TimeoutError';
+        metric.upstreamCall(target, logged.method, timedOut ? 'timeout' : 'network', (performance.now() - started) / 1000);
         logger.error({ ...logged, durationMs: elapsed(), err: error }, 'outbound request failed');
         throw error;
     }

@@ -1,8 +1,9 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { gzipSync } from 'node:zlib';
 import type { PinoLogger } from 'nestjs-pino';
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { enterRequest } from '../logging/request-id';
+import { listenToMetricEvents, type MetricEvents } from '../metrics/metric-events';
 import { AppConfigService } from '../config/app-config.service';
 import type { AppConfig } from '../config/config.schema';
 import { FetchUpstreamClient } from './fetch-upstream-client';
@@ -115,6 +116,41 @@ describe('FetchUpstreamClient.send', () => {
         const response = await clientFor(`http://127.0.0.1:${port}`).send({ upstream: 'charging', path: '/x' });
 
         expect(response).toMatchObject({ status: 404, body: '{"error":"missing"}' });
+    });
+
+    describe('metrics', () => {
+        const upstreamCall = vi.fn();
+        let stop: () => void;
+
+        beforeEach(() => {
+            upstreamCall.mockClear();
+            stop = listenToMetricEvents({ upstreamCall } as unknown as MetricEvents);
+        });
+
+        afterEach(() => stop());
+
+        it('tells the class of the status of a call that was answered', async () => {
+            handler = (_req, res) => reply(res, 404, '{}');
+
+            await clientFor(`http://127.0.0.1:${port}`).send({ upstream: 'charging', method: 'POST', path: '/x' });
+
+            expect(upstreamCall).toHaveBeenCalledWith('charging', 'POST', '4xx', expect.any(Number));
+        });
+
+        it('tells a timeout and a network failure as the outcome', async () => {
+            handler = (_req, res) => {
+                setTimeout(() => reply(res, 200, 'late'), 300);
+            };
+            await clientFor(`http://127.0.0.1:${port}`, 50)
+                .send({ upstream: 'charging', path: '/slow' })
+                .catch(() => undefined);
+            await clientFor('http://127.0.0.1:1')
+                .send({ upstream: 'charging', path: '/x' })
+                .catch(() => undefined);
+
+            expect(upstreamCall).toHaveBeenNthCalledWith(1, 'charging', 'GET', 'timeout', expect.any(Number));
+            expect(upstreamCall).toHaveBeenNthCalledWith(2, 'charging', 'GET', 'network', expect.any(Number));
+        });
     });
 
     it('does not follow redirects', async () => {
