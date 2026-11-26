@@ -125,6 +125,8 @@ If the shutdown has not finished `app.shutdownTimeoutMs` after the signal, the p
 
 ## MongoDB connection
 
+What the proxy keeps in MongoDB, and how, is in [database.md](database.md).
+
 The Nest application opens its connection after it starts, without blocking it, and keeps trying until it
 succeeds: the delay between attempts starts at `mongo.retryInitialDelayMs`, doubles on each failure and is
 capped at `mongo.retryMaxDelayMs`. Once connected, the driver reconnects by itself after an outage;
