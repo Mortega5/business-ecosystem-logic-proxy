@@ -122,8 +122,8 @@ describe('request logging', () => {
             imports: [LoggerModule.forRoot({ pinoHttp: [buildPinoOptions(LOGGING), stream] }), SampleModule]
         }).compile();
         app = module.createNestApplication();
-        app.use((req: { user?: { partyId: string } }, _res: unknown, next: () => void) => {
-            req.user = { partyId: 'urn:party:1' };
+        app.use((req: { user?: { partyId: string; userId: string } }, _res: unknown, next: () => void) => {
+            req.user = { partyId: 'urn:party:1', userId: 'user-9' };
             next();
         });
         await app.listen(0);
@@ -152,6 +152,7 @@ describe('request logging', () => {
         expect(line).toMatchObject({
             level: 30,
             partyId: 'urn:party:1',
+            userId: 'user-9',
             req: { method: 'GET', url: '/catalog/ok?code=%5BRedacted%5D', userAgent: 'vitest' },
             res: { statusCode: 200 }
         });

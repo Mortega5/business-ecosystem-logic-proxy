@@ -33,7 +33,7 @@ interface ExpressRequest extends IncomingMessage {
     originalUrl?: string;
     ip?: string;
     apiUrl?: string;
-    user?: { partyId?: string };
+    user?: { partyId?: string; userId?: string };
 }
 
 interface SerializedRequest {
@@ -97,6 +97,8 @@ const accessLogProps = (req: IncomingMessage, res: ServerResponse) => {
     return {
         ...(typeof failure === 'string' ? { failure } : {}),
         ...(user?.partyId === undefined ? {} : { partyId: user.partyId }),
+        // Set only when the user acts for an organisation: who is behind it
+        ...(user?.userId === undefined ? {} : { userId: user.userId }),
         ...(api === undefined || api === '' ? {} : { api })
     };
 };
