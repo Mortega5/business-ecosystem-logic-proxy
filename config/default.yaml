@@ -229,6 +229,6 @@ upstreams:
       invoicing: { path: /tmf-api/invoicing/v4 }
       software: { path: /tmf-api/softwareCompute/v4 }
       quote: { path: "" }
-  charging: {}
+  charging: { port: 8006 }
   revenue: { path: /revenue }
   search: {}

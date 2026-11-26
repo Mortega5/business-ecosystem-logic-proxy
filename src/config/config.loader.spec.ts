@@ -198,6 +198,10 @@ describe('loadStaticConfig', () => {
         expect(config.upstreams.charging).toEqual({ host: 'charging', port: 8006, timeoutMs: 2500 });
     });
 
+    it('gives the charging backend its usual port, and no host', () => {
+        expect(loadStaticConfig({ defaultsPath: DEFAULTS_PATH, env: {} }).upstreams.charging).toEqual({ port: 8006 });
+    });
+
     it('rejects an upstream with a scheme or a port inside the host, or a port out of range', () => {
         const load = (env: NodeJS.ProcessEnv) => () => loadStaticConfig({ defaultsPath: DEFAULTS_PATH, env });
         expect(load({ BAE_UPSTREAMS__CHARGING__HOST: 'http://charging' })).toThrow('upstreams.charging.host');
