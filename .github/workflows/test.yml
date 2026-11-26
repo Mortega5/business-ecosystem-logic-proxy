@@ -20,78 +20,10 @@ jobs:
   checks:
     uses: ./.github/workflows/checks.yml
 
-  build-docker:
-    runs-on: ubuntu-latest
+  docker:
     needs: checks
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
-
-      # The image is run before it is published: a missing file or a wrong user shows here and not in a cluster
-      - name: Build the image to try it
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          file: ./docker/Dockerfile
-          platforms: linux/amd64
-          load: true
-          tags: bae-proxy:ci
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Run the image
-        run: |
-          docker run -d --name bae-proxy --read-only --cap-drop ALL --security-opt no-new-privileges -p 8004:8004 \
-            -e BAE_AUTH__SESSION__SECRET=ci-secret-of-at-least-32-characters-long \
-            -e BAE_AUTH__IDP__PROVIDER=keycloak \
-            -e BAE_AUTH__IDP__SERVER=http://127.0.0.1:1 \
-            -e BAE_AUTH__IDP__REALM=ci \
-            -e BAE_AUTH__IDP__CLIENT_ID=ci \
-            -e BAE_AUTH__IDP__CLIENT_SECRET=ci \
-            -e BAE_AUTH__IDP__CALLBACK_URL=http://localhost:8004/callback \
-            -e BAE_MONGO__URI=mongodb://127.0.0.1:1/ci \
-            bae-proxy:ci
-          for attempt in $(seq 1 30); do
-            if curl --fail --silent http://localhost:8004/health/live > /dev/null; then
-              break
-            fi
-            if [ "$attempt" -eq 30 ]; then
-              docker logs bae-proxy
-              echo "The server did not answer /health/live"
-              exit 1
-            fi
-            sleep 1
-          done
-          test "$(docker inspect bae-proxy --format '{{.Config.User}}')" = "65532"
-          curl --fail --silent --header 'accept: text/html' http://localhost:8004/ > /dev/null
-          docker stop -t 15 bae-proxy
-          test "$(docker inspect bae-proxy --format '{{.State.ExitCode}}')" = "0"
-
-      - name: Logs of the container
-        if: failure()
-        run: docker logs bae-proxy || true
-
-      - name: Login to DockerHub
-        if: github.event_name == 'push'
-        uses: docker/login-action@v4
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      # Both architectures are built on every run; they are published only from master
-      - name: Build and push Docker
-        id: docker_build
-        uses: docker/build-push-action@v7
-        with:
-          platforms: linux/amd64,linux/arm64
-          context: .
-          file: ./docker/Dockerfile
-          tags: |
-            fiware/biz-ecosystem-logic-proxy:master
-          push: ${{ github.event_name == 'push' }}
-          cache-from: type=gha
-
-      - name: Image digest
-        run: echo ${{ steps.docker_build.outputs.digest }}
+    uses: ./.github/workflows/docker.yml
+    with:
+      tag: master
+      push: ${{ github.event_name == 'push' }}
+    secrets: inherit
