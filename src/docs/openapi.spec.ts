@@ -69,6 +69,7 @@ const mongo = { ping: vi.fn<(timeoutMs: number) => Promise<boolean>>() };
             useValue: {
                 app: { shutdownDelayMs: 0 },
                 health: { mongoPingTimeoutMs: 500 },
+                metrics: { enabled: false },
                 http: { bodyLimit: '1kb', uploadLimit: '1kb' },
                 party: { editEnabled: true },
                 search: { enabled: false },

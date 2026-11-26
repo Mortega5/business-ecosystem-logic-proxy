@@ -98,6 +98,24 @@ containers:
       failureThreshold: 3
 ```
 
+## Metrics
+
+Off by default. With `metrics.enabled` set to `true` the process serves its metrics in the Prometheus text format on a
+port of its own, `metrics.port` (`9464` by default), at `metrics.path` (`/metrics`). That port is not the one of the
+application: the routes of the proxy are not answered there, and `/metrics` is not answered on `app.port`. Do not
+publish it in the `Service` or the `Ingress`; scrape the pod directly, for example with a `PodMonitor`:
+
+```yaml
+ports:
+  - { name: metrics, containerPort: 9464 }
+```
+
+It listens on `metrics.host` when set, and on every interface otherwise. The port must differ from `app.port`. If it
+cannot listen, the proxy logs the error and keeps serving without metrics. It is the last thing to close on shutdown,
+after the main server has drained.
+
+Every metric, with its labels and what it measures, is in [metrics.md](metrics.md).
+
 ## Shutdown
 
 `SIGTERM` and `SIGINT` start an orderly shutdown, in this order:
@@ -298,6 +316,13 @@ Keys read by the application:
 | `stats.ttlMs`, `stats.retryDelayMs` | `BAE_STATS__TTL_MS`, `BAE_STATS__RETRY_DELAY_MS` | integer | `86400000`, `600000` | The figures of the landing page (`GET /stats`): the milliseconds that they are kept in Mongo before a request makes the proxy read them again, in the background (the request is answered with what is kept), and the ones to wait before trying again when that read failed |
 | `stats.providerTtlMs` | `BAE_STATS__PROVIDER_TTL_MS` | integer | `60000` | The milliseconds that the counts of an organisation (`GET /stats/provider/{organizationId}`) are kept in memory |
 | `health.mongoPingTimeoutMs` | `BAE_HEALTH__MONGO_PING_TIMEOUT_MS` | integer | `1000` | |
+| `metrics.enabled` | `BAE_METRICS__ENABLED` | boolean | `false` | Serves the metrics on their own port |
+| `metrics.host` | `BAE_METRICS__HOST` | string | not set | Address of the metrics port; every interface when not set |
+| `metrics.port` | `BAE_METRICS__PORT` | integer 1–65535 | `9464` | Port of the metrics; it must differ from `app.port` |
+| `metrics.path` | `BAE_METRICS__PATH` | absolute path | `/metrics` | |
+| `metrics.prefix` | `BAE_METRICS__PREFIX` | metric name prefix, with no final underscore | `bae_proxy` | Put before the name of the metrics of the proxy; empty for none |
+| `metrics.defaultMetrics` | `BAE_METRICS__DEFAULT_METRICS` | boolean | `true` | Metrics of the process: CPU, memory, event loop, garbage collection |
+| `metrics.httpDurationBuckets` | `BAE_METRICS__HTTP_DURATION_BUCKETS` | list of seconds | `[0.005, 0.025, 0.1, 0.25, 0.5, 1, 2.5, 5, 10]` | Buckets of the duration of the requests |
 
 ## Logging
 

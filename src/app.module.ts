@@ -35,7 +35,8 @@ import { ServiceModule } from './tmf/service/service.module';
 import { SearchModule } from './tmf/search/search.module';
 import { HealthModule } from './health/health.module';
 import { LoggingModule } from './logging/logging.module';
+import { MetricsModule } from './metrics/metrics.module';
 import { MongoPersistenceModule } from './persistence/mongo-persistence.module';
 
-@Module({ imports: [AppConfigModule, VersionModule, ContactUsModule, StatsModule, CartModule, PaymentModule, PortalModule, FeedbackModule, FilesModule, AuthModule, LoginModule, IdpModule, LoggingModule, MongoPersistenceModule, FeaturesModule, HealthModule, DocumentModule, RevenueModule, SearchModule, InvoicingModule, QuoteModule, InventoryModule, AccountModule, BillingModule, PartyModule, ResourceModule, ServiceModule, ChargingModule, SoftwareModule, UsageModule, OrderingModule, CatalogModule, CatalogBootstrapModule, BlogModule, AnalyticsModule, ComplianceModule, DomeModule] })
+@Module({ imports: [AppConfigModule, VersionModule, ContactUsModule, StatsModule, CartModule, PaymentModule, PortalModule, FeedbackModule, FilesModule, AuthModule, LoginModule, IdpModule, LoggingModule, MongoPersistenceModule, FeaturesModule, HealthModule, MetricsModule, DocumentModule, RevenueModule, SearchModule, InvoicingModule, QuoteModule, InventoryModule, AccountModule, BillingModule, PartyModule, ResourceModule, ServiceModule, ChargingModule, SoftwareModule, UsageModule, OrderingModule, CatalogModule, CatalogBootstrapModule, BlogModule, AnalyticsModule, ComplianceModule, DomeModule] })
 export class AppModule {}

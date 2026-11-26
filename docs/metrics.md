@@ -1,0 +1,58 @@
+# Metrics
+
+Reference of the metrics that the proxy exposes in the Prometheus text format. How to turn them on, the port and the
+configuration keys are in [kubernetes.md](kubernetes.md#metrics).
+
+`metrics.prefix` (`bae_proxy` by default) goes, followed by an underscore, before the name of the metrics of the proxy.
+The names below are written with the default prefix. The metrics of the process keep their standard names.
+
+## HTTP requests
+
+| Metric | Type | Labels | Unit |
+|---|---|---|---|
+| `bae_proxy_http_server_request_duration_seconds` | histogram | `method`, `route`, `status_class` | seconds |
+
+The time between a request arriving and its response being sent, for every request that is answered. It gives the rate
+(`_count`), the duration (`_sum` and `_bucket`) and, by `status_class`, the errors. A request that the client aborts
+before the response ends is not recorded.
+
+| Label | Values |
+|---|---|
+| `method` | The HTTP method: `GET`, `POST`... |
+| `route` | The template of the route that answered, such as `/catalog/productOffering/:id`, never the URL. `unmatched` when no route answered: the files of the portal and the paths that do not exist |
+| `status_class` | `1xx`, `2xx`, `3xx`, `4xx` or `5xx` |
+
+The buckets are `metrics.httpDurationBuckets`, in seconds.
+
+Examples:
+
+```promql
+# Requests per second, by route
+sum by (route) (rate(bae_proxy_http_server_request_duration_seconds_count[5m]))
+
+# Share of the requests that fail on the server
+sum(rate(bae_proxy_http_server_request_duration_seconds_count{status_class="5xx"}[5m]))
+  / sum(rate(bae_proxy_http_server_request_duration_seconds_count[5m]))
+
+# 95th percentile of the duration, by route
+histogram_quantile(0.95, sum by (le, route) (rate(bae_proxy_http_server_request_duration_seconds_bucket[5m])))
+```
+
+## Process and Node.js
+
+Present while `metrics.defaultMetrics` is on. They come from the Prometheus client library and keep its standard
+names, which the community dashboards of Node.js expect, so `metrics.prefix` does not apply to them. The complete list
+depends on the version of the library and on the platform: the ones about file descriptors and memory exist only on
+Linux. See the documentation of [`@prometheus-io/client`](https://github.com/prometheus/client_js#default-metrics).
+
+| Metric | Type | Meaning |
+|---|---|---|
+| `process_cpu_user_seconds_total`, `process_cpu_system_seconds_total` | counter | CPU time used in user and system mode |
+| `process_resident_memory_bytes` | gauge | Resident memory of the process |
+| `process_open_fds`, `process_max_fds` | gauge | File descriptors that are open, and the limit |
+| `process_start_time_seconds` | gauge | When the process started, in Unix time; it tells restarts |
+| `nodejs_eventloop_lag_seconds` | gauge | Delay of the event loop; high values mean the process cannot keep up |
+| `nodejs_heap_size_used_bytes`, `nodejs_heap_size_total_bytes` | gauge | Heap of V8 that is used, and reserved |
+| `nodejs_gc_duration_seconds` | histogram | Duration of the garbage collections, by kind |
+| `nodejs_active_handles`, `nodejs_active_requests` | gauge | Handles and requests that keep the event loop busy |
+| `nodejs_version_info` | gauge | Version of Node.js, in its labels |
