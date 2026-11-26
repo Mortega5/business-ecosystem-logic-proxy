@@ -4,6 +4,7 @@ import type { IdentityProvider, IdentityTokens, LoginCapable, LoginChecks, Login
 import { IdpError, requestJson, tokensOf, type Fetcher } from './idp-http';
 import { jwtPayload } from './jwt-payload';
 import { JwksVerifier } from './jwks-verifier';
+import { claimsFromCredential, NoCredentialError, type CredentialPolicy } from './vc-credential';
 import { OidcLogin } from './oidc-login';
 
 export interface OidcDiscoverOptions {
@@ -21,6 +22,11 @@ export interface OidcDiscoverOptions {
     /** Name of the role of a seller: the role of a user that comes without roles when there is no default one. */
     sellerRole: string;
     defaultRole?: string;
+    /**
+     * When set, a token that carries a verifiable credential says who the user is by it (the person, their organisation and their roles),
+     * as in v11; one that carries none is read by its claims. A credential that is there and cannot be read refuses the login.
+     */
+    credentialPolicy?: CredentialPolicy;
     /** When set, a token presented without a login must be meant for it. */
     audience?: string;
     /** How long the discovery document is kept (an hour by default). */
@@ -108,6 +114,16 @@ export class OidcDiscoverProvider implements IdentityProvider, LoginCapable {
     }
 
     private claimsFrom(claims: Json): IdentityClaims {
+        const { credentialPolicy } = this.options;
+        if (credentialPolicy !== undefined) {
+            try {
+                return { ...claimsFromCredential(claims, credentialPolicy), ...(typeof claims['exp'] === 'number' ? { expire: claims['exp'] } : {}) };
+            } catch (error) {
+                if (!(error instanceof NoCredentialError)) {
+                    throw error;
+                }
+            }
+        }
         const id = text(claims['sub']) ?? text(claims['preferred_username']);
         if (id === undefined) {
             throw new IdpError('The token has no user');

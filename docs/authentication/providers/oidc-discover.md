@@ -51,6 +51,21 @@ From the claims: `id` is `sub` (or `preferred_username`), `username` is `preferr
 `organizations` (`{ id, name, roles }`) are taken from the claims of the same names when they are there. With no roles the user
 is given `defaultRole`, or the seller role. The expiry is the `exp` of the token.
 
+### A token that carries a verifiable credential
+
+When the token carries a credential (the LEAR credential of an employee or a machine, or the credential of the FIWARE issuer, in the token
+itself or inside `vc`, `verifiableCredential` or a presentation), the user is the one the credential says, as in v11:
+
+- `id` is the id of the mandatee (or of the subject of the credential), and `email`, the name and the language are theirs. This is what
+  identifies the person in the party API, so it must not change between versions.
+- The organisation is the mandator, with its `organizationIdentifier` as id.
+- The roles in the organisation come from the powers of the mandate (see [vc](vc.md#how-the-user-is-read)). A credential whose issuer, or
+  whose organisation, is one of `auth.vc.operators` (`BAE_LP_SIOP_OPERATORS`) makes its user an administrator of the platform.
+
+A token with no credential is read by its claims, as above. A credential that is there and cannot be read refuses the login: it is not
+read by the claims, which would make another user of the same person.
+
+
 ## Refresh
 
 `refresh_token` grant at the `token_endpoint` of the discovery document.

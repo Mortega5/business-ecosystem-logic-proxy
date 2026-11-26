@@ -20,6 +20,8 @@ export interface ProviderDependencies {
     roles: AppConfig['auth']['roles'];
     /** The trading name of an organisation that a group of the identity provider names. */
     organizationName: (group: string) => Promise<string | undefined>;
+    /** Issuers, or organisation identifiers, whose users are administrators when the token carries a credential. */
+    operators?: string[];
     fetcher?: Fetcher;
 }
 
@@ -91,7 +93,8 @@ export const createIdentityProvider = (idp: IdpSettings, dependencies: ProviderD
                 ...(idp.server === undefined ? {} : { issuerUrl: idp.server }),
                 ...(idp.discoveryUrl === undefined ? {} : { discoveryUrl: idp.discoveryUrl }),
                 ...(idp.defaultRole === undefined ? {} : { defaultRole: idp.defaultRole }),
-                ...(idp.audience === undefined ? {} : { audience: idp.audience })
+                ...(idp.audience === undefined ? {} : { audience: idp.audience }),
+                credentialPolicy: { roles: dependencies.roles, operators: dependencies.operators ?? [] }
             });
         }
         case 'i4trust': {
@@ -133,7 +136,7 @@ export const createMainIdentityProvider = (
     const { vc } = auth;
     if (!vc.enabled) {
         const callbackUrl = auth.idp.callbackUrl;
-        const provider = createIdentityProvider(auth.idp, dependencies, id);
+        const provider = createIdentityProvider(auth.idp, { ...dependencies, operators: vc.operators }, id);
         if (callbackUrl === undefined) {
             throw new Error(`auth.idp.callbackUrl required when auth.idp.provider is ${auth.idp.provider}`);
         }

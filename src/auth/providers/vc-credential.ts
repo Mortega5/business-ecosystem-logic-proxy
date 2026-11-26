@@ -10,6 +10,14 @@ export interface CredentialPolicy {
     operators: string[];
 }
 
+/** The token is not a credential: it carries none. A credential that is there and is wrong is another error, which is not this one. */
+export class NoCredentialError extends IdpError {
+    constructor() {
+        super('The token carries no credential');
+        this.name = 'NoCredentialError';
+    }
+}
+
 const isRecord = (value: unknown): value is Json =>
     typeof value === 'object' && value !== null && !Array.isArray(value);
 const text = (value: unknown): string | undefined => (typeof value === 'string' && value !== '' ? value : undefined);
@@ -180,7 +188,7 @@ const credentialIn = (payload: Json): Json => {
             return found;
         }
     }
-    throw new IdpError('The token carries no credential');
+    throw new NoCredentialError();
 };
 
 /**

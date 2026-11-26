@@ -172,3 +172,60 @@ describe('OidcDiscoverProvider: the claims of a login', () => {
         expect(claims).toMatchObject({ id: 'u1', username: 'ana', email: 'ana@example.org', roles: [{ name: 'Seller' }] });
     });
 });
+
+describe('OidcDiscoverProvider: a token that carries a credential', () => {
+    const credentialPolicy = {
+        roles: { admin: 'admin', customer: 'customer', seller: 'seller', orgAdmin: 'manager', certifier: 'certifier' },
+        operators: []
+    };
+    const credential = (mandatee: object = {}) => ({
+        sub: 'did:web:verifier.example.org',
+        verifiableCredential: {
+            type: ['VerifiableCredential', 'LEARCredentialEmployee'],
+            issuer: { id: 'did:elsi:ISSUER' },
+            credentialSubject: {
+                mandate: {
+                    mandator: { organizationIdentifier: 'VATES-1', organization: 'Acme', country: 'ES' },
+                    mandatee: { id: 'did:key:ana', email: 'ana@acme.org', first_name: 'Ana', last_name: 'López', ...mandatee },
+                    power: [{ function: 'ProductOffering', action: ['Create', 'Update'] }]
+                }
+            }
+        }
+    });
+
+    it('is the person and the organisation that the credential names, as in v11, and not the subject of the token', async () => {
+        const claims = await provider(idp(), { credentialPolicy }).claimsOf(sign(credential()));
+
+        expect(claims.id).toBe('did:key:ana');
+        expect(claims.email).toBe('ana@acme.org');
+        expect(claims.organizations).toMatchObject([{ id: 'VATES-1', name: 'Acme' }]);
+        expect(claims.roles.map((role) => role.name)).toContain('seller');
+    });
+
+    it('is the same person at the login, from the ID token that the library validated', () => {
+        const claims = provider(idp(), { credentialPolicy }).claimsFromIdToken(credential());
+
+        expect(claims.id).toBe('did:key:ana');
+        expect(claims.organizations).toMatchObject([{ id: 'VATES-1' }]);
+    });
+
+    it('is read by its claims when it carries no credential', async () => {
+        const claims = await provider(idp(), { credentialPolicy }).claimsOf(sign({ sub: 'u1', preferred_username: 'ana' }));
+
+        expect(claims).toMatchObject({ id: 'u1', username: 'ana', organizations: [] });
+    });
+
+    it('refuses the login when the credential is there and cannot be read, instead of making somebody else of the user', async () => {
+        const broken = credential();
+        delete (broken.verifiableCredential.credentialSubject.mandate as { mandator?: unknown }).mandator;
+
+        await expect(provider(idp(), { credentialPolicy }).claimsOf(sign(broken))).rejects.toBeInstanceOf(IdpError);
+    });
+
+    it('does not read credentials when there is no policy for them', async () => {
+        const claims = await provider(idp()).claimsOf(sign(credential()));
+
+        expect(claims.id).toBe('did:web:verifier.example.org');
+    });
+});
+
