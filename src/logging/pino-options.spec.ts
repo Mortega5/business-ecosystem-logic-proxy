@@ -130,10 +130,6 @@ describe('request logging', () => {
             imports: [LoggerModule.forRoot({ pinoHttp: [buildPinoOptions(LOGGING), stream] }), SampleModule]
         }).compile();
         app = module.createNestApplication();
-        app.use((req: { user?: { partyId: string; userId: string } }, _res: unknown, next: () => void) => {
-            req.user = { partyId: 'urn:party:1', userId: 'user-9' };
-            next();
-        });
         await app.listen(0);
         url = await app.getUrl();
     });
@@ -153,14 +149,12 @@ describe('request logging', () => {
         return res;
     };
 
-    it('writes one access line with the client, the party and the status', async () => {
+    it('writes one access line with the client and the status', async () => {
         await call('/catalog/ok?code=secret', { 'user-agent': 'vitest' });
 
         const line = lines.find((l) => l.msg === 'request completed');
         expect(line).toMatchObject({
             level: 'info',
-            partyId: 'urn:party:1',
-            userId: 'user-9',
             req: { method: 'GET', url: '/catalog/ok?code=%5BRedacted%5D', userAgent: 'vitest' },
             res: { statusCode: 200 }
         });

@@ -1,5 +1,6 @@
 import type { ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import type { PinoLogger } from 'nestjs-pino';
 import { describe, expect, it, vi } from 'vitest';
 import { UnauthorizedError } from '../common/domain-error';
 import { AuthGuard } from './auth.guard';
@@ -18,7 +19,8 @@ class Routes {
 
 const setup = (user?: object) => {
     const authenticate = vi.fn().mockResolvedValue(user);
-    const guard = new AuthGuard(new Reflector(), { authenticate } as unknown as RequestAuthenticator);
+    const assign = vi.fn();
+    const guard = new AuthGuard(new Reflector(), { authenticate } as unknown as RequestAuthenticator, { assign } as unknown as PinoLogger);
     const request: { user?: object } = {};
     const run = (handler: keyof Routes): Promise<boolean> =>
         guard.canActivate({
@@ -26,7 +28,7 @@ const setup = (user?: object) => {
             getClass: () => Routes,
             switchToHttp: () => ({ getRequest: () => request })
         } as unknown as ExecutionContext);
-    return { run, request, authenticate };
+    return { run, request, authenticate, assign };
 };
 
 describe('AuthGuard', () => {
@@ -40,6 +42,18 @@ describe('AuthGuard', () => {
         const { run, request } = setup({ id: 'u1' });
         expect(await run('closed')).toBe(true);
         expect(request.user).toEqual({ id: 'u1' });
+    });
+
+    it('puts who makes the request in the logs of the request', async () => {
+        const { run, assign } = setup({ id: 'u1', partyId: 'urn:party:1' });
+        await run('closed');
+        expect(assign).toHaveBeenCalledWith({ userId: 'u1', partyId: 'urn:party:1' });
+    });
+
+    it('does not touch the logs when nobody is identified', async () => {
+        const { run, assign } = setup();
+        await run('either');
+        expect(assign).not.toHaveBeenCalled();
     });
 
     it('refuses a private route when nobody is identified', async () => {

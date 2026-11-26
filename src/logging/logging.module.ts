@@ -7,7 +7,8 @@ import { buildPinoOptions } from './pino-options';
     imports: [
         LoggerModule.forRootAsync({
             inject: [AppConfigService],
-            useFactory: (config: AppConfigService) => ({ pinoHttp: buildPinoOptions(config.logging) })
+            // The actor that the guard assigns goes also to the access line, which is written when the response ends
+            useFactory: (config: AppConfigService) => ({ pinoHttp: buildPinoOptions(config.logging), assignResponse: true })
         })
     ]
 })

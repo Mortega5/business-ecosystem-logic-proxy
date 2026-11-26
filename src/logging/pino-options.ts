@@ -36,7 +36,6 @@ interface ExpressRequest extends IncomingMessage {
     originalUrl?: string;
     ip?: string;
     apiUrl?: string;
-    user?: { partyId?: string; userId?: string };
 }
 
 interface SerializedRequest {
@@ -94,14 +93,11 @@ export const noteFailure = (res: { locals?: Record<string, unknown> }, reason: s
 
 // Runs when the line is written, after authentication has populated req.user and the filter has noted the failure.
 const accessLogProps = (req: IncomingMessage, res: ServerResponse) => {
-    const { user, apiUrl } = req as ExpressRequest;
+    const { apiUrl } = req as ExpressRequest;
     const api = apiUrl?.split('/')[1];
     const failure = (res as { locals?: Record<string, unknown> }).locals?.['failure'];
     return {
         ...(typeof failure === 'string' ? { failure } : {}),
-        ...(user?.partyId === undefined ? {} : { partyId: user.partyId }),
-        // Set only when the user acts for an organisation: who is behind it
-        ...(user?.userId === undefined ? {} : { userId: user.userId }),
         ...(api === undefined || api === '' ? {} : { api })
     };
 };

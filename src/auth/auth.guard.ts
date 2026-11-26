@@ -1,6 +1,8 @@
 import { Injectable, type CanActivate, type ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { IncomingMessage } from 'node:http';
+import { PinoLogger } from 'nestjs-pino';
+import { actorLogFields } from './actor-log-fields';
 import { UnauthorizedError } from '../common/domain-error';
 import { IS_OPTIONAL_AUTH, IS_PUBLIC } from './public.decorator';
 import { RequestAuthenticator, type AuthenticatedUser } from './request-authenticator';
@@ -10,7 +12,8 @@ import { RequestAuthenticator, type AuthenticatedUser } from './request-authenti
 export class AuthGuard implements CanActivate {
     constructor(
         private readonly reflector: Reflector,
-        private readonly authenticator: RequestAuthenticator
+        private readonly authenticator: RequestAuthenticator,
+        private readonly logger: PinoLogger
     ) {}
 
     async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -25,6 +28,7 @@ export class AuthGuard implements CanActivate {
         const user = await this.authenticator.authenticate(req);
         if (user !== undefined) {
             req.user = user;
+            this.logger.assign(actorLogFields(user));
             return true;
         }
         if (this.reflector.getAllAndOverride<boolean | undefined>(IS_OPTIONAL_AUTH, targets) === true) {
