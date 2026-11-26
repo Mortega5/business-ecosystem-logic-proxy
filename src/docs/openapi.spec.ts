@@ -57,6 +57,9 @@ const DOCUMENT_PATH = join(__dirname, '../../docs/openapi.yaml');
 
 const tmforum = new FakeUpstream();
 
+// Whether the marketplace has a billing engine, which the price of an order is asked to
+const engine = { configured: true };
+
 const mongo = { ping: vi.fn<(timeoutMs: number) => Promise<boolean>>() };
 
 @Global()
@@ -79,7 +82,7 @@ const mongo = { ping: vi.fn<(timeoutMs: number) => Promise<boolean>>() };
                 purchase: { enabled: true, paymentProvider: 'dpas', get paymentGateway() { return `http://127.0.0.1:${tmforum.port}/`; } },
                 auth: { store: { type: 'memory', memoryMaxEntries: 10 }, vc: { enabled: false }, propagateToken: true, allowLocalEori: false, roles: { admin: 'admin', customer: 'Buyer', seller: 'Seller', orgAdmin: 'orgAdmin', certifier: 'certifier' } },
                 fileService: { enabled: false, url: 'http://file-service:8081', timeoutMs: 1000, maxSizeMb: 100, acceptedTypes: '' },
-                hasUpstream: () => false,
+                hasUpstream: (name: string) => name === 'billingEngine' && engine.configured,
                 upstream: (name: string) => ({ baseUrl: `http://127.0.0.1:${tmforum.port}/${name}`, timeoutMs: 300 })
             }
         },
@@ -389,6 +392,34 @@ describe('responses against docs/openapi.yaml', () => {
                 c.status === '200' ? { ...c, arrange: () => tmforum.answer((res) => tmforum.json(res, 200, res.req.url?.includes('/customerBill/') === true ? mine : '[]')) } : c
             ),
             refused('get', '/billing/appliedCustomerBillingRate', '403', '/billing/appliedCustomerBillingRate?bill.id=b-1', undefined, notMine)
+        ];
+    };
+
+    // The price of an order: the offerings and the account are read from the TMForum APIs and the order goes to the billing engine
+    const orderPriceCases = (): Case[] => {
+        const order = (extra = '') => `{"productOrder":{"productOrderItem":[{"productOffering":{"id":"o-1"}}]${extra}}}`;
+        const base = { method: 'post', path: '/billing/order', headers: { ...LOGGED_IN, ...json } };
+        const upstreams =
+            (engineStatus = 200, configured = true) =>
+            () => {
+                engine.configured = configured;
+                tmforum.answer((res) => {
+                    const target = res.req.url ?? '';
+                    if (target.includes('/productOffering/')) return tmforum.json(res, 200, '{"productSpecification":{"id":"s-1"}}');
+                    if (target.includes('/productSpecification/')) return tmforum.json(res, 200, '{"relatedParty":[{"id":"p-shop","role":"Seller"}]}');
+                    if (target.includes('/billingAccount/')) return tmforum.json(res, 200, '{"id":"a-1","relatedParty":[{"id":"p-other"}]}');
+                    if (target.includes('/billingAccount')) return tmforum.json(res, 200, '[]');
+                    return tmforum.json(res, engineStatus, '{"price":"10"}');
+                });
+            };
+        return [
+            { ...base, status: '200', body: order(), arrange: upstreams() },
+            { ...base, status: '400', body: '{}', arrange: upstreams() },
+            { ...base, status: '401', headers: json, body: order(), arrange: upstreams() },
+            { ...base, status: '403', body: order(',"billingAccount":{"id":"a-1"}'), arrange: upstreams() },
+            { ...base, status: '413', body: JSON.stringify({ filler: 'x'.repeat(2000) }), arrange: upstreams() },
+            { ...base, status: '502', body: order(), arrange: upstreams(500) },
+            { ...base, status: '503', body: order(), arrange: upstreams(200, false) }
         ];
     };
 
@@ -961,6 +992,7 @@ describe('responses against docs/openapi.yaml', () => {
         ...inventoryCases(),
         ...accountCases(),
         ...billingCases(),
+        ...orderPriceCases(),
         ...partyCases(),
         ...specificationCases('/resource/resourceSpecification'),
         ...specificationCases('/service/serviceSpecification'),

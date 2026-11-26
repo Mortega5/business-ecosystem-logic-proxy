@@ -1,4 +1,4 @@
-import { All, Body, Controller, Get, Param, Patch, Req, Res, UseInterceptors } from '@nestjs/common';
+import { All, Body, Controller, Get, Param, Patch, Post, Req, Res, UseInterceptors } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { BodyTextInterceptor } from '../body-text.interceptor';
 import { ForbiddenError, NotFoundError } from '../../common/domain-error';
@@ -9,16 +9,18 @@ import { OwnedResources, type OwnerRole } from '../owned-resources';
 import { callerParty, isRelatedAs } from '../related-party';
 import { ResourceIdPipe } from '../resource-id.pipe';
 import { billRenaming, ratesQuery } from '../schemas/customer-bill';
+import { orderSimulation } from '../schemas/order-simulation';
 import { queryParams } from '../schemas/pagination';
 import { parseRequest } from '../schemas/parse';
 import { TmfProxy } from '../tmf-proxy';
+import { OrderSimulator } from './order-simulator';
 
 const UPSTREAM = 'tmforum.customerBill';
 const NOT_INVOLVED = 'You are not authorized to access the specified bill';
 
 /**
  * The billing API, as far as the portal uses it: the bills of the caller, a bill, the name of a bill, and the rates applied
- * to a bill. A bill is the caller's when they are related to it, as its customer or as its seller. Everything else under
+ * to a bill, and the price of an order. A bill is the caller's when they are related to it, as its customer or as its seller. Everything else under
  * /billing is closed here.
  */
 @UseInterceptors(BodyTextInterceptor)
@@ -27,7 +29,8 @@ export class BillingController {
     constructor(
         private readonly proxy: TmfProxy,
         private readonly owned: OwnedResources,
-        private readonly config: AppConfigService
+        private readonly config: AppConfigService,
+        private readonly simulator: OrderSimulator
     ) {}
 
     /** The bills of the caller in the role they ask for, the customer by default; any other role is refused. */
@@ -65,6 +68,14 @@ export class BillingController {
             return;
         }
         await this.proxy.forward(req, res, { upstream: UPSTREAM, path: '/appliedCustomerBillingRate', search: `?${params.toString()}` });
+    }
+
+    /** The price of an order, which the billing engine works out for the caller as the customer; see `OrderSimulator`. */
+    @Post('order')
+    async price(@Body(JsonObjectBodyPipe) body: string, @Req() req: Request, @Res() res: Response): Promise<void> {
+        const order = parseRequest(orderSimulation, JSON.parse(body), 'Invalid order: it needs a productOrder with offerings and, if any, a billing account id');
+        const priced = await this.simulator.simulate(req, order);
+        this.proxy.reply(res, priced);
     }
 
     @All(['', '{*path}'])

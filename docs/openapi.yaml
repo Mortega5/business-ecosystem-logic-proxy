@@ -4067,6 +4067,86 @@ paths:
           $ref: '#/components/responses/PayloadTooLarge'
         '504':
           $ref: '#/components/responses/UpstreamUnreachable'
+  /billing/order:
+    post:
+      tags: [billing]
+      operationId: priceOrder
+      summary: Price an order
+      description: |
+        Asks the billing engine what an order costs, as the cart of the portal does for each item and the price plan editor
+        does for a preview. The body is a `productOrder` with at least one item, each with its `productOffering.id`, and
+        optionally a `billingAccount.id`; whatever else it has goes on to the engine as it came. The parties of the order are
+        not the client's: the customer is the caller and the sellers are those of the product specifications of the offerings
+        of the order, once each. An offering whose specification cannot be read refuses the order (400). The billing account
+        must be one of the caller (403 if not, also when they act for an organisation); when the order names none, the
+        preferred account of the caller with a postal address is used, and `resolved` is `null` when there is none. The
+        engine gets no credential of the user. A refusal of the engine (4xx) is the answer; a failure of it is a 502 with no
+        detail. When the marketplace has no billing engine the answer is 503.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [productOrder]
+              properties:
+                productOrder:
+                  type: object
+                  required: [productOrderItem]
+                  properties:
+                    productOrderItem:
+                      type: array
+                      minItems: 1
+                      maxItems: 100
+                    billingAccount:
+                      type: object
+                      required: [id]
+                      properties:
+                        id:
+                          type: string
+                  additionalProperties: true
+              additionalProperties: true
+      responses:
+        '200':
+          description: The price of the order, as the billing engine answers it.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                price: '10'
+        '400':
+          $ref: '#/components/responses/InvalidIdOrBody'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          description: The billing account is not one of the caller.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '502':
+          description: The billing engine failed or cannot be reached.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+        '503':
+          description: The marketplace has no billing engine.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
   /billing/appliedCustomerBillingRate:
     get:
       tags: [billing]
