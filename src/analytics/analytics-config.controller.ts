@@ -32,7 +32,8 @@ export class AnalyticsConfigController {
         try {
             return await this.settings.save(parsed.value);
         } catch (error) {
-            this.logger.error(`The analytics settings could not be saved: ${error instanceof Error ? error.name : 'unknown error'}`);
+            // Only the kind of error: the settings hold secrets that a driver error may repeat
+            this.logger.error({ failure: error instanceof Error ? error.name : 'unknown' }, 'The analytics settings could not be saved');
             throw new BadGatewayError('The analytics settings could not be saved');
         }
     }

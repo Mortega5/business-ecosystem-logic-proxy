@@ -53,7 +53,7 @@ export class IdpService implements OnApplicationBootstrap {
             await this.mongo?.whenUp();
             stored = await this.idps.find();
         } catch (error) {
-            this.logger.error({ failure: error instanceof Error ? error.message : 'unknown' }, 'The identity providers could not be read');
+            this.logger.error({ err: error }, 'The identity providers could not be read');
             return;
         }
         for (const idp of stored) {
@@ -62,7 +62,7 @@ export class IdpService implements OnApplicationBootstrap {
                 this.register(idp);
             } catch (error) {
                 this.logger.error(
-                    { idpId: idp.idpId, failure: error instanceof Error ? error.message : 'unknown' },
+                    { idpId: idp.idpId, err: error },
                     'An identity provider could not be loaded'
                 );
             }

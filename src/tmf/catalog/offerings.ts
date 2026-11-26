@@ -185,7 +185,7 @@ export class Offerings {
         // The query leaves out what is for a buyer, but the roles of the offerings are kept as they were written: this is what the filter cannot see
         const readable = offerings.filter((offering) => !this.hasBuyer(offering) || this.isBuyerOrSeller(req, offering));
         if (readable.length < offerings.length) {
-            this.logger.warn(`${offerings.length - readable.length} offerings for a buyer came in a list of offerings and were left out`);
+            this.logger.warn({ left: offerings.length - readable.length }, 'Offerings for a buyer came in a list of offerings and were left out');
         }
         offerings = readable;
         if (order !== undefined) {
@@ -272,13 +272,13 @@ export class Offerings {
         try {
             const response = await this.proxy.send(req, { upstream: 'tmforum.catalog', path: this.path(id), method: 'PATCH', body: JSON.stringify({ lifecycleStatus: 'Retired' }), ...AS_JSON, search: '' });
             if (response.status < 400) {
-                this.logger.warn(`The offering ${id} was retired because the charging backend could not be told that it was created`);
+                this.logger.warn({ offeringId: id }, 'An offering was retired because the charging backend could not be told that it was created');
                 return 'it was retired';
             }
         } catch {
             // The same as an answer that refuses it
         }
-        this.logger.warn(`The offering ${id} could not be retired after the charging backend could not be told that it was created`);
+        this.logger.warn({ offeringId: id }, 'An offering could not be retired after the charging backend could not be told that it was created');
         return 'it could not be retired and has to be retired by hand';
     }
 

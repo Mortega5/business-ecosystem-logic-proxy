@@ -144,7 +144,7 @@ export class ProductSpecifications extends Specifications {
         } catch {
             // Said below
         }
-        this.log.warn(`The product spec ${id} could not be told to the charging backend: ${retired ? 'it was retired' : 'it could not be retired'}, and ${rolledBack ? 'the backend was told to take it back' : 'the backend could not be told to take it back'}`);
+        this.log.warn({ productSpecId: id, retired, rolledBack }, 'A product spec could not be told to the charging backend');
         const left = [retired ? undefined : 'it could not be retired and has to be retired by hand', rolledBack ? undefined : 'the charging backend could not be told to take it back'].filter((one) => one !== undefined);
         return left.length === 0 ? 'it was retired' : left.join(' and ');
     }
@@ -237,7 +237,7 @@ export class ProductSpecifications extends Specifications {
             } catch {
                 // The backend takes the upgrade back by itself when its time is over
             }
-            this.log.warn(`The upgrade of the product spec ${id} could not be told to the charging backend: ${back}`);
+            this.log.warn({ productSpecId: id, outcome: back }, 'The upgrade of a product spec could not be told to the charging backend');
             throw new BadGatewayError(`The product spec ${id} was upgraded and the charging backend could not be told (${reason}); ${back}`);
         }
     }

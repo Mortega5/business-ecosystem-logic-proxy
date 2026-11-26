@@ -210,7 +210,7 @@ export class Categories {
         try {
             return await this.readOne(req, `/catalog/${encodeURIComponent(catalogId)}`, 'Missing default catalog in the system');
         } catch (error) {
-            this.logger.warn(`The default catalog ${catalogId} could not be read: ${error instanceof Error ? error.message : 'unknown error'}`);
+            this.logger.warn({ catalogId, err: error }, 'The default catalog could not be read');
             throw new BadGatewayError(left);
         }
     }
@@ -220,11 +220,11 @@ export class Categories {
         try {
             response = await this.proxy.send(req, { upstream: 'tmforum.catalog', path: `/catalog/${encodeURIComponent(catalogId)}`, method: 'PATCH', body: JSON.stringify({ category }), ...AS_JSON, search: '' });
         } catch (error) {
-            this.logger.warn(`The default catalog ${catalogId} could not be changed: ${error instanceof Error ? error.message : 'unknown error'}`);
+            this.logger.warn({ catalogId, err: error }, 'The default catalog could not be changed');
             throw new BadGatewayError(left);
         }
         if (response.status >= 400) {
-            this.logger.warn(`The default catalog ${catalogId} could not be changed: the catalog API answered ${response.status}`);
+            this.logger.warn({ catalogId, statusCode: response.status }, 'The default catalog could not be changed');
             throw new BadGatewayError(left);
         }
     }

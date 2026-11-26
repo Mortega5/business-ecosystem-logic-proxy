@@ -62,7 +62,7 @@ export class CertificateService {
         }
         const spec = parseJson(current.body);
         if (current.status >= 400 || !isRecord(spec)) {
-            this.logger.warn(`The catalog answered ${current.status} when reading the product specification ${specId}`);
+            this.logger.warn({ specId, statusCode: current.status }, 'The catalog could not give the product specification');
             throw new BadGatewayError('The product specification could not be read');
         }
 
@@ -91,7 +91,7 @@ export class CertificateService {
             search: ''
         });
         if (updated.status >= 400) {
-            this.logger.warn(`The catalog answered ${updated.status} when the credential of ${specId} was put in`);
+            this.logger.warn({ specId, statusCode: updated.status }, 'The catalog did not accept the credential of a product specification')
             throw new BadGatewayError('The credential could not be saved in the product specification');
         }
         this.logger.log(

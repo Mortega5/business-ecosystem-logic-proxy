@@ -42,11 +42,11 @@ export class ContactUsController {
             });
             status = response.status;
         } catch (error) {
-            this.logger.warn(`The contact form could not be notified: ${error instanceof UpstreamError ? error.message : 'unknown error'}`);
+            this.logger.warn({ err: error }, 'The contact form could not be notified');
             throw new BadGatewayError('The message could not be sent');
         }
         if (status < 200 || status >= 300) {
-            this.logger.warn(`The contact form was refused with ${status}`);
+            this.logger.warn({ statusCode: status }, 'The contact form was refused');
             throw new BadGatewayError('The message could not be sent');
         }
         return { sent: true };

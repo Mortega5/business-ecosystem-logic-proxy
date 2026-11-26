@@ -44,7 +44,7 @@ export class CatalogBootstrapService implements OnApplicationBootstrap, OnApplic
             this.records,
             this.api,
             this.api,
-            { info: (message) => this.logger.info(message), warn: (message) => this.logger.warn(message) }
+            { info: (message) => this.logger.info(message), warn: (message, fields) => this.logger.warn({ ...fields }, message) }
         );
         void this.untilDone('Default catalog and system categories', async () => {
             const { defaultCatalogId, systemCategoryIds } = await bootstrap.ensure();

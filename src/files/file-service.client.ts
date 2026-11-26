@@ -171,7 +171,7 @@ export class FileServiceClient {
             if (own !== undefined) {
                 throw own;
             }
-            this.logger.error(`${method} ${path} could not reach the file service: ${error instanceof Error ? error.message : 'unknown error'}`);
+            this.logger.error({ method, path, err: error }, 'The file service could not be reached');
             throw new BadGatewayError('The file service is not reachable');
         }
         if (response.status < 400) {
@@ -181,7 +181,7 @@ export class FileServiceClient {
         if (CLIENT_STATUSES.includes(response.status)) {
             throw new DomainError(message ?? `The file service answered ${response.status}`, response.status);
         }
-        this.logger.error(`${method} ${path} answered ${response.status}`);
+        this.logger.error({ method, path, statusCode: response.status, ...(message === undefined ? {} : { upstreamError: message }) }, 'The file service failed');
         throw new BadGatewayError(`The file service answered ${response.status}`);
     }
 

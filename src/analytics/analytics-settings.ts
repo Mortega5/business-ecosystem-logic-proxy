@@ -68,9 +68,7 @@ export class AnalyticsSettings {
             }
             return parsed.value;
         } catch (error) {
-            this.logger.warn(
-                `The analytics settings could not be read: ${error instanceof Error ? error.message : String(error)}`
-            );
+            this.logger.warn({ err: error }, 'The analytics settings could not be read');
             return undefined;
         }
     }

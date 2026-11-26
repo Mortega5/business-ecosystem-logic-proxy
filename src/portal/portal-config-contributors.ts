@@ -24,7 +24,7 @@ export class PortalConfigContributors {
                 try {
                     return await contribute();
                 } catch (error) {
-                    this.logger.warn(`The settings of ${name} could not be added to the portal: ${error instanceof Error ? error.message : String(error)}`);
+                    this.logger.warn({ contributor: name, err: error }, 'The settings of a contributor could not be added to the portal');
                     return {};
                 }
             })

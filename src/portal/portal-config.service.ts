@@ -97,7 +97,7 @@ export class PortalConfigService {
         try {
             return searchFiltersFrom((await this.documents.findById(SEARCH_FILTERS_DOCUMENT_ID))?.['searchFilters']);
         } catch (error) {
-            this.logger.warn(`The filters of the search could not be read: ${error instanceof Error ? error.message : String(error)}`);
+            this.logger.warn({ err: error }, 'The filters of the search could not be read');
             return defaultSearchFilters();
         }
     }

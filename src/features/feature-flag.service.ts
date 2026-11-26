@@ -57,7 +57,7 @@ export class FeatureFlagService {
         const { enabled, configured } = definitionOf(feature);
         const wanted = override ?? enabled(this.config);
         if (wanted && !configured(this.config)) {
-            this.logger.warn(`Feature "${feature}" is on but its configuration is incomplete, so it stays off`);
+            this.logger.warn({ feature }, 'A feature is on but its configuration is incomplete, so it stays off');
             return false;
         }
         return wanted;
@@ -77,7 +77,7 @@ export class FeatureFlagService {
                 )
             );
         } catch (error) {
-            this.logger.warn(`Feature flags could not be read from the database: ${error instanceof Error ? error.message : String(error)}`);
+            this.logger.warn({ err: error }, 'Feature flags could not be read from the database');
             return {};
         }
     }

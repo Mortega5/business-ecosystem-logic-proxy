@@ -57,7 +57,7 @@ export class PriceReferences {
                 search: ''
             });
             if (response.status >= 400) {
-                this.logger.warn(`The price ${String(price['id'])} could not be cleaned of the characteristics removed from the product ${productId}: answered ${response.status}`);
+                this.logger.warn({ priceId: String(price['id']), productId, statusCode: response.status }, 'A price could not be cleaned of the characteristics removed from its product');
                 throw failure();
             }
             cleaned += 1;

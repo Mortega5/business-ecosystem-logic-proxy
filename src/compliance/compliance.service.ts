@@ -98,7 +98,7 @@ export class ComplianceService {
         }
         const found = parseJson(response.body);
         if (response.status >= 400 || !isRecord(found)) {
-            this.logger.warn(`${upstream} answered ${response.status} when reading ${path}`);
+            this.logger.warn({ upstream, path, statusCode: response.status }, 'The product specification could not be read');
             throw new BadGatewayError('The product specification could not be read');
         }
         return found;
@@ -125,7 +125,7 @@ export class ComplianceService {
                     throw error;
                 }
                 // The address is the seller's own writing and is not repeated: the number of the file says which one it is
-                this.logger.warn(`A file of a compliance request could not be taken: file ${index + 1}, ${error.kind}`);
+                this.logger.warn({ file: index + 1, kind: error.kind }, 'A file of a compliance request could not be taken');
                 const message = `The compliance file ${index + 1} ${error.message}`;
                 if (error.kind === 'failed') {
                     throw new BadGatewayError(message);
@@ -148,15 +148,13 @@ export class ComplianceService {
                 redirect: 'error',
                 signal: AbortSignal.timeout(timeoutMs)
             });
-        } catch {
-            this.logger.error(`The compliance service could not be reached for the product specification ${specId}`);
+        } catch (error) {
+            this.logger.error({ specId, err: error }, 'The compliance service could not be reached');
             throw new DomainError('Compliance server unreachable', 504);
         }
         const answer = parseJson(await this.text(response));
         if (response.status >= 400) {
-            this.logger.warn(
-                `The compliance service answered ${response.status} for the product specification ${specId}`
-            );
+            this.logger.warn({ specId, statusCode: response.status }, 'The compliance service did not accept the product specification');
             // What it says is for the client only when it is the client's fault
             const reason =
                 isRecord(answer) && typeof answer['error'] === 'string' ? answer['error'].slice(0, 300) : undefined;

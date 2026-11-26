@@ -87,7 +87,7 @@ export class MarketplaceSearch {
     private idsOf(status: number, body: string, what: string): string[] {
         const found = parseJson(body);
         if (status >= 400 || !Array.isArray(found)) {
-            this.logger.warn(`The search engine answered ${status} to a search of ${what}`);
+            this.logger.warn({ statusCode: status, searching: what }, 'The search engine could not answer a search');
             throw new BadGatewayError('The search engine could not be asked');
         }
         return (found as unknown[]).flatMap((one) => (isRecord(one) && typeof one['id'] === 'string' && isResourceId(one['id']) ? [one['id']] : []));

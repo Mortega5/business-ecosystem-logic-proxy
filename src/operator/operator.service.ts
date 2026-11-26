@@ -77,7 +77,7 @@ export class OperatorService implements OnApplicationBootstrap, OnModuleDestroy 
         } catch (error) {
             // The id that was known stays until the party API answers
             delay = RETRY_MS;
-            this.logger.error(`The operator could not be loaded, it is tried again: ${error instanceof Error ? error.message : 'unknown error'}`);
+            this.logger.error({ err: error }, 'The operator could not be loaded, it is tried again');
         }
         if (!this.stopped) {
             this.timer = setTimeout(() => void this.refresh(), delay);

@@ -110,7 +110,7 @@ export class FileController {
             await pipeline(answer.stream, res);
         } catch (error) {
             // The status and the first bytes are already sent: all that is left is to cut the connection
-            this.logger.warn(`The download of file ${metadata.fileId} was interrupted: ${error instanceof Error ? error.message : 'unknown error'}`);
+            this.logger.warn({ fileId: metadata.fileId, err: error }, 'The download of a file was interrupted');
             res.destroy();
         }
     }

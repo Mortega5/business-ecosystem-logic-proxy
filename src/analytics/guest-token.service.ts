@@ -73,10 +73,10 @@ export class GuestTokens {
             });
         } catch (error) {
             if (error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError')) {
-                this.logger.warn('The analytics service did not answer in time');
+                this.logger.warn({ err: error }, 'The analytics service did not answer in time');
                 throw new DomainError('The analytics service did not answer in time', 504);
             }
-            this.logger.warn('The analytics service could not be reached');
+            this.logger.warn({ err: error }, 'The analytics service could not be reached');
             throw new BadGatewayError('It was not possible to generate the analytics guest token');
         }
         if (!response.ok) {

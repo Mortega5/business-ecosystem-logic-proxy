@@ -18,7 +18,7 @@ export interface PlatformSettings {
 
 export interface PlatformLog {
     info: (message: string) => void;
-    warn: (message: string) => void;
+    warn: (message: string, fields?: object) => void;
 }
 
 export interface PlatformResult {
@@ -73,7 +73,7 @@ export class PlatformBootstrap {
     private async saveDefaultCatalogId(catalogId: string): Promise<void> {
         const [first, ...extra] = await this.records.list('defaultcatalog');
         if (first === undefined) {
-            await this.records.ensureUniqueIds('defaultcatalog').catch((error: unknown) => this.log.warn(`The default catalog record could not be made unique: ${String(error)}`));
+            await this.records.ensureUniqueIds('defaultcatalog').catch((error: unknown) => this.log.warn('The default catalog record could not be made unique', { err: error }));
             try {
                 await this.records.insert('defaultcatalog', this.settings.records.defaultCatalog, { default_id: catalogId });
                 return;
@@ -181,7 +181,7 @@ export class PlatformBootstrap {
             await this.records.update('systemcategory', key, { category_id: categoryId });
             return categoryId;
         }
-        await this.records.ensureUniqueIds('systemcategory').catch((error: unknown) => this.log.warn(`The system category records could not be made unique: ${String(error)}`));
+        await this.records.ensureUniqueIds('systemcategory').catch((error: unknown) => this.log.warn('The system category records could not be made unique', { err: error }));
         try {
             await this.records.insert('systemcategory', key, { category_id: categoryId });
             return categoryId;
@@ -288,7 +288,7 @@ export class PlatformBootstrap {
             await this.records.update('supportpackagespec', record, { spec_id: specId });
             return specId;
         }
-        await this.records.ensureUniqueIds('supportpackagespec').catch((error: unknown) => this.log.warn(`The support package spec record could not be made unique: ${String(error)}`));
+        await this.records.ensureUniqueIds('supportpackagespec').catch((error: unknown) => this.log.warn('The support package spec record could not be made unique', { err: error }));
         try {
             await this.records.insert('supportpackagespec', record, { spec_id: specId });
             return specId;

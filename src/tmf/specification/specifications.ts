@@ -235,7 +235,7 @@ export class Specifications {
             return;
         }
         const left = await undo();
-        this.logger.warn(left === undefined ? `${failure}: what had been made before was taken back` : `${failure}: what had been made before could not be taken back (${left})`);
+        this.logger.warn({ failure, takenBack: left === undefined, ...(left === undefined ? {} : { left }) }, 'A specification failed and what had been made before is left as said');
         if (left !== undefined) {
             throw new BadGatewayError(`${failure} and ${left}`);
         }

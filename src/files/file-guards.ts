@@ -85,7 +85,7 @@ export class FileGuards {
         try {
             return await this.files.find(fileId);
         } catch (error) {
-            this.logger.warn(`The file ${fileId} could not be checked: ${error instanceof Error ? error.message : 'unknown error'}`);
+            this.logger.warn({ fileId, err: error }, 'A file could not be checked');
             throw new BadGatewayError('The files cannot be checked');
         }
     }

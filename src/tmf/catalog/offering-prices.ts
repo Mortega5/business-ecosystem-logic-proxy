@@ -298,7 +298,7 @@ export class OfferingPrices {
                 return;
             }
         }
-        this.logger.warn(`The prices of ${filter} are more than the ones that can be read to check a price`);
+        this.logger.warn({ filter }, 'The prices to check are more than the ones that can be read');
         throw refused(failure);
     }
 

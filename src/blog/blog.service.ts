@@ -80,9 +80,7 @@ export class BlogService implements OnApplicationBootstrap {
                 );
             }
         } catch (error) {
-            this.logger.warn(
-                `The entries of the blog without slug could not be given one: ${error instanceof Error ? error.message : 'unknown error'}`
-            );
+            this.logger.warn({ err: error }, 'The entries of the blog without slug could not be given one');
         }
     }
 

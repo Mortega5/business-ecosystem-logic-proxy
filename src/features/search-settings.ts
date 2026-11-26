@@ -25,7 +25,7 @@ export class SearchSettings {
             const saved = (await this.documents.findById(SEARCH_SETTINGS_DOCUMENT_ID))?.['search'];
             value = typeof saved === 'object' && saved !== null && (saved as Record<string, unknown>)['useQueryKeyword'] === true;
         } catch (error) {
-            this.logger.warn(`The settings of the search could not be read: ${error instanceof Error ? error.message : String(error)}`);
+            this.logger.warn({ err: error }, 'The settings of the search could not be read');
         }
         this.cached = { value, expiresAt: Date.now() + REFRESH_MS };
         return value;

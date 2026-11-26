@@ -75,21 +75,20 @@ export class ChargingAssets {
         const [kind] = Object.keys(rest);
         const subject = kind === undefined ? undefined : rest[kind];
         const id = isRecord(subject) && typeof subject['id'] === 'string' ? subject['id'] : 'not made yet';
-        const what = `${action} of the ${kind ?? 'asset'} (${id})`;
         let response: UpstreamResponse;
         try {
             response = await this.proxy.send(req, { upstream: 'charging', path, method: 'POST', body: JSON.stringify(payload), ...AS_JSON, search: '' });
         } catch (error) {
-            this.logger.warn(`The charging backend could not be reached for the ${what}: ${error instanceof Error ? error.message : 'unknown error'}`);
+            this.logger.warn({ action, kind, assetId: id, err: error }, 'The charging backend could not be reached');
             throw error;
         }
         if (action.startsWith('rollback')) {
-            this.logger.warn(`The charging backend was told to take back what it kept: ${what}, answered ${response.status}`);
+            this.logger.warn({ action, kind, assetId: id, statusCode: response.status }, 'The charging backend was told to take back what it kept');
         }
         if (response.status < 400) {
             return;
         }
-        this.logger.warn(`The charging backend refused the ${what} with ${response.status}`);
+        this.logger.warn({ action, kind, assetId: id, statusCode: response.status }, 'The charging backend refused the request');
         const said = parseJson(response.body);
         if (CLIENT_ERRORS.includes(response.status)) {
             throw new DomainError(isRecord(said) && typeof said['error'] === 'string' ? said['error'] : failure, response.status);
