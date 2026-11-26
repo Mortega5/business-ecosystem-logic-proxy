@@ -54,7 +54,9 @@ beforeAll(async () => {
     client = new MongoClient(uri);
     await client.connect();
     collection = client.db().collection('config');
-}, 60_000);
+    // The connection makes the indexes after it is up, which takes longer when the machine is busy
+    await waitFor(async () => (await collection.indexes()).some((index) => index.unique === true), 30_000);
+}, 90_000);
 
 afterAll(async () => {
     await moduleRef.close();
@@ -112,22 +114,18 @@ describe('MongooseConfigDocumentRepository', () => {
     it('leaves the indexes to the connection, which makes a unique one on the id', async () => {
         expect(moduleRef.get<Connection>(getConnectionToken()).config.autoIndex).toBe(false);
 
-        await waitFor(async () => (await collection.indexes()).some((index) => index.unique === true), 10_000);
         const unique = (await collection.indexes()).find((index) => index.unique === true);
         expect(unique?.key).toEqual({ id: 1 });
         expect(unique?.partialFilterExpression).toEqual({ id: { $type: 'string' } });
     });
 
     it('refuses a second document with the same id', async () => {
-        await waitFor(async () => (await collection.indexes()).some((index) => index.unique === true), 10_000);
         await collection.insertOne({ id: 'feature-flags' });
 
         await expect(collection.insertOne({ id: 'feature-flags' })).rejects.toThrow('E11000');
     });
 
     it('accepts several documents that have no id, as the ones that were stored before it was required', async () => {
-        await waitFor(async () => (await collection.indexes()).some((index) => index.unique === true), 10_000);
-
         await collection.insertMany([{ purchaseEnabled: true }, { quotesEnabled: true }]);
 
         expect(await collection.countDocuments({})).toBe(2);
