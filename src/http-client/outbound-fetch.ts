@@ -9,9 +9,15 @@ const logger = new Logger('OutboundFetch');
  * `fetch` for the services the proxy calls that are not one of the configured upstreams (the payment gateway, the
  * compliance and file services, analytics): it passes on the id of the request being served and writes down how the call
  * went. The answer is given as it is, with its body unread, so a stream can still be passed on; a failure is thrown again.
+ * `passRequestId: false` is for a service outside the marketplace, to which the id of the request means nothing.
  */
-export const outboundFetch = async (target: string, url: string | URL, init: RequestInit = {}): Promise<Response> => {
-    const requestId = currentRequestId();
+export const outboundFetch = async (
+    target: string,
+    url: string | URL,
+    init: RequestInit = {},
+    options: { passRequestId?: boolean } = {}
+): Promise<Response> => {
+    const requestId = options.passRequestId === false ? undefined : currentRequestId();
     const headers = new Headers(init.headers);
     if (requestId !== undefined && !headers.has('x-request-id')) {
         headers.set('x-request-id', requestId);

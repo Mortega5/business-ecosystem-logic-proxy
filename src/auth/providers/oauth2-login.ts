@@ -1,6 +1,6 @@
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import type { LoginChecks, LoginResult, LoginStart } from './identity-provider';
-import { IdpError, requestJson, tokensOf, type Fetcher } from './idp-http';
+import { IdpError, requestJson, tokensOf, idpFetch, type Fetcher } from './idp-http';
 
 export interface OAuth2LoginOptions {
     authorizationUrl: string;
@@ -35,7 +35,7 @@ export class OAuth2Login {
     private readonly fetcher: Fetcher;
 
     constructor(private readonly options: OAuth2LoginOptions) {
-        this.fetcher = options.fetcher ?? fetch;
+        this.fetcher = options.fetcher ?? idpFetch;
     }
 
     start(redirectUri: string): LoginStart {

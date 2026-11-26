@@ -9,7 +9,7 @@ import type {
     LoginStart
 } from './identity-provider';
 import { organizationsOf, rolesOf, text } from './claim-readers';
-import { IdpError, requestJson, tokensOf, type Fetcher } from './idp-http';
+import { IdpError, requestJson, tokensOf, idpFetch, type Fetcher } from './idp-http';
 import { OAuth2Login } from './oauth2-login';
 
 export interface FiwareOptions {
@@ -43,7 +43,7 @@ export class FiwareProvider implements IdentityProvider, LoginCapable {
     constructor(protected readonly options: FiwareOptions) {
         this.id = options.id;
         this.server = options.server.replace(/\/+$/, '');
-        this.fetcher = options.fetcher ?? fetch;
+        this.fetcher = options.fetcher ?? idpFetch;
         this.login = new OAuth2Login({
             authorizationUrl: `${this.server}/oauth2/authorize`,
             tokenUrl: `${this.server}/oauth2/token`,

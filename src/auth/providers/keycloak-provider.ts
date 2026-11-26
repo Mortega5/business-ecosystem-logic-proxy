@@ -1,6 +1,6 @@
 import type { IdentityClaims, ProfileOrganization } from '../profile/user-profile';
 import type { IdentityProvider, IdentityTokens, LoginCapable, LoginChecks, LoginOutcome, LoginStart } from './identity-provider';
-import { IdpError, requestJson, tokensOf, type Fetcher } from './idp-http';
+import { IdpError, requestJson, tokensOf, idpFetch, type Fetcher } from './idp-http';
 import { jwtPayload } from './jwt-payload';
 import { OidcLogin } from './oidc-login';
 
@@ -36,7 +36,7 @@ export class KeycloakProvider implements IdentityProvider, LoginCapable {
     constructor(private readonly options: KeycloakOptions) {
         this.id = options.id;
         this.realmUrl = `${options.server.replace(/\/+$/, '')}/realms/${encodeURIComponent(options.realm)}/protocol/openid-connect`;
-        this.fetcher = options.fetcher ?? fetch;
+        this.fetcher = options.fetcher ?? idpFetch;
         this.login = new OidcLogin({
             issuerUrl: `${options.server.replace(/\/+$/, '')}/realms/${encodeURIComponent(options.realm)}`,
             clientId: options.clientId,
@@ -44,7 +44,7 @@ export class KeycloakProvider implements IdentityProvider, LoginCapable {
             tokenAuthMethod: 'client_secret_post',
             scope: options.scope,
             timeoutMs: options.timeoutMs,
-            ...(options.fetcher === undefined ? {} : { fetcher: options.fetcher })
+            fetcher: this.fetcher
         });
     }
 

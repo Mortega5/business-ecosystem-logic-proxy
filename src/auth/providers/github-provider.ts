@@ -7,7 +7,7 @@ import type {
     LoginOutcome,
     LoginStart
 } from './identity-provider';
-import { IdpError, requestJson, type Fetcher } from './idp-http';
+import { IdpError, requestJson, idpFetch, type Fetcher } from './idp-http';
 import { OAuth2Login } from './oauth2-login';
 
 export interface GithubOptions {
@@ -39,7 +39,7 @@ export class GithubProvider implements IdentityProvider, LoginCapable {
     constructor(private readonly options: GithubOptions) {
         this.id = options.id;
         this.apiUrl = (options.apiUrl ?? 'https://api.github.com').replace(/\/+$/, '');
-        this.fetcher = options.fetcher ?? fetch;
+        this.fetcher = options.fetcher ?? idpFetch;
         const site = (options.siteUrl ?? 'https://github.com').replace(/\/+$/, '');
         this.login = new OAuth2Login({
             authorizationUrl: `${site}/login/oauth/authorize`,

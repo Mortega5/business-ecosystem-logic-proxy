@@ -1,6 +1,6 @@
 import { createPublicKey } from 'node:crypto';
 import jwt from 'jsonwebtoken';
-import { IdpError, requestJson, type Fetcher } from './idp-http';
+import { IdpError, requestJson, idpFetch, type Fetcher } from './idp-http';
 
 export interface JwksOptions {
     /** Where the identity provider publishes its public keys. */
@@ -31,7 +31,7 @@ export class JwksVerifier {
     private loading: Promise<void> | undefined;
 
     constructor(private readonly options: JwksOptions) {
-        this.fetcher = options.fetcher ?? fetch;
+        this.fetcher = options.fetcher ?? idpFetch;
         this.now = options.now ?? Date.now;
     }
 

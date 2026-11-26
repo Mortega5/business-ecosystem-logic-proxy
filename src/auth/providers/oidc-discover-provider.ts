@@ -1,7 +1,7 @@
 import type { IdentityClaims } from '../profile/user-profile';
 import { organizationsOf, rolesOf, text } from './claim-readers';
 import type { IdentityProvider, IdentityTokens, LoginCapable, LoginChecks, LoginOutcome, LoginStart } from './identity-provider';
-import { IdpError, requestJson, tokensOf, type Fetcher } from './idp-http';
+import { IdpError, requestJson, tokensOf, idpFetch, type Fetcher } from './idp-http';
 import { jwtPayload } from './jwt-payload';
 import { JwksVerifier } from './jwks-verifier';
 import { claimsFromCredential, NoCredentialError, type CredentialPolicy } from './vc-credential';
@@ -61,7 +61,7 @@ export class OidcDiscoverProvider implements IdentityProvider, LoginCapable {
             throw new Error('OidcDiscoverProvider needs an issuer or a discovery URL');
         }
         this.id = options.id;
-        this.fetcher = options.fetcher ?? fetch;
+        this.fetcher = options.fetcher ?? idpFetch;
         this.now = options.now ?? Date.now;
         this.login = new OidcLogin({
             issuerUrl: (options.discoveryUrl ?? options.issuerUrl) as string,
@@ -70,7 +70,7 @@ export class OidcDiscoverProvider implements IdentityProvider, LoginCapable {
             tokenAuthMethod: options.tokenAuthMethod,
             scope: options.scope,
             timeoutMs: options.timeoutMs,
-            ...(options.fetcher === undefined ? {} : { fetcher: options.fetcher })
+            fetcher: this.fetcher
         });
     }
 
@@ -178,7 +178,7 @@ export class OidcDiscoverProvider implements IdentityProvider, LoginCapable {
                 issuer,
                 timeoutMs: this.options.timeoutMs,
                 ...(this.options.audience === undefined ? {} : { audience: this.options.audience }),
-                ...(this.options.fetcher === undefined ? {} : { fetcher: this.options.fetcher }),
+                fetcher: this.fetcher,
                 ...(this.options.now === undefined ? {} : { now: this.options.now })
             })
         };

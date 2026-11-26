@@ -53,8 +53,9 @@ the billing engine, the search service, and the payment, compliance, file and an
 | `method` | The HTTP method of the call |
 | `outcome` | The class of the status of the answer (`2xx`...`5xx`), `timeout` when it did not answer in time, or `network` when it could not be reached |
 
-The buckets are `metrics.upstreamDurationBuckets`, in seconds. The calls that the proxy makes to the identity provider
-while a user logs in are not included.
+The buckets are `metrics.upstreamDurationBuckets`, in seconds. The calls that the proxy makes to identity providers (the
+token and user information endpoints, the discovery document and the signing keys) are all counted under `upstream="idp"`,
+whichever provider they go to, since an administrator can add providers while the server runs.
 
 ```promql
 # Share of the calls to each service that fail

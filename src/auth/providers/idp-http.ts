@@ -1,4 +1,14 @@
+import { outboundFetch } from '../../http-client/outbound-fetch';
+
 export type Fetcher = typeof fetch;
+
+/**
+ * What the providers call identity providers with: the call is measured and logged under the target `idp` (one name for all of them,
+ * since an administrator can add providers at run time), and the id of the request is not sent, as it means nothing to them.
+ * A call made with a `Request` object is not followed, since the project never makes one.
+ */
+export const idpFetch: Fetcher = (input, init) =>
+    input instanceof Request ? fetch(input, init) : outboundFetch('idp', input, init, { passRequestId: false });
 
 /** An identity provider answered with an error status, or with something that is not what it should be. */
 export class IdpError extends Error {

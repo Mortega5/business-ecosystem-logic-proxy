@@ -2,7 +2,7 @@ import { randomUUID, type KeyObject } from 'node:crypto';
 import jwt from 'jsonwebtoken';
 import type { IdentityClaims } from '../profile/user-profile';
 import type { IdentityProvider, IdentityTokens, LoginOutcome } from './identity-provider';
-import { IdpError, requestJson, tokensOf, type Fetcher } from './idp-http';
+import { IdpError, requestJson, tokensOf, idpFetch, type Fetcher } from './idp-http';
 import { JwksVerifier } from './jwks-verifier';
 import { claimsFromCredential, type CredentialPolicy } from './vc-credential';
 
@@ -40,13 +40,13 @@ export class VcProvider implements IdentityProvider {
 
     constructor(private readonly options: VcOptions) {
         this.id = options.id;
-        this.fetcher = options.fetcher ?? fetch;
+        this.fetcher = options.fetcher ?? idpFetch;
         this.tokenUrl = joinUrl(options.verifierHost, options.verifierTokenPath);
         this.verifier = new JwksVerifier({
             url: joinUrl(options.verifierHost, options.verifierJwksPath),
             timeoutMs: options.timeoutMs,
             ...(options.verifierIssuer === undefined ? {} : { issuer: options.verifierIssuer }),
-            ...(options.fetcher === undefined ? {} : { fetcher: options.fetcher })
+            fetcher: this.fetcher
         });
     }
 

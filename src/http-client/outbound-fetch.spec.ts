@@ -37,6 +37,12 @@ describe('outboundFetch', () => {
         expect(seen?.headers['x-request-id']).toBe('own');
     });
 
+    it('does not pass on the id when the call says it means nothing to the service', async () => {
+        enterRequest('req-6');
+        await outboundFetch('idp', `http://127.0.0.1:${port}/a`, {}, { passRequestId: false });
+        expect(seen?.headers['x-request-id']).toBeUndefined();
+    });
+
     it('writes down a call that went well at debug and one that failed at the server as a warning, masking the token', async () => {
         const debug = vi.spyOn(Logger.prototype, 'debug');
         const warn = vi.spyOn(Logger.prototype, 'warn');

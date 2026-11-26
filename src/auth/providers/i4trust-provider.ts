@@ -7,7 +7,7 @@ import type {
     LoginOutcome,
     LoginStart
 } from './identity-provider';
-import { IdpError, type Fetcher } from './idp-http';
+import { IdpError, idpFetch, type Fetcher } from './idp-http';
 import { IshareSigner } from './ishare-signer';
 import { OAuth2Login } from './oauth2-login';
 import { randomBytes } from 'node:crypto';
@@ -57,7 +57,7 @@ export class I4TrustProvider implements IdentityProvider, LoginCapable {
         this.id = options.id;
         const { login } = options;
         this.server = login.server.replace(/\/+$/, '');
-        this.fetcher = login.fetcher ?? fetch;
+        this.fetcher = login.fetcher ?? idpFetch;
         this.signer = new IshareSigner(login.keyPem, login.certificatePem);
         this.login = new OAuth2Login({
             authorizationUrl: `${this.server}/oauth2/authorize`,
