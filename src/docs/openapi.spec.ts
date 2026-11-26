@@ -569,6 +569,8 @@ describe('responses against docs/openapi.yaml', () => {
             refused('get', config, '403', config, undefined, '{}'),
             ...proxied(config, config, '{"ok":true}', { method: 'post', headers: administrator, body: '{"smtpServer":"smtp.example.org"}', invalid: { body: 'not json' }, tooLarge: true }),
             refused('post', config, '403', config, '{"smtpServer":"smtp.example.org"}', '{}'),
+            ...proxied(`${config}/test`, `${config}/test`, '{"ok":true}', { method: 'post', headers: AS_ADMIN }),
+            refused('post', `${config}/test`, '403', `${config}/test`, undefined, '{}'),
             ...proxied(upload, upload, '{"ok":true}', { method: 'post', headers: json, body: '{"content":{"name":"a.png","data":"QQ=="},"contentType":"image/png","isPublic":true}', invalid: { body: 'not json' }, tooLarge: true }),
             refused('post', upload, '422', upload, '{"content":{"name":"../a.png","data":"QQ=="},"contentType":"image/png"}', '{}')
         ];

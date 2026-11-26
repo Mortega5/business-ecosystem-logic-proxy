@@ -42,6 +42,13 @@ export class ChargingController {
         return this.proxy.forward(req, res, { upstream: 'charging', path: `${ORDERS}/notify/config`, body, ...AS_JSON, responseHeaders: PRIVATE });
     }
 
+    // Tries the configuration already saved, so the request carries no body
+    @UseGuards(AdministratorGuard)
+    @Post('api/orderManagement/notify/config/test')
+    testNotifyConfig(@Req() req: Request, @Res() res: Response): Promise<void> {
+        return this.proxy.forward(req, res, { upstream: 'charging', path: `${ORDERS}/notify/config/test`, search: '', responseHeaders: PRIVATE });
+    }
+
     // The file travels in the body in base64, so this is the biggest body the proxy takes
     @Post('api/assetManagement/assets/uploadJob')
     uploadFile(@Body(JsonObjectBodyPipe) body: string, @Req() req: Request, @Res() res: Response): Promise<void> {

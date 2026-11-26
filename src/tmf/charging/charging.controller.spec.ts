@@ -118,6 +118,26 @@ describe('/charging/api/orderManagement/notify/config', () => {
     });
 });
 
+describe('POST /charging/api/orderManagement/notify/config/test', () => {
+    const url = '/charging/api/orderManagement/notify/config/test';
+
+    it('is asked of the backend by an administrator, with no body', async () => {
+        const res = await call(url, { method: 'POST', headers: AS_ADMIN });
+        expect(res.status).toBe(200);
+        expect(upstream.seen).toMatchObject({ method: 'POST', url });
+    });
+
+    it('is refused to a user who is not an administrator, and the backend is not asked', async () => {
+        expect((await call(url, { method: 'POST', headers: LOGGED_IN })).status).toBe(403);
+        expect(upstream.seen).toBeUndefined();
+    });
+
+    it('is private', async () => {
+        expect((await call(url, { method: 'POST' })).status).toBe(401);
+        expect(upstream.seen).toBeUndefined();
+    });
+});
+
 describe('POST /charging/api/assetManagement/assets/uploadJob', () => {
     const upload = (body: string, headers: Record<string, string> = { ...LOGGED_IN, ...JSON_HEADERS }) =>
         call('/charging/api/assetManagement/assets/uploadJob', { method: 'POST', headers, body });

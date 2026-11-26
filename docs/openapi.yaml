@@ -4946,6 +4946,38 @@ paths:
           $ref: '#/components/responses/PayloadTooLarge'
         '504':
           $ref: '#/components/responses/UpstreamUnreachable'
+  /charging/api/orderManagement/notify/config/test:
+    post:
+      tags: [charging]
+      operationId: testNotifyConfig
+      summary: Try the configuration of the e-mail
+      description: |
+        For an administrator. The charging backend tries the configuration that is already saved, so the request has no body.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      responses:
+        '200':
+          description: The answer of the charging backend.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                ok: true
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/NotAnAdministrator'
+        '404':
+          $ref: '#/components/responses/UpstreamNotFound'
+        '504':
+          $ref: '#/components/responses/UpstreamUnreachable'
   /charging/api/assetManagement/assets/uploadJob:
     post:
       tags: [charging]
