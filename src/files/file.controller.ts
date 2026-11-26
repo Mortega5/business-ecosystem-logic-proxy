@@ -74,7 +74,9 @@ export class FileController {
                 discardFile(file);
                 throw new DomainError(`The visibility of a file must be one of: ${VISIBILITIES.join(', ')}`, 422);
             }
-            return viewOf(await this.files.upload(visibility, file, { [OWNER_LABEL]: this.partyOf(user) }));
+            const stored = await this.files.upload(visibility, file, { [OWNER_LABEL]: this.partyOf(user) });
+            this.logger.log({ fileId: stored.fileId, visibility }, 'A file was uploaded');
+            return viewOf(stored);
         });
     }
 
@@ -121,7 +123,9 @@ export class FileController {
         return this.draining(req, async () => {
             const metadata = await this.owned(this.seller(req), id);
             const upload = await readUpload(req, [], { maxFileBytes: this.maxBytes() });
-            return viewOf(await this.files.replace(metadata.fileId, upload.file as NonNullable<typeof upload.file>));
+            const replaced = await this.files.replace(metadata.fileId, upload.file as NonNullable<typeof upload.file>);
+            this.logger.log({ fileId: metadata.fileId }, 'A file was replaced');
+            return viewOf(replaced);
         });
     }
 
@@ -130,6 +134,7 @@ export class FileController {
     async remove(@Param('id') id: string, @Req() req: Request): Promise<void> {
         const metadata = await this.owned(this.seller(req), id);
         await this.files.remove(metadata.fileId);
+        this.logger.log({ fileId: metadata.fileId }, 'A file was removed');
     }
 
     // Nothing else is under /file

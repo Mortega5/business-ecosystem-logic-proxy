@@ -1,7 +1,7 @@
-import { Module } from '@nestjs/common';
+import { Logger, Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthModule } from '../auth/auth.module';
 import { createApp } from '../bootstrap';
 import { AppConfigModule } from '../config/app-config.module';
@@ -126,6 +126,15 @@ describe('POST /file', () => {
         expect(call?.body).toContain('name="labels"\r\n\r\n{"owner":"p-shop"}');
         expect(call?.body).toContain('filename="data.csv"');
         expect(call?.body).toContain('a,b\n');
+    });
+
+    it('writes down the id of the file that was uploaded, and nothing of what it holds', async () => {
+        const log = vi.spyOn(Logger.prototype, 'log');
+        await fetch(`${url}/file`, { method: 'POST', headers: AS_SELLER, body: form('a,b\n', 'public') });
+
+        expect(log).toHaveBeenCalledWith({ fileId: 'f-new', visibility: 'private' }, 'A file was uploaded', 'FileController');
+        expect(JSON.stringify(log.mock.calls)).not.toContain('a,b');
+        log.mockRestore();
     });
 
     it('makes a file private unless it is said to be public, and refuses another visibility', async () => {

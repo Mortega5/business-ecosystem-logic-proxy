@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { BadGatewayError, DomainError, ForbiddenError, NotFoundError } from '../../common/domain-error';
 import { AppConfigService } from '../../config/app-config.service';
@@ -34,6 +34,8 @@ const jsonOf = (text: string): unknown => parseJson(text);
  */
 @Injectable()
 export class Orders {
+    private readonly logger = new Logger(Orders.name);
+
     constructor(
         private readonly proxy: TmfProxy,
         private readonly owned: OwnedResources,
@@ -163,6 +165,7 @@ export class Orders {
         if (!isRecord(stored) || typeof stored['id'] !== 'string') {
             throw new BadGatewayError('The order was created but its answer could not be read');
         }
+        this.logger.log({ orderId: stored['id'], items: items.length, sellers: sellers.length }, 'A product order was created');
         const redirect = await this.notifyCreated(req, created.body, stored['id']);
         this.proxy.reply(res, created, { ...PRIVATE, ...(redirect === undefined ? {} : { 'x-redirect-url': redirect }) });
     }

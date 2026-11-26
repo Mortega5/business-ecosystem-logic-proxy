@@ -253,6 +253,7 @@ export class Offerings {
             throw new BadGatewayError('The offering was created but its answer could not be read');
         }
         await this.attachOrRetire(req, stored);
+        this.logger.log({ offeringId: stored['id'] }, 'An offering was created');
         this.proxy.reply(res, created);
     }
 
@@ -344,6 +345,7 @@ export class Offerings {
             const reason = error instanceof Error ? error.message : 'unknown error';
             throw new BadGatewayError(`The offering ${id} was ${done} and the charging backend could not be told (${reason})`);
         }
+        this.logger.log({ offeringId: id }, `An offering was ${done}`);
     }
 
     // ---- What an offering has to be
