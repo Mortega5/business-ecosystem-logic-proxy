@@ -10,6 +10,7 @@ The proxy is a NestJS application on Express 5 and Node.js 26. The Express 4 app
 - Layered: `config/default.yaml`, then a YAML file (`CONFIG_FILE`, or `/etc/bae/config/application.yaml` when it exists), then environment variables named `BAE_<SECTION>__<KEY>` (`BAE_MONGO__RETRY_MAX_DELAY_MS` is `mongo.retryMaxDelayMs`; arrays and objects are JSON).
 - Validated at start-up with a schema: an invalid key stops the server and the message names it. There are no default hosts or secrets.
 - The `BAE_LP_*` variables of version 11 are still read, with a warning in the log that names the key that replaces each. See [docs/kubernetes.md](docs/kubernetes.md#configuration).
+- MongoDB is given as a `mongo.uri`, or in parts (`mongo.host`, `port`, `database`, `user`, `password`, `authSource`), never both. The user and the password go to the connection as they are, so they need no encoding and are not in the address that is logged.
 - The services the proxy calls are grouped in blocks (`upstreams.tmforum`, `charging`, `revenue`, `search`) whose APIs inherit the host, port, scheme and timeout of their group.
 - What the proxy takes or reads is a setting: body and upload sizes (`http.bodyLimit`, `http.uploadLimit`), and the `limits.*` of orders, cart items, notes, names, descriptions and lists.
 
@@ -20,6 +21,8 @@ The proxy is a NestJS application on Express 5 and Node.js 26. The Express 4 app
 
 **Authentication**
 - The login is done by the proxy. OpenID Connect providers use `openid-client` with `state`, a `nonce` per login and PKCE; the others use OAuth2 with `state` and PKCE.
+- A user keeps the identity they had in version 11 with every provider. With `oidc-discover`, a token that carries a verifiable credential says who the user is by it (the person, their organization and their roles), as in version 11; a credential that is there and cannot be read refuses the login.
+- The role of a certifier is `auth.roles.certifier` (`certifier` by default; `BAE_LP_OAUTH2_ORG_CERTIFIER_ROLE`), and `/config` always gives it to the portal.
 - Providers: FIWARE IDM, Keycloak, any OpenID Connect provider (discovery), GitHub, AI Market, i4Trust and the verifiable-credentials login (`vc`, below). Identity providers added by an administrator (`/IDP`) work with the external login.
 - Tokens are refreshed before they end and the refresh of one token is made once however many requests wait for it. The profile of a token is kept in memory or in MongoDB (`auth.store.type`), sealed with AES-256-GCM in MongoDB, and sessions are kept in the same store so that every instance sees them.
 - A route is private unless it says otherwise. A caller is known by `X-Auth-Token`, `Authorization: Bearer` or the session cookie, and `X-Organization` makes them act as one of their organizations.
@@ -53,6 +56,8 @@ The proxy is a NestJS application on Express 5 and Node.js 26. The Express 4 app
 - `HTTPS_PROXY` is not applied to the calls of the proxy: start Node with `NODE_USE_ENV_PROXY=1`.
 - `BAE_LP_SIOP_ALLOWED_ROLES` is not used, and `callback_url` of the query of the `vc` login is ignored.
 - The image does not collect static files, load themes or run migration scripts. It serves the compiled portal in `portal/bae-frontend`.
+- The charging backend is at port 8006 unless `upstreams.charging.port` says otherwise; it has no default host.
+- `jsonwebtoken` is 9: an RSA key of less than 2048 bits no longer signs or verifies (the key of the proxy for i4Trust, the keys of a verifier), and an `ES*` algorithm needs a key of its curve (`ES256` is P-256, which is the key of `BAE_LP_SIOP_PRIVATE_KEY`).
 - A portal on another origin needs that origin in `http.cors.origins` to send the cookie of the session.
 - Several instances need `auth.store.type=mongo` (with `auth.store.encryptionKey`), or each keeps its own sessions.
 
