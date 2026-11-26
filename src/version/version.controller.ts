@@ -1,17 +1,6 @@
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { Controller, Get } from '@nestjs/common';
 import { Public } from '../auth/public.decorator';
-
-// The version is the one of the package, which is two folders up from here both in the sources and in the build
-const VERSION = ((): string => {
-    try {
-        const { version } = JSON.parse(readFileSync(join(__dirname, '..', '..', 'package.json'), 'utf8')) as { version?: unknown };
-        return typeof version === 'string' ? version : 'unknown';
-    } catch {
-        return 'unknown';
-    }
-})();
+import { PACKAGE_VERSION as VERSION } from './package-version';
 
 /** How long the process has been up, as `0 d, 1 h, 2 m, 3 s`. */
 export const uptimeText = (seconds: number): string => {

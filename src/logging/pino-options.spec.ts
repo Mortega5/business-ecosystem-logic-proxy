@@ -9,7 +9,7 @@ import pino from 'pino';
 import pinoHttp from 'pino-http';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { AppConfig } from '../config/config.schema';
-import { buildPinoOptions, noteFailure, sanitizeUrl } from './pino-options';
+import { buildLoggerOptions, buildPinoOptions, noteFailure, sanitizeUrl } from './pino-options';
 
 const LOGGING: AppConfig['logging'] = { level: 'info', format: 'json', prettyOptions: {} };
 
@@ -69,6 +69,14 @@ describe('buildPinoOptions', () => {
 
     it('takes the level from the configuration', () => {
         expect(buildPinoOptions({ ...LOGGING, level: 'debug' }).level).toBe('debug');
+    });
+
+    it('names the level and says what service and version wrote the line, in JSON', () => {
+        const { lines, stream } = captureStream();
+        const options = buildLoggerOptions(LOGGING);
+        pino(options, stream).info('hello');
+        expect(lines[0]).toMatchObject({ level: 'info', service: 'bae-logic-proxy', version: expect.any(String), msg: 'hello' });
+        expect(buildLoggerOptions({ ...LOGGING, format: 'pretty' }).formatters).toBeUndefined();
     });
 
     it('redacts credentials in logged objects', () => {
@@ -150,7 +158,7 @@ describe('request logging', () => {
 
         const line = lines.find((l) => l.msg === 'request completed');
         expect(line).toMatchObject({
-            level: 30,
+            level: 'info',
             partyId: 'urn:party:1',
             userId: 'user-9',
             req: { method: 'GET', url: '/catalog/ok?code=%5BRedacted%5D', userAgent: 'vitest' },
@@ -177,7 +185,7 @@ describe('request logging', () => {
         const res = await call('/catalog/missing');
 
         expect(res.status).toBe(500);
-        expect(lines.some((l) => l.level === 50 && l.res !== undefined)).toBe(true);
+        expect(lines.some((l) => l.level === 'error' && l.res !== undefined)).toBe(true);
     });
 
     it('adds the reason of an error answer to its access line', async () => {
@@ -185,7 +193,7 @@ describe('request logging', () => {
 
         expect(res.status).toBe(403);
         expect(lines.find((l) => l.msg === 'request completed')).toMatchObject({
-            level: 40,
+            level: 'warn',
             failure: 'You are not the owner',
             res: { statusCode: 403 }
         });

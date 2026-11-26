@@ -88,7 +88,7 @@ describe('start', () => {
         });
 
         expect(lines.find((l) => l.msg === 'Deprecated environment variable, still applied')).toMatchObject({
-            level: 40,
+            level: 'warn',
             context: 'Bootstrap',
             variable: 'BAE_LP_PORT',
             key: 'app.port',
@@ -142,7 +142,7 @@ describe('start', () => {
 
         await expect(start({ env: await envFor(), rootModule: FailingRootModule, logStream })).rejects.toThrow('ENOTFOUND mongo');
 
-        expect(lines.at(-1)).toMatchObject({ level: 60, msg: 'The server could not start', context: 'Bootstrap' });
+        expect(lines.at(-1)).toMatchObject({ level: 'fatal', msg: 'The server could not start', context: 'Bootstrap' });
         expect(JSON.stringify(lines.at(-1))).toContain('ENOTFOUND mongo');
     });
 

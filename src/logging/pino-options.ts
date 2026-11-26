@@ -1,9 +1,12 @@
 import { randomUUID } from 'node:crypto';
+import { hostname } from 'node:os';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { LoggerOptions } from 'pino';
 import type { Options } from 'pino-http';
 import type { AppConfig } from '../config/config.schema';
+import { PACKAGE_VERSION } from '../version/package-version';
 import { enterRequest } from './request-id';
+
 
 const REDACT_PATHS = [
     'req.headers.authorization',
@@ -120,6 +123,9 @@ const levelForStatus = (_req: IncomingMessage, res: ServerResponse, error?: Erro
 
 export const buildLoggerOptions = (logging: AppConfig['logging']): LoggerOptions => ({
     level: logging.level,
+    base: { pid: process.pid, hostname: hostname(), service: 'bae-logic-proxy', version: PACKAGE_VERSION },
+    // Log collectors read the name of the level; the pretty output keeps the numbers it colours
+    ...(logging.format === 'json' ? { formatters: { level: (label: string) => ({ level: label }) } } : {}),
     ...(logging.format === 'pretty' ? { transport: { target: 'pino-pretty', options: logging.prettyOptions } } : {})
 });
 
