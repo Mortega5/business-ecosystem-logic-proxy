@@ -80,7 +80,7 @@ describe('POST /billing/order', () => {
         expect(engine.seen?.url).toBe('/preview');
         const { productOrder } = sent() as { productOrder: { relatedParty: unknown[]; productOrderItem: unknown[] } };
         expect(productOrder.relatedParty).toEqual([
-            { id: 'p-ana', role: 'Customer', href: 'p-ana', '@referredType': 'organization' },
+            { id: 'p-ana', role: 'Buyer', href: 'p-ana', '@referredType': 'organization' },
             { id: 'p-shop', role: 'Seller', href: 'p-shop', '@referredType': 'organization' },
             { id: 'p-other', role: 'Seller', href: 'p-other', '@referredType': 'organization' }
         ]);
