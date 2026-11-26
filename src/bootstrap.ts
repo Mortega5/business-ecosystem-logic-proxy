@@ -4,6 +4,7 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
 import { ErrorFilter } from './common/error.filter';
+import { QuietNestLogger } from './logging/quiet-nest-logger';
 import { PortalFallbackFilter } from './portal/portal-static';
 
 // bodyParser is off: each route reads the body as the text it needs. abortOnError is off so a failed start
@@ -17,7 +18,7 @@ export const createApp = async (rootModule: new () => object = AppModule, httpsO
     });
     app.set('query parser', 'extended');
     app.disable('x-powered-by');
-    app.useLogger(app.get(Logger));
+    app.useLogger(new QuietNestLogger(app.get(Logger)));
     app.useGlobalFilters(new ErrorFilter(), new PortalFallbackFilter());
     return app;
 };
