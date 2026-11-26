@@ -656,6 +656,10 @@ describe('responses against docs/openapi.yaml', () => {
             refused('delete', catalogId, '403', `${catalogs}/cat-1`, undefined, catalog().replace(seller, other), AS_SELLER),
             refused('delete', catalogId, '409', `${catalogs}/cat-1`, undefined, catalog().replace('Active', 'Retired'), AS_SELLER),
             refused('delete', catalogId, '502', `${catalogs}/cat-1`, undefined, 'not json', AS_SELLER),
+            // The list of the catalogs, which anybody reads in the states that are public
+            ...proxied(catalogs, `${catalogs}?limit=6&offset=0&lifecycleStatus=Launched`, '[]', { invalid: { url: `${catalogs}?q=x` } }).filter((c) => c.status === '200' || c.status === '400' || c.status === '504'),
+            refused('get', catalogs, '403', catalogs, undefined, '[]', {}),
+            refused('get', catalogs, '502', `${catalogs}?lifecycleStatus=Launched`, undefined, 'not json', {}),
             // The lists of offerings, of all of them and of a catalog
             ...proxied(offerings, `${offerings}?limit=6&offset=0&lifecycleStatus=Launched`, '[]', { invalid: { url: `${offerings}?q=x` } }).filter((c) => c.status !== '401'),
             refused('get', offerings, '501', `${offerings}?keyword=data`, undefined, '[]', {}),
