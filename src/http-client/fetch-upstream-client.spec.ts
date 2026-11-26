@@ -153,11 +153,26 @@ describe('FetchUpstreamClient logging', () => {
         handler = (_req, res) => reply(res, 502, 'bad gateway');
         await clientFor(`http://127.0.0.1:${port}`).send({ upstream: 'charging', path: '/x' });
         expect(logger.warn).toHaveBeenCalledTimes(1);
+        expect(logger.warn.mock.calls[0]?.[0]).toMatchObject({ statusCode: 502, upstreamError: 'bad gateway' });
 
         await clientFor('http://127.0.0.1:1')
             .send({ upstream: 'charging', path: '/x' })
             .catch(() => undefined);
         expect(logger.error).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe('FetchUpstreamClient error detail', () => {
+    it('adds what the upstream said to the log line of a refusal, and nothing of a success', async () => {
+        handler = (_req, res) => reply(res, 422, '{"message":"The price is not valid","internal":"x"}');
+        await clientFor(`http://127.0.0.1:${port}`).send({ upstream: 'charging', path: '/x' });
+        const refused = logger.info.mock.calls.at(-1)?.[0] as Record<string, unknown>;
+        expect(refused).toMatchObject({ statusCode: 422, upstreamError: 'The price is not valid' });
+        expect(JSON.stringify(refused)).not.toContain('internal');
+
+        handler = (_req, res) => reply(res, 200, '{"message":"fine"}');
+        await clientFor(`http://127.0.0.1:${port}`).send({ upstream: 'charging', path: '/x' });
+        expect(logger.info.mock.calls.at(-1)?.[0]).not.toHaveProperty('upstreamError');
     });
 });
 

@@ -4,6 +4,7 @@ import { DomainError } from '../common/domain-error';
 import { AppConfigService } from '../config/app-config.service';
 import { sanitizeUrl } from '../logging/pino-options';
 import { assertSafePath } from './safe-path';
+import { upstreamErrorDetail } from './upstream-error-detail';
 import { UpstreamClient, UpstreamError, type UpstreamRequest, type UpstreamResponse } from './upstream-client';
 
 // The path is checked before it is joined, and the result afterwards: whatever the URL parser did, the request must
@@ -55,7 +56,11 @@ export class FetchUpstreamClient extends UpstreamClient {
             });
             const body = await response.text();
             const level = response.status >= 500 ? 'warn' : 'info';
-            this.logger[level]({ ...logged, statusCode: response.status, durationMs: elapsed() }, 'upstream request completed');
+            const detail = response.status >= 400 ? upstreamErrorDetail(body) : undefined;
+            this.logger[level](
+                { ...logged, statusCode: response.status, durationMs: elapsed(), ...(detail === undefined ? {} : { upstreamError: detail }) },
+                'upstream request completed'
+            );
             return { status: response.status, headers: response.headers, body };
         } catch (error) {
             // What a route raised while its body was being sent, such as a file over the limit
