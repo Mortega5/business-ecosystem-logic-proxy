@@ -2132,7 +2132,7 @@ paths:
                 properties:
                   roles:
                     type: object
-                    required: [seller, customer, admin, orgAdmin]
+                    required: [seller, customer, admin, orgAdmin, certifier]
                     additionalProperties:
                       type: string
                   chat:
@@ -2180,7 +2180,7 @@ paths:
                     additionalProperties: true
                 additionalProperties: true
               example:
-                roles: { seller: Seller, customer: Buyer, admin: admin, orgAdmin: orgAdmin }
+                roles: { seller: Seller, customer: Buyer, admin: admin, orgAdmin: orgAdmin, certifier: certifier }
                 chat: ''
                 theme: ''
                 searchEnabled: false

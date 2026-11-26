@@ -64,7 +64,7 @@ describe('GET /config', () => {
 
         expect(res.status).toBe(200);
         expect(body).toMatchObject({
-            roles: { seller: 'Seller', customer: 'Buyer', admin: 'admin', orgAdmin: 'orgAdmin' },
+            roles: { seller: 'Seller', customer: 'Buyer', admin: 'admin', orgAdmin: 'orgAdmin', certifier: 'certifier' },
             chat: 'https://chat.example.org',
             theme: 'dark',
             matomoId: '',

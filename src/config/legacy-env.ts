@@ -190,8 +190,7 @@ const PORTAL_EXTRA_VARIABLES: [key: string, variable: string][] = [
     ['portal.extra.domeOnboardingGuidelines', 'BAE_LP_DOME_ONBOARDING_GUIDELINES'],
     ['portal.extra.domeGuidelines', 'BAE_LP_DOME_GUIDELINES'],
     ['portal.extra.domePublish', 'BAE_LP_DOME_PUBLISH'],
-    ['portal.extra.learUrl', 'BAE_LP_LEAR_URL'],
-    ['portal.extra.roles.certifier', 'BAE_LP_OAUTH2_ORG_CERTIFIER_ROLE']
+    ['portal.extra.learUrl', 'BAE_LP_LEAR_URL']
 ];
 
 // The lists of the login with credentials are separated by commas

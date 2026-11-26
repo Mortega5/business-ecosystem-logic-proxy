@@ -41,10 +41,16 @@ export class PortalConfigService {
     ) {}
 
     async read(): Promise<Json> {
-        const { auth, portal, quotes, catalog, dsp, fileService } = this.config;
+        const { auth, compliance, portal, quotes, catalog, dsp, fileService } = this.config;
         const [features, searchFilters, contributed] = await Promise.all([this.flags.all(), this.searchFilters(), this.contributors.collect()]);
         const own: Json = {
-            roles: { seller: auth.roles.seller, customer: auth.roles.customer, admin: auth.roles.admin, orgAdmin: auth.roles.orgAdmin },
+            roles: {
+                seller: auth.roles.seller,
+                customer: auth.roles.customer,
+                admin: auth.roles.admin,
+                orgAdmin: auth.roles.orgAdmin,
+                certifier: compliance.certifierRole
+            },
             chat: portal.chatUrl,
             knowledgeBaseUrl: portal.knowledgeBaseUrl,
             ticketingUrl: portal.ticketingUrl,

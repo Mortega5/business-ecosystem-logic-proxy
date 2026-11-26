@@ -413,8 +413,7 @@ describe('request size configuration', () => {
             BAE_LP_DOME_ABOUT: 'https://about.example.org',
             BAE_LP_DOME_REGISTER: 'https://register.example.org',
             BAE_LP_DOME_PUBLISH: 'https://publish.example.org',
-            BAE_LP_LEAR_URL: 'https://lear.example.org',
-            BAE_LP_OAUTH2_ORG_CERTIFIER_ROLE: 'certifier'
+            BAE_LP_LEAR_URL: 'https://lear.example.org'
         });
 
         expect(config.portal.extra).toEqual({
@@ -423,8 +422,7 @@ describe('request size configuration', () => {
             domeRegister: 'https://register.example.org',
             domeRegisterCustomer: 'https://register.example.org',
             domePublish: 'https://publish.example.org',
-            learUrl: 'https://lear.example.org',
-            roles: { certifier: 'certifier' }
+            learUrl: 'https://lear.example.org'
         });
         // The addresses that v11 gave by default, when there is no variable
         expect(load({}).portal.extra).toEqual({
