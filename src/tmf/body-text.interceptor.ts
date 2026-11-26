@@ -1,5 +1,6 @@
 import { Injectable, type CallHandler, type ExecutionContext, type NestInterceptor } from '@nestjs/common';
-import express, { type Request, type RequestHandler, type Response } from 'express';
+import { text } from 'body-parser';
+import type { Request, RequestHandler, Response } from 'express';
 import type { Observable } from 'rxjs';
 import { AppConfigService } from '../config/app-config.service';
 
@@ -14,7 +15,7 @@ export class BodyTextInterceptor implements NestInterceptor {
     private readonly parse: RequestHandler;
 
     constructor(config: AppConfigService) {
-        this.parse = express.text({
+        this.parse = text({
             type: (req) => !(req.headers['content-type'] ?? '').toLowerCase().startsWith('multipart/form-data'),
             limit: config.http.bodyLimit
         });
