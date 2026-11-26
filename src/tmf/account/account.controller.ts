@@ -5,12 +5,20 @@ import { DomainError, ForbiddenError, NotFoundError } from '../../common/domain-
 import { AppConfigService } from '../../config/app-config.service';
 import { JsonBodyPipe } from '../json-body.pipe';
 import { OwnedResources, type OwnedRead } from '../owned-resources';
-import { callerParty, isOwnedOnlyBy } from '../related-party';
+import { callerParty, isOwnedOnlyBy, isRecord, isRelatedAs } from '../related-party';
 import { ResourceIdPipe } from '../resource-id.pipe';
 import { SellerParties } from '../seller-parties';
 import { TmfProxy } from '../tmf-proxy';
 import type { UpstreamUser } from '../upstream-headers';
-import { parseBillingAccount, validateContacts } from './billing-account';
+import { parseBillingAccount, sellerView, validateContacts } from './billing-account';
+
+const parseJson = (text: string): unknown => {
+    try {
+        return JSON.parse(text);
+    } catch {
+        return undefined;
+    }
+};
 
 const NOT_THE_OWNER = 'The user making the request is not the specified owner';
 
@@ -43,9 +51,45 @@ export class AccountController {
         });
     }
 
+    /**
+     * The owner is given the account. A seller of an order that charges to it is given what they need of it, as the
+     * buyer put it in the account; anybody else is refused.
+     */
     @Get('billingAccount/:id')
-    read(@Param('id', ResourceIdPipe) id: string, @Req() req: Request, @Res() res: Response): Promise<void> {
-        return this.owned.read(req, res, this.account(id));
+    async read(@Param('id', ResourceIdPipe) id: string, @Req() req: Request, @Res() res: Response): Promise<void> {
+        const partyId = callerParty(req, NOT_THE_OWNER);
+        const response = await this.proxy.send(req, { upstream: 'tmforum.account', path: `/billingAccount/${encodeURIComponent(id)}`, method: 'GET', search: '' });
+        if (response.status >= 400) {
+            this.proxy.reply(res, response);
+            return;
+        }
+        const account = parseJson(response.body);
+        if (!isRecord(account)) {
+            throw new ForbiddenError(NOT_THE_OWNER);
+        }
+        if (isRelatedAs(account, partyId, this.config.auth.roles.seller)) {
+            this.proxy.reply(res, response);
+            return;
+        }
+        if (!(await this.sellsOrderChargedTo(req, id, partyId))) {
+            throw new ForbiddenError(NOT_THE_OWNER);
+        }
+        this.proxy.reply(res, { ...response, body: JSON.stringify(sellerView(account)) });
+    }
+
+    /** Whether the party is a seller of an order that charges to the account. The orders found are checked here, not trusted to the filter. */
+    private async sellsOrderChargedTo(req: Request, accountId: string, partyId: string): Promise<boolean> {
+        const role = this.config.auth.roles.seller;
+        const search = new URLSearchParams({ 'billingAccount.id': accountId, 'relatedParty.id': partyId, 'relatedParty.role': role, limit: '1' });
+        const response = await this.proxy.send(req, { upstream: 'tmforum.ordering', path: '/productOrder', method: 'GET', search: `?${search.toString()}` });
+        if (response.status >= 400) {
+            throw new DomainError('The orders could not be read', 502);
+        }
+        const orders = parseJson(response.body);
+        return (
+            Array.isArray(orders) &&
+            orders.some((order: unknown) => isRecord(order) && isRecord(order['billingAccount']) && order['billingAccount']['id'] === accountId && isRelatedAs(order, partyId, role))
+        );
     }
 
     @Post('billingAccount')

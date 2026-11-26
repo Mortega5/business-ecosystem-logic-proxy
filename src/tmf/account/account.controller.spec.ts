@@ -136,6 +136,80 @@ describe('GET /account/billingAccount/:id', () => {
     });
 });
 
+describe('GET /account/billingAccount/:id, by a seller of an order charged to it', () => {
+    const BUYER_ACCOUNT = JSON.stringify({
+        id: 'x-1',
+        href: 'x-1',
+        name: 'Office',
+        state: 'Defined',
+        relatedParty: [{ id: 'p-buyer', role: 'Seller' }],
+        contact: [
+            {
+                contactMedium: [
+                    { mediumType: 'Email', preferred: true, characteristic: { contactType: 'Email', emailAddress: 'buyer@example.org' } },
+                    { mediumType: 'TelephoneNumber', preferred: true, characteristic: { contactType: 'Mobile', phoneNumber: '+34600111222' } }
+                ]
+            }
+        ]
+    });
+    const order = (extra: object = {}) => ({ id: 'o-1', billingAccount: { id: 'x-1' }, relatedParty: [{ id: 'p-ana', role: 'Seller' }, { id: 'p-buyer', role: 'Customer' }], ...extra });
+
+    const withOrders = (status: number, body: string): void =>
+        upstream.answer((res) => {
+            requests.push({ method: res.req.method, url: res.req.url });
+            const isOrders = res.req.url?.startsWith('/tmf-api/productOrderingManagement') === true;
+            upstream.json(res, isOrders ? status : 200, isOrders ? body : BUYER_ACCOUNT);
+        });
+    const orderQueries = () => requests.filter((request) => request.url?.includes('productOrder'));
+
+    it('is given the view of the seller, and the order is looked for with the caller as its seller', async () => {
+        withOrders(200, JSON.stringify([order()]));
+        const res = await call('/account/billingAccount/x-1');
+
+        expect(res.status).toBe(200);
+        expect(await res.json()).toEqual({
+            id: 'x-1',
+            href: 'x-1',
+            name: 'Office',
+            contact: [
+                {
+                    contactMedium: [
+                        { mediumType: 'Email', characteristic: { contactType: 'Email', emailAddress: 'buyer@example.org' } },
+                        { mediumType: 'TelephoneNumber', characteristic: { contactType: 'Mobile', phoneNumber: '+34600111222' } }
+                    ]
+                }
+            ]
+        });
+        expect(orderQueries()).toHaveLength(1);
+        const query = new URL(`http://x${orderQueries()[0]?.url}`).searchParams;
+        expect(Object.fromEntries(query)).toEqual({ 'billingAccount.id': 'x-1', 'relatedParty.id': 'p-ana', 'relatedParty.role': 'Seller', limit: '1' });
+    });
+
+    it.each([
+        ['no order', '[]'],
+        ['an order of another account, whatever the filter did', JSON.stringify([order({ billingAccount: { id: 'x-2' } })])],
+        ['an order where the caller is not its seller', JSON.stringify([order({ relatedParty: [{ id: 'p-other', role: 'Seller' }, { id: 'p-ana', role: 'Customer' }] })])],
+        ['something that is not a list', '{"id":"o-1"}']
+    ])('is refused with %s, and the account is not leaked', async (_name, body) => {
+        withOrders(200, body);
+        const res = await call('/account/billingAccount/x-1');
+
+        expect(res.status).toBe(403);
+        expect(await res.json()).toEqual({ error: 'The user making the request is not the specified owner' });
+    });
+
+    it('fails when the orders cannot be read', async () => {
+        withOrders(500, '{"error":"down"}');
+        expect((await call('/account/billingAccount/x-1')).status).toBe(502);
+    });
+
+    it('does not look for orders when the caller owns the account', async () => {
+        answerWith(200, MINE);
+        await call('/account/billingAccount/x-1');
+        expect(orderQueries()).toHaveLength(0);
+    });
+});
+
 describe('POST /account/billingAccount', () => {
     it('creates the account of the caller', async () => {
         const body = account({ contact: [{ contactName: 'Ana', contactMedium: [PHONE('+34612345678')] }] });
