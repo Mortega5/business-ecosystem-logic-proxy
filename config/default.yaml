@@ -170,7 +170,6 @@ catalog:
     - { key: blueprint, name: Blueprint, description: Blueprints }
 
 mongo:
-  uri: mongodb://localhost:27017/belp
   maxPoolSize: 10
   serverSelectionTimeoutMs: 5000
   heartbeatFrequencyMs: 10000

@@ -3,6 +3,7 @@ import { getConnectionToken } from '@nestjs/mongoose';
 import { PinoLogger } from 'nestjs-pino';
 import { ConnectionStates, type Connection } from 'mongoose';
 import { AppConfigService } from '../config/app-config.service';
+import { resolveMongoTarget } from './mongo-target';
 
 /** Where the connection goes, with no credentials and no options: the address is for the log, and the rest is secret. */
 export const mongoTarget = (uri: string): string => uri.split('?')[0]!.replace(/\/\/[^@/]*@/, '//');
@@ -64,8 +65,8 @@ export class MongoConnectionService implements OnApplicationBootstrap, OnApplica
     }
 
     private async connectUntilUp(): Promise<void> {
-        const { uri, maxPoolSize, serverSelectionTimeoutMs, heartbeatFrequencyMs, retryInitialDelayMs, retryMaxDelayMs } =
-            this.config.mongo;
+        const { maxPoolSize, serverSelectionTimeoutMs, heartbeatFrequencyMs, retryInitialDelayMs, retryMaxDelayMs } = this.config.mongo;
+        const { uri, credentials, authSource } = resolveMongoTarget(this.config.mongo);
         for (let attempt = 1; !this.stopped; attempt++) {
             this.logger.info({ attempt, target: mongoTarget(uri), timeoutMs: serverSelectionTimeoutMs }, 'Connecting to MongoDB');
             try {
@@ -73,7 +74,9 @@ export class MongoConnectionService implements OnApplicationBootstrap, OnApplica
                     autoIndex: false,
                     maxPoolSize,
                     serverSelectionTimeoutMS: serverSelectionTimeoutMs,
-                    heartbeatFrequencyMS: heartbeatFrequencyMs
+                    heartbeatFrequencyMS: heartbeatFrequencyMs,
+                    ...(credentials === undefined ? {} : { user: credentials.user, pass: credentials.password }),
+                    ...(authSource === undefined ? {} : { authSource })
                 });
                 this.resolveUp();
                 return;

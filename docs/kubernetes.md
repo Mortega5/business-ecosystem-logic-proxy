@@ -216,7 +216,7 @@ The `BAE_LP_*` variables of version 11 are read and translated to the keys of th
 | `BAE_LP_OAUTH2_ADMIN_ROLE`, `_SELLER_ROLE`, `_CUSTOMER_ROLE`, `_ORG_ADMIN_ROLE`, `_ORG_CERTIFIER_ROLE` | `auth.roles.admin`, `.seller`, `.customer`, `.orgAdmin`, `.certifier` | `BAE_AUTH__ROLES__ADMIN`, `BAE_AUTH__ROLES__SELLER`, `BAE_AUTH__ROLES__CUSTOMER`, `BAE_AUTH__ROLES__ORG_ADMIN`, `BAE_AUTH__ROLES__CERTIFIER` | |
 | `BAE_LP_ENDPOINT_<NAME>_HOST`, `_PORT`, `_PATH`, `_SECURED` | `upstreams.tmforum.apis.<api>` or `upstreams.<name>` | `BAE_UPSTREAMS__TMFORUM__APIS__<API>`, `BAE_UPSTREAMS__<NAME>` | See [Upstreams](#upstreams) for the names. `SECURED=true` sets `scheme: https`. What is not set (host or port) comes from the group; a missing `PATH` means the path version 11 had for that endpoint, which is empty except for `revenue` (`/revenue`) and `invoicing` (`/invoicing`) |
 
-When none of the `BAE_LP_MONGO_*` variables is set, `mongo.uri` keeps its default.
+When none of the `BAE_LP_MONGO_*` variables is set, the default address applies (see `mongo.*` below).
 
 Each variable in use is logged at start-up, with `context: "Bootstrap"`:
 
@@ -240,7 +240,10 @@ Keys read by the application:
 | `logging.level` | `BAE_LOGGING__LEVEL` | `fatal` `error` `warn` `info` `debug` `trace` `silent` | `info` | |
 | `logging.format` | `BAE_LOGGING__FORMAT` | `json` `pretty` | `pretty` | `pretty` uses pino-pretty |
 | `logging.prettyOptions` | `BAE_LOGGING__PRETTY_OPTIONS` | object | `{ singleLine: true }` | Options for pino-pretty |
-| `mongo.uri` | `BAE_MONGO__URI` | string | `mongodb://localhost:27017/belp` | |
+| `mongo.uri` | `BAE_MONGO__URI` | string | not set | The whole address (`mongodb://[user:password@]host[:port][,host...]/database[?options]`). The only way to give the options of the connection, such as a replica set or TLS. It cannot be given together with any of the parts below |
+| `mongo.host`, `.port`, `.database` | `BAE_MONGO__HOST`, `BAE_MONGO__PORT`, `BAE_MONGO__DATABASE` | string, integer 1–65535, string | `localhost`, `27017`, `belp` | The address, in parts, when there is no `mongo.uri` |
+| `mongo.user`, `.password` | `BAE_MONGO__USER`, `BAE_MONGO__PASSWORD` | string | not set | The credentials, which go together. They are given to the connection as they are, not in the address, so they need no encoding and are not in the log |
+| `mongo.authSource` | `BAE_MONGO__AUTH_SOURCE` | string | the database | The database the user is authenticated against (`admin` in most deployments) |
 | `mongo.maxPoolSize` | `BAE_MONGO__MAX_POOL_SIZE` | integer | `10` | |
 | `mongo.serverSelectionTimeoutMs` | `BAE_MONGO__SERVER_SELECTION_TIMEOUT_MS` | integer | `5000` | How long each connection attempt waits for a server |
 | `mongo.heartbeatFrequencyMs` | `BAE_MONGO__HEARTBEAT_FREQUENCY_MS` | integer ≥ 500 | `10000` | |

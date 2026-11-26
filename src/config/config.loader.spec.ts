@@ -590,3 +590,33 @@ describe('the login with verifiable credentials', () => {
         expect(load({ ...complete, BAE_LP_SIOP_PRIVATE_KEY: '', BAE_LP_SIOP_PRIVATE_KEY_PEM: '/keys/proxy.pem' }).auth.vc.privateKeyFile).toBe('/keys/proxy.pem');
     });
 });
+
+describe('the settings of MongoDB', () => {
+    const load = (env: NodeJS.ProcessEnv) => loadStaticConfig({ defaultsPath: DEFAULTS_PATH, env });
+
+    it('has no address by default, so the default one is the one that applies', () => {
+        expect(load({}).mongo).toMatchObject({ maxPoolSize: 10 });
+        expect(load({}).mongo.uri).toBeUndefined();
+    });
+
+    it('takes the uri, or the parts, from the variables', () => {
+        expect(load({ BAE_MONGO__URI: 'mongodb://db1,db2/bae?replicaSet=rs' }).mongo.uri).toBe('mongodb://db1,db2/bae?replicaSet=rs');
+        expect(
+            load({ BAE_MONGO__HOST: 'db', BAE_MONGO__PORT: '27018', BAE_MONGO__DATABASE: 'bae', BAE_MONGO__USER: 'ana', BAE_MONGO__PASSWORD: 'secret', BAE_MONGO__AUTH_SOURCE: 'admin' }).mongo
+        ).toMatchObject({ host: 'db', port: 27018, database: 'bae', user: 'ana', password: 'secret', authSource: 'admin' });
+    });
+
+    it('still takes the variables of version 11 and makes the uri of them', () => {
+        expect(load({ BAE_LP_MONGO_SERVER: 'localhost', BAE_LP_MONGO_PORT: '27017', BAE_LP_MONGO_DB: 'producer_belp_db' }).mongo.uri).toBe('mongodb://localhost:27017/producer_belp_db');
+    });
+
+    it('refuses the uri together with any of the parts', () => {
+        expect(() => load({ BAE_MONGO__URI: 'mongodb://db/bae', BAE_MONGO__HOST: 'db' })).toThrow('mongo.uri cannot be given together');
+        expect(() => load({ BAE_LP_MONGO_SERVER: 'db', BAE_MONGO__USER: 'ana', BAE_MONGO__PASSWORD: 'x' })).toThrow('mongo.uri cannot be given together');
+    });
+
+    it('refuses a user without a password and a password without a user', () => {
+        expect(() => load({ BAE_MONGO__USER: 'ana' })).toThrow('mongo.user and mongo.password go together');
+        expect(() => load({ BAE_MONGO__PASSWORD: 'x' })).toThrow('mongo.user and mongo.password go together');
+    });
+});

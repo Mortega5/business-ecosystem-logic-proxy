@@ -116,14 +116,32 @@ export const ConfigSchema = z.object({
         format: z.enum(['json', 'pretty']),
         prettyOptions: z.record(z.string(), z.unknown())
     }),
-    mongo: z.object({
-        uri: z.string().min(1),
-        maxPoolSize: z.coerce.number().int().positive(),
-        serverSelectionTimeoutMs: z.coerce.number().int().positive(),
-        heartbeatFrequencyMs: z.coerce.number().int().min(500),
-        retryInitialDelayMs: z.coerce.number().int().positive(),
-        retryMaxDelayMs: z.coerce.number().int().positive()
-    }),
+    // Either `uri` or the parts (host, port, database, user, password, authSource), never both; with neither, the server is
+    // mongodb://localhost:27017/belp. The options of the connection that are not these (replica set, TLS) can only be in the `uri`
+    mongo: z
+        .object({
+            uri: z.string().min(1).optional(),
+            host: z.string().min(1).optional(),
+            port: z.coerce.number().int().min(1).max(65535).optional(),
+            database: z.string().min(1).optional(),
+            user: z.string().min(1).optional(),
+            password: z.string().min(1).optional(),
+            authSource: z.string().min(1).optional(),
+            maxPoolSize: z.coerce.number().int().positive(),
+            serverSelectionTimeoutMs: z.coerce.number().int().positive(),
+            heartbeatFrequencyMs: z.coerce.number().int().min(500),
+            retryInitialDelayMs: z.coerce.number().int().positive(),
+            retryMaxDelayMs: z.coerce.number().int().positive()
+        })
+        .refine(
+            (mongo) =>
+                mongo.uri === undefined ||
+                [mongo.host, mongo.port, mongo.database, mongo.user, mongo.password, mongo.authSource].every((part) => part === undefined),
+            { message: 'mongo.uri cannot be given together with mongo.host, port, database, user, password or authSource' }
+        )
+        .refine((mongo) => (mongo.user === undefined) === (mongo.password === undefined), {
+            message: 'mongo.user and mongo.password go together'
+        }),
     auth: z.object({
         propagateToken: booleanLike,
         allowLocalEori: booleanLike,
