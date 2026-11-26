@@ -4,6 +4,7 @@ import { AppConfigService } from '../config/app-config.service';
 import type { UpstreamUser } from '../tmf/upstream-headers';
 import { guestTokenPath, supersetUrl } from './analytics-config';
 import { AnalyticsSettings } from './analytics-settings';
+import { outboundFetch } from '../http-client/outbound-fetch';
 
 export const TABS = ['businessInsights', 'usageMonitor'] as const;
 export type Tab = (typeof TABS)[number];
@@ -59,7 +60,7 @@ export class GuestTokens {
     private async ask(url: string, dashboardId: string, accessToken: string): Promise<string> {
         let response: Response;
         try {
-            response = await fetch(url, {
+            response = await outboundFetch('analytics', url, {
                 method: 'POST',
                 headers: {
                     'content-type': 'application/json',
@@ -73,10 +74,10 @@ export class GuestTokens {
             });
         } catch (error) {
             if (error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError')) {
-                this.logger.warn({ err: error }, 'The analytics service did not answer in time');
+                this.logger.warn('The analytics service did not answer in time');
                 throw new DomainError('The analytics service did not answer in time', 504);
             }
-            this.logger.warn({ err: error }, 'The analytics service could not be reached');
+            this.logger.warn('The analytics service could not be reached');
             throw new BadGatewayError('It was not possible to generate the analytics guest token');
         }
         if (!response.ok) {

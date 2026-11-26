@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { outboundFetch } from '../http-client/outbound-fetch';
 import { PinoLogger } from 'nestjs-pino';
 import { BadGatewayError, ForbiddenError } from '../common/domain-error';
 import { AppConfigService } from '../config/app-config.service';
@@ -77,7 +78,7 @@ export class PaymentInfoService {
 
     private async get(url: string, headers: Record<string, string>): Promise<string | undefined> {
         try {
-            const response = await fetch(url, { method: 'GET', headers, redirect: 'manual', signal: AbortSignal.timeout(GATEWAY_TIMEOUT_MS) });
+            const response = await outboundFetch('payment-gateway', url, { method: 'GET', headers, redirect: 'manual', signal: AbortSignal.timeout(GATEWAY_TIMEOUT_MS) });
             if (!response.ok) {
                 this.logger.warn({ statusCode: response.status }, 'The payment gateway did not answer well');
                 throw new BadGatewayError('The payment gateway did not answer');
@@ -87,7 +88,7 @@ export class PaymentInfoService {
             if (error instanceof BadGatewayError) {
                 throw error;
             }
-            this.logger.warn({ err: error }, 'The payment gateway could not be reached');
+            this.logger.warn('The payment gateway could not be reached');
             throw new BadGatewayError('The payment gateway could not be reached');
         }
     }

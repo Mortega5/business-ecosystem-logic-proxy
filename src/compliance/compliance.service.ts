@@ -10,6 +10,7 @@ import { TmfProxy } from '../tmf/tmf-proxy';
 import type { UpstreamUser } from '../tmf/upstream-headers';
 import { complianceFileAddresses, organizationFields } from './compliance-form';
 import { fetchPublicFile, PublicFileError, type PublicFile } from './public-file';
+import { outboundFetch } from '../http-client/outbound-fetch';
 
 const CERTIFICATE_PATH = '/api/v1/product-offering/certificate';
 // What the compliance service answers is read up to here: a certificate and its report are small
@@ -141,7 +142,7 @@ export class ComplianceService {
         const token = (req as Request & { user?: UpstreamUser }).user?.accessToken;
         let response: Response;
         try {
-            response = await fetch(`${serverUrl.replace(/\/+$/, '')}${CERTIFICATE_PATH}`, {
+            response = await outboundFetch('compliance', `${serverUrl.replace(/\/+$/, '')}${CERTIFICATE_PATH}`, {
                 method: 'POST',
                 headers: token === undefined || token === '' ? {} : { authorization: `Bearer ${token}` },
                 body: form,
@@ -149,7 +150,7 @@ export class ComplianceService {
                 signal: AbortSignal.timeout(timeoutMs)
             });
         } catch (error) {
-            this.logger.error({ specId, err: error }, 'The compliance service could not be reached');
+            this.logger.error({ specId }, 'The compliance service could not be reached');
             throw new DomainError('Compliance server unreachable', 504);
         }
         const answer = parseJson(await this.text(response));

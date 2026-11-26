@@ -3,6 +3,7 @@ import { randomBytes } from 'node:crypto';
 import { Readable } from 'node:stream';
 import { BadGatewayError, DomainError } from '../common/domain-error';
 import { AppConfigService } from '../config/app-config.service';
+import { outboundFetch } from '../http-client/outbound-fetch';
 
 /** A file to upload: its bytes are read as they are sent, never kept. */
 export interface FileToUpload {
@@ -158,7 +159,7 @@ export class FileServiceClient {
         const { url, token, timeoutMs } = this.config.fileService;
         let response: Response;
         try {
-            response = await fetch(`${url.replace(/\/+$/, '')}${path}`, {
+            response = await outboundFetch('file-service', `${url.replace(/\/+$/, '')}${path}`, {
                 method,
                 headers: { accept: 'application/json', ...headers, ...(token === undefined || token === '' ? {} : { authorization: `Bearer ${token}` }) },
                 signal: AbortSignal.timeout(timeoutMs),
@@ -171,7 +172,7 @@ export class FileServiceClient {
             if (own !== undefined) {
                 throw own;
             }
-            this.logger.error({ method, path, err: error }, 'The file service could not be reached');
+            this.logger.error({ method, path }, 'The file service could not be reached');
             throw new BadGatewayError('The file service is not reachable');
         }
         if (response.status < 400) {
