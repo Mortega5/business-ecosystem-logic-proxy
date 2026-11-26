@@ -25,6 +25,9 @@ const viewOf = (idp: Idp): IdpView => ({
  * The identity providers that an administrator adds at run time. Each is an i4Trust one, with the proxy as a client under its own
  * EORI. They are kept in MongoDB, and the ones that are there are available for login from the start.
  */
+// What a record holds, without the class: the repository gives plain objects, which are copied to make the changed one
+type IdpData = Pick<Idp, keyof Idp>;
+
 @Injectable()
 export class IdpService implements OnApplicationBootstrap {
     private keys: { keyPem: string, certificatePem: string } | undefined;
@@ -112,7 +115,8 @@ export class IdpService implements OnApplicationBootstrap {
     async update(idpId: string, form: IdpChangeForm): Promise<void> {
         this.settings();
         const current = await this.existing(idpId);
-        const changed: Idp = Object.assign({} as Idp, current, { name: form.name, server: form.server });
+        const plain: IdpData = current;
+        const changed: Idp = { ...plain, name: form.name, server: form.server };
         delete changed.issuerDid;
         delete changed.description;
         if (form.issuerDid !== undefined) {
