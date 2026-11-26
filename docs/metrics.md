@@ -19,7 +19,7 @@ before the response ends is not recorded.
 | Label | Values |
 |---|---|
 | `method` | The HTTP method: `GET`, `POST`... |
-| `route` | The template of the route that answered, such as `/catalog/productOffering/:id`, never the URL. `unmatched` when no route answered: the files of the portal and the paths that do not exist |
+| `route` | The template of the route that answered, such as `/catalog/productOffering/:id`, never the URL. `/*path`, the catch-all of the portal, for the files of the portal and the paths that do not exist; `unmatched` if a request ends with no route at all |
 | `status_class` | `1xx`, `2xx`, `3xx`, `4xx` or `5xx` |
 
 The buckets are `metrics.httpDurationBuckets`, in seconds.
@@ -49,7 +49,7 @@ the billing engine, the search service, and the payment, compliance, file and an
 
 | Label | Values |
 |---|---|
-| `upstream` | The name of the service, such as `tmforum` or `charging`; never its address |
+| `upstream` | The name of the service, such as `charging`, or `tmforum.<api>` for each TMForum API (`tmforum.catalog`, `tmforum.ordering`...); never its address |
 | `method` | The HTTP method of the call |
 | `outcome` | The class of the status of the answer (`2xx`...`5xx`), `timeout` when it did not answer in time, or `network` when it could not be reached |
 
@@ -66,7 +66,7 @@ sum by (upstream) (rate(bae_proxy_upstream_request_duration_seconds_count{outcom
 
 | Metric | Type | Labels | Meaning |
 |---|---|---|---|
-| `bae_proxy_auth_failures_total` | counter | `status`, `api` | Requests answered `401` or `403`. `api` is the first segment of the route, such as `catalog`, and `unmatched` for no route |
+| `bae_proxy_auth_failures_total` | counter | `status`, `api` | Requests answered `401` or `403`. `api` is the first segment of the route, such as `catalog`, `*path` for the catch-all of the portal, and `unmatched` for no route |
 | `bae_proxy_login_total` | counter | `provider`, `result` | Logins that ended. `provider` is the identity provider, or `vc` for a login with a credential; `result` is `success` or `failure` |
 | `bae_proxy_profile_cache_total` | counter | `result` | Requests whose token had its profile kept (`hit`) or had to be asked for (`miss`) |
 
