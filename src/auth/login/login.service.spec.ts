@@ -47,19 +47,29 @@ const setup = (auth: Record<string, unknown> = {}) => {
     registry.add(local, CALLBACK);
     const profile = { id: 'u1', accessToken: 'at' } as unknown as UserProfile;
     const admit = vi.fn().mockResolvedValue(profile);
+    const forget = vi.fn().mockResolvedValue(undefined);
     const warn = vi.fn();
     const service = new LoginService(
         registry,
-        { admit } as unknown as ProfileService,
+        { admit, forget } as unknown as ProfileService,
         { auth } as unknown as AppConfigService,
         { setContext: vi.fn(), warn } as unknown as PinoLogger
     );
-    return { service, registry, local, admit, warn };
+    return { service, registry, local, admit, forget, warn };
 };
 
 describe('LoginService', () => {
     beforeEach(() => vi.useFakeTimers());
     afterEach(() => vi.useRealTimers());
+
+    it('forgets the profile of the token of the session when the login ends, and does nothing for a session without one', async () => {
+        const { service, forget } = setup();
+        await service.end({ accessToken: 'at-1' } as SessionData);
+        expect(forget).toHaveBeenCalledExactlyOnceWith('at-1');
+
+        await service.end({} as SessionData);
+        expect(forget).toHaveBeenCalledOnce();
+    });
 
     it('sends the user to the provider and keeps in the session what the answer will be checked against', async () => {
         const { service } = setup();

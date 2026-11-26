@@ -11,7 +11,7 @@ const config = {
 } as unknown as AppConfigService;
 
 const setup = () => {
-    const login = { begin: vi.fn().mockResolvedValue('https://idp.example.org/authorize'), complete: vi.fn() };
+    const login = { begin: vi.fn().mockResolvedValue('https://idp.example.org/authorize'), complete: vi.fn(), end: vi.fn().mockResolvedValue(undefined) };
     const controller = new LoginController(login as unknown as LoginService, config);
     const res = { redirect: vi.fn(), header: vi.fn() };
     const session = {
@@ -103,8 +103,9 @@ describe('LoginController', () => {
     });
 
     it('ends the session and sends the user to the main page', async () => {
-        const { controller, res, redirect, session, request } = setup();
+        const { controller, login, res, redirect, session, request } = setup();
         await controller.logout(request(), res);
+        expect(login.end).toHaveBeenCalledWith(session);
         expect(session.destroy).toHaveBeenCalled();
         expect(redirect).toHaveBeenCalledWith('/');
     });

@@ -119,6 +119,13 @@ export class LoginService {
         return { provider, callbackUrl };
     }
 
+    /** Ends a login: the profile that the session pointed to is forgotten, so that its token is not answered from the store any more. */
+    async end(session: SessionData): Promise<void> {
+        if (typeof session.accessToken === 'string') {
+            await this.profiles.forget(session.accessToken);
+        }
+    }
+
     private live(session: SessionData): Record<string, PendingLogin> {
         const limit = Date.now() - PENDING_TTL_MS;
         return Object.fromEntries(

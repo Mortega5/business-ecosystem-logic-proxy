@@ -73,6 +73,7 @@ export class LoginController {
     @Public()
     @All('logOut')
     async logout(@Req() req: Request, @Res() res: Response): Promise<void> {
+        await this.login.end(req.session);
         await new Promise<void>((resolve, reject) => req.session.destroy((error: unknown) => (error ? reject(error as Error) : resolve())));
         res.redirect('/');
     }
