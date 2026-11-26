@@ -15,7 +15,7 @@ import { ProductSpecifications } from './product-specifications';
 /**
  * The catalog API, as far as the portal uses it: the categories, which anybody reads and an administrator changes, and the
  * catalogs, the offerings and the product specifications, which a seller makes, changes and retires. What is not a route of the portal (the delete of a
- * category, above all, and the list of catalogs) is closed.
+ * category, above all) is closed.
  */
 @UseInterceptors(BodyTextInterceptor)
 @Controller('catalog')
@@ -55,6 +55,12 @@ export class CatalogController {
     @All(['category', 'category/{*path}'])
     closedCategories(): never {
         throw new NotFoundError('Not found');
+    }
+
+    @OptionalAuth()
+    @Get('catalog')
+    listCatalogs(@Req() req: Request, @Res() res: Response): Promise<void> {
+        return this.catalogs.list(req, res);
     }
 
     @OptionalAuth()

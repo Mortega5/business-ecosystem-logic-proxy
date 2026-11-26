@@ -46,7 +46,7 @@ export interface SpecificationApi {
 export type Undo = () => Promise<string | undefined>;
 
 // What anybody may read; a specification in any other state, a draft, is for its owner
-const PUBLIC_STATUSES = ['launched', 'retired', 'obsolete'];
+export const PUBLIC_STATUSES = ['launched', 'retired', 'obsolete'];
 
 const shown = (value: unknown): string => (typeof value === 'string' ? value : JSON.stringify(value));
 

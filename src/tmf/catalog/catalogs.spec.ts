@@ -5,7 +5,7 @@ import { AuthModule } from '../../auth/auth.module';
 import { createApp } from '../../bootstrap';
 import { AppConfigModule } from '../../config/app-config.module';
 import { LoggingModule } from '../../logging/logging.module';
-import { AS_SELLER, useFakeLogin, LOGGED_IN } from '../../testing/fake-login';
+import { AS_ADMIN, AS_SELLER, useFakeLogin, LOGGED_IN } from '../../testing/fake-login';
 import { FakeFeaturesModule } from '../../testing/fake-features';
 import { FakeUpstream } from '../../testing/fake-upstream';
 import { CatalogDefaults } from './catalog-defaults';
@@ -96,10 +96,58 @@ describe('reading a catalog', () => {
         expect((await fetch(`${url}/catalog/catalog/cat-1`)).status).toBe(403);
         expect((await fetch(`${url}/catalog/catalog/cat-1`, { headers: AS_SELLER })).status).toBe(200);
     });
+});
 
-    it('has no route for the list of catalogs', async () => {
-        expect((await fetch(`${url}/catalog/catalog`, { headers: AS_SELLER })).status).toBe(404);
-        expect(seen).toEqual([]);
+describe('listing the catalogs', () => {
+    it('gives anybody the launched catalogs that have a launched offering, and the token to go on', async () => {
+        same = { status: 200, body: `[${catalog({ lifecycleStatus: 'Launched' })}]` };
+        offerings = { status: 200, body: '[{"id":"o-1"}]' };
+        const response = await fetch(`${url}/catalog/catalog?limit=1&offset=0&lifecycleStatus=Launched`);
+        expect(response.status).toBe(200);
+        expect(await response.json()).toHaveLength(1);
+        expect(response.headers.get('x-filtered-pagination-token')).not.toBeNull();
+        const asked = seen.find((request) => request.path === `${API}/productOffering`);
+        expect(new URLSearchParams(asked?.search).get('category')).toBe('c-1');
+        expect(new URLSearchParams(asked?.search).get('lifecycleStatus')).toBe('Launched');
+    });
+
+    it('leaves out a launched catalog that has no launched offering, with no token when there is no more', async () => {
+        same = { status: 200, body: `[${catalog({ lifecycleStatus: 'Launched' })}]` };
+        offerings = { status: 200, body: '[]' };
+        const response = await fetch(`${url}/catalog/catalog?limit=5&offset=0&lifecycleStatus=Launched`);
+        expect(await response.json()).toEqual([]);
+        expect(response.headers.get('x-filtered-pagination-token')).toBeNull();
+    });
+
+    it('gives the launched catalogs of a seller as the API pages them', async () => {
+        same = { status: 200, body: `[${catalog({ lifecycleStatus: 'Launched' })}]` };
+        const response = await fetch(`${url}/catalog/catalog?limit=5&offset=0&lifecycleStatus=Launched&relatedParty.id=p-shop`);
+        expect(response.status).toBe(200);
+        expect(seen).toHaveLength(1);
+    });
+
+    it('gives the catalogs of a seller in the states that anybody reads', async () => {
+        const response = await fetch(`${url}/catalog/catalog?lifecycleStatus=Launched,Retired&relatedParty.id=p-shop`);
+        expect(response.status).toBe(200);
+    });
+
+    it('keeps the drafts for their owner, who asks for them with their own party', async () => {
+        const drafts = `/catalog/catalog?lifecycleStatus=Active,Launched&relatedParty.id=p-shop`;
+        expect((await fetch(`${url}${drafts}`)).status).toBe(403);
+        expect((await fetch(`${url}/catalog/catalog?relatedParty.id=p-shop`, { headers: AS_SELLER })).status).toBe(200);
+        expect((await fetch(`${url}/catalog/catalog?lifecycleStatus=Active&relatedParty.id=other`, { headers: AS_SELLER })).status).toBe(403);
+        expect((await fetch(`${url}/catalog/catalog`)).status).toBe(403);
+        expect(seen).toHaveLength(1);
+    });
+
+    it('lists them all for an administrator', async () => {
+        expect((await fetch(`${url}/catalog/catalog?limit=200&offset=0`, { headers: AS_ADMIN })).status).toBe(200);
+        expect(seen[0]?.search).toBe('?limit=200&offset=0');
+    });
+
+    it('refuses a filter it does not know', async () => {
+        expect((await fetch(`${url}/catalog/catalog?lifecycleStatus=Launched&name=a`)).status).toBe(400);
+        expect((await fetch(`${url}/catalog/catalog?lifecycleStatus=Launched&limit=abc`)).status).toBe(400);
     });
 });
 

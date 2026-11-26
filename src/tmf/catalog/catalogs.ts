@@ -1,12 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import type { Request, Response } from 'express';
+import { z } from 'zod';
 import { BadGatewayError, DomainError, ForbiddenError, NotFoundError } from '../../common/domain-error';
 import { AppConfigService } from '../../config/app-config.service';
-import { AS_JSON } from '../http-options';
+import { paginate, TOKEN_HEADER } from '../filtered-pagination';
+import { AS_JSON, PRIVATE } from '../http-options';
 import { OwnedResources } from '../owned-resources';
 import { isRecord } from '../related-party';
+import { pagination, queryParams, sorting } from '../schemas/pagination';
+import { parseRequest } from '../schemas/parse';
 import { SellerParties } from '../seller-parties';
-import { parseJson, Specifications, type SpecificationApi, type Undo } from '../specification/specifications';
+import { parseJson, PUBLIC_STATUSES, Specifications, type SpecificationApi, type Undo } from '../specification/specifications';
 import { validateNameAndDescription } from '../specification/specification-rules';
 import { TmfProxy } from '../tmf-proxy';
 import type { UpstreamUser } from '../upstream-headers';
@@ -15,6 +19,14 @@ import { DEFAULT_CATALOG_TYPE, systemEntityViolation } from './category-rules';
 
 // What a catalog name cannot have; it goes to the search of the portal and to the queries of the API
 const INVALID_NAME = /[<>%'"|]/;
+
+// What anybody may ask of the list of catalogs, with what each filter may be
+const catalogsQuery = z.strictObject({
+    ...pagination,
+    ...sorting(),
+    lifecycleStatus: z.string().regex(/^[A-Za-z]{1,20}(,[A-Za-z]{1,20}){0,5}$/).optional(),
+    'relatedParty.id': z.string().regex(/^[A-Za-z0-9:._-]{1,200}$/).optional()
+});
 
 const CATALOG: SpecificationApi = {
     upstream: 'tmforum.catalog',
@@ -44,6 +56,83 @@ const categoryIds = (catalog: Record<string, unknown>): string[] =>
 export class Catalogs extends Specifications {
     constructor(proxy: TmfProxy, owned: OwnedResources, config: AppConfigService, sellers: SellerParties, private readonly defaults: CatalogDefaults) {
         super(proxy, owned, config, sellers, CATALOG);
+    }
+
+    /**
+     * The catalogs as the catalog API pages them, so the page and the total are its own. Anybody lists the ones in a state that anybody
+     * reads, those of a seller included; the drafts are for their owner, who asks for them with their own party, and an administrator
+     * lists them all.
+     */
+    override async list(req: Request, res: Response): Promise<void> {
+        const asked = parseRequest(catalogsQuery, req.query, 'Invalid query');
+        const partyId = (req as Request & { user?: UpstreamUser }).user?.partyId;
+        const admin = this.config.auth.roles.admin.toLowerCase();
+        const unrestricted = ((req as Request & { user?: UpstreamUser }).user?.roles ?? []).some((role) => role.name.toLowerCase() === admin);
+        const own = unrestricted || (partyId !== undefined && asked['relatedParty.id'] === partyId);
+        const statuses = asked.lifecycleStatus?.split(',').map((status) => status.toLowerCase());
+        if (!own && (statuses === undefined || !statuses.every((status) => PUBLIC_STATUSES.includes(status)))) {
+            throw new ForbiddenError(CATALOG.messages.list);
+        }
+        const params = queryParams(req.query, asked);
+        // The launched catalogs of nobody in particular are the ones that have an offering to buy
+        if (statuses?.length === 1 && statuses[0] === 'launched' && !asked['relatedParty.id']) {
+            await this.listWithOfferings(req, res, params);
+            return;
+        }
+        await this.proxy.forward(req, res, { upstream: 'tmforum.catalog', path: '/catalog', search: params.size === 0 ? '' : `?${params.toString()}`, responseHeaders: own ? PRIVATE : {} });
+    }
+
+    /**
+     * A page of launched catalogs that have a launched offering that anybody may read. The API cannot say which, so the page is filled
+     * by reading it in turns and asking for each catalog, and the token of the answer is where the next page starts; the total is not known.
+     */
+    private async listWithOfferings(req: Request, res: Response, params: URLSearchParams): Promise<void> {
+        const rest = new URLSearchParams(params);
+        const limit = Number(rest.get('limit'));
+        const offset = Number(rest.get('offset') ?? 0);
+        rest.delete('limit');
+        rest.delete('offset');
+        const sent = req.headers[TOKEN_HEADER];
+        const { pageSize, maxPages } = this.config.limits.readAll;
+        const page = await paginate({
+            limit,
+            offset,
+            ...(typeof sent === 'string' ? { token: sent } : {}),
+            fingerprint: `catalog|${rest.toString()}`,
+            maxScanned: pageSize * maxPages,
+            fetchPage: async (from, size) => {
+                const query = new URLSearchParams(rest);
+                query.set('offset', String(from));
+                query.set('limit', String(size));
+                const response = await this.proxy.send(req, { upstream: 'tmforum.catalog', path: '/catalog', method: 'GET', search: `?${query.toString()}` });
+                const found = parseJson(response.body);
+                if (response.status >= 400 || !Array.isArray(found)) {
+                    throw new BadGatewayError('The catalogs could not be read');
+                }
+                return found;
+            },
+            predicate: (catalog) => isRecord(catalog) && this.hasOfferings(req, catalog)
+        });
+        const headers = new Headers({ 'content-type': 'application/json' });
+        if (page.token !== undefined) {
+            headers.set(TOKEN_HEADER, page.token);
+        }
+        this.proxy.reply(res, { status: 200, headers, body: JSON.stringify(page.items) }, {});
+    }
+
+    private async hasOfferings(req: Request, catalog: Record<string, unknown>): Promise<boolean> {
+        const categories = categoryIds(catalog);
+        if (categories.length === 0) {
+            return false;
+        }
+        // An offering made for a buyer is not one that anybody may buy
+        const search = new URLSearchParams({ category: categories.join(','), lifecycleStatus: 'Launched', limit: '1', 'relatedParty.role*': `^(?!${this.config.auth.roles.customer}$).*$` });
+        const response = await this.proxy.send(req, { upstream: 'tmforum.catalog', path: '/productOffering', method: 'GET', search: `?${search.toString()}` });
+        const found = parseJson(response.body);
+        if (response.status >= 400 || !Array.isArray(found)) {
+            throw new BadGatewayError('The offerings of a catalog could not be read');
+        }
+        return found.length > 0;
     }
 
     /**
