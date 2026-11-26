@@ -81,18 +81,23 @@ sum by (upstream) (rate(bae_proxy_upstream_request_duration_seconds_count{outcom
 ## Process and Node.js
 
 Present while `metrics.defaultMetrics` is on. They come from the Prometheus client library and keep its standard
-names, which the community dashboards of Node.js expect, so `metrics.prefix` does not apply to them. The complete list
-depends on the version of the library and on the platform: the ones about file descriptors and memory exist only on
-Linux. See the documentation of [`@prometheus-io/client`](https://github.com/prometheus/client_js#default-metrics).
+names, which the community dashboards of Node.js expect, so `metrics.prefix` does not apply to them. They do not depend
+on the requests the proxy receives. The complete list depends on the version of the library and on the platform; see
+the documentation of [`@prometheus-io/client`](https://github.com/prometheus/client_js#default-metrics).
 
 | Metric | Type | Meaning |
 |---|---|---|
-| `process_cpu_user_seconds_total`, `process_cpu_system_seconds_total` | counter | CPU time used in user and system mode |
-| `process_resident_memory_bytes` | gauge | Resident memory of the process |
-| `process_open_fds`, `process_max_fds` | gauge | File descriptors that are open, and the limit |
+| `process_cpu_user_seconds_total`, `process_cpu_system_seconds_total`, `process_cpu_seconds_total` | counter | CPU time used in user mode, in system mode, and in total |
 | `process_start_time_seconds` | gauge | When the process started, in Unix time; it tells restarts |
-| `nodejs_eventloop_lag_seconds` | gauge | Delay of the event loop; high values mean the process cannot keep up |
-| `nodejs_heap_size_used_bytes`, `nodejs_heap_size_total_bytes` | gauge | Heap of V8 that is used, and reserved |
-| `nodejs_gc_duration_seconds` | histogram | Duration of the garbage collections, by kind |
-| `nodejs_active_handles`, `nodejs_active_requests` | gauge | Handles and requests that keep the event loop busy |
+| `process_resident_memory_bytes` | gauge | Resident memory of the process |
+| `process_virtual_memory_bytes`, `process_heap_bytes` | gauge | Virtual memory and heap of the process. Linux only |
+| `process_open_fds`, `process_max_fds` | gauge | File descriptors that are open, and the limit. Linux only |
+| `nodejs_eventloop_lag_seconds` | gauge | Delay of the event loop, read at each scrape; high values mean the process cannot keep up |
+| `nodejs_eventloop_lag_min_seconds`, `_max_`, `_mean_`, `_stddev_`, `_p50_`, `_p90_`, `_p99_` | gauge | The same delay as measured since the last scrape, as `nodejs_eventloop_lag_<statistic>_seconds` |
+| `nodejs_eventloop_utilization_summary`, `nodejs_eventloop_utilization_histogram` | summary, histogram | Share of the time that the event loop is busy |
+| `nodejs_heap_size_total_bytes`, `nodejs_heap_size_used_bytes` | gauge | Heap of V8 that is reserved, and used |
+| `nodejs_heap_space_size_total_bytes`, `_used_bytes`, `_available_bytes` | gauge | The same by space of the heap, with the label `space` |
+| `nodejs_external_memory_bytes` | gauge | Memory of C++ objects bound to JavaScript ones, buffers among them |
+| `nodejs_active_handles`, `nodejs_active_requests`, `nodejs_active_resources` | gauge | What keeps the event loop busy, by kind, and the same in `_total` variants as a single number |
+| `nodejs_gc_duration_seconds` | histogram | Duration of the garbage collections, by `kind`. It has no samples until the first one happens |
 | `nodejs_version_info` | gauge | Version of Node.js, in its labels |
