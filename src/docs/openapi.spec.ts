@@ -628,6 +628,8 @@ describe('responses against docs/openapi.yaml', () => {
             arrange: marketplace
         });
         const reads = (path: string, url: string, invalid: string): Case[] => around(path, url, { invalid: { url: invalid } }, ['401']);
+        // A full page of catalogs, each with a category: it is also what the offerings of a catalog are read as, so the page is full and has a token
+        const fullPage = JSON.stringify(Array.from({ length: 6 }, (_, n) => ({ id: `cat-${n}`, lifecycleStatus: 'Launched', category: [{ id: `c-${n}` }] })));
         const newCatalog = '{"name":"Mine","relatedParty":[' + seller + ']}';
         const newOffering = '{"name":"Offer","productSpecification":{"id":"ps-1"}}';
         const catalogId = `${catalogs}/{id}`;
@@ -659,9 +661,9 @@ describe('responses against docs/openapi.yaml', () => {
             refused('delete', catalogId, '409', `${catalogs}/cat-1`, undefined, catalog().replace('Active', 'Retired'), AS_SELLER),
             refused('delete', catalogId, '502', `${catalogs}/cat-1`, undefined, 'not json', AS_SELLER),
             // The list of the catalogs, which anybody reads in the states that are public
-            ...proxied(catalogs, `${catalogs}?limit=6&offset=0&lifecycleStatus=Launched`, '[]', { invalid: { url: `${catalogs}?q=x` } }).filter((c) => c.status === '200' || c.status === '400' || c.status === '504'),
+            ...proxied(catalogs, `${catalogs}?limit=6&offset=0&lifecycleStatus=Launched`, fullPage, { invalid: { url: `${catalogs}?q=x` } }).filter((c) => c.status === '200' || c.status === '400' || c.status === '504'),
             refused('get', catalogs, '403', catalogs, undefined, '[]', {}),
-            refused('get', catalogs, '502', `${catalogs}?lifecycleStatus=Launched`, undefined, 'not json', {}),
+            refused('get', catalogs, '502', `${catalogs}?limit=6&lifecycleStatus=Launched`, undefined, 'not json', {}),
             // The lists of offerings, of all of them and of a catalog
             ...proxied(offerings, `${offerings}?limit=6&offset=0&lifecycleStatus=Launched`, '[]', { invalid: { url: `${offerings}?q=x` } }).filter((c) => c.status !== '401'),
             refused('get', offerings, '501', `${offerings}?keyword=data`, undefined, '[]', {}),
