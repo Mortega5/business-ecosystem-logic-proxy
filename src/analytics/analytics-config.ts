@@ -47,6 +47,16 @@ export const supersetUrl = (value: unknown): string | undefined => {
     }
 };
 
+const hasUnsafePathCharacter = (value: string): boolean => {
+    for (let at = 0; at < value.length; at++) {
+        const code = value.charCodeAt(at);
+        if (code <= 0x20 || code === 0x7f || code === 0x5c || code === 0x23) {
+            return true;
+        }
+    }
+    return false;
+};
+
 /** The path of the guest token endpoint: absolute, with no dot segments, no backslash and nothing that is not printable. */
 export const guestTokenPath = (value: unknown): string | undefined => {
     const candidate = text(value);
@@ -54,7 +64,7 @@ export const guestTokenPath = (value: unknown): string | undefined => {
         candidate === undefined ||
         !candidate.startsWith('/') ||
         candidate.startsWith('//') ||
-        /[\\\u0000- \u007f#]/.test(candidate)
+        hasUnsafePathCharacter(candidate)
     ) {
         return undefined;
     }

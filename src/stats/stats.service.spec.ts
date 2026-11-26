@@ -7,7 +7,8 @@ import { StatsStore, type Figures, type StoredFigures } from './stats.store';
 
 const DAY = 86400000;
 const CONFIG = { stats: { ttlMs: DAY, retryDelayMs: 600000, providerTtlMs: 60000 } } as AppConfigService;
-const LOGGER = { setContext: vi.fn(), info: vi.fn(), warn: vi.fn() } as unknown as PinoLogger;
+const WARN = vi.fn();
+const LOGGER = { setContext: vi.fn(), info: vi.fn(), warn: WARN } as unknown as PinoLogger;
 const FRESH: Figures = { services: ['Offer'], organizations: ['Acme'] };
 
 class FakeStore extends StatsStore {
@@ -97,7 +98,7 @@ describe('StatsService', () => {
             const service = build(new FakeStore(), read);
 
             await service.current();
-            await vi.waitFor(() => expect(LOGGER.warn).toHaveBeenCalled());
+            await vi.waitFor(() => expect(WARN).toHaveBeenCalled());
             vi.setSystemTime(Date.now() + 600001);
             await service.current();
 

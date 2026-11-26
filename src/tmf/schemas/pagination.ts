@@ -27,13 +27,16 @@ export const sorting = (fields?: readonly [string, ...string[]]) => {
 const isSort = (value: unknown): value is { field: string; descending: boolean } =>
     typeof value === 'object' && value !== null && 'field' in value && 'descending' in value;
 
+const written = (value: unknown): string =>
+    Array.isArray(value) ? (value as unknown[]).map(written).join(',') : typeof value === 'object' && value !== null ? JSON.stringify(value) : String(value as string | number | boolean | null | undefined);
+
 /** The query for the upstream from what was read of the one the client sent: the same filters in the same order, the numbers and the sort written again. */
 export const queryParams = (sent: Record<string, unknown>, read: Record<string, unknown>): URLSearchParams => {
     const params = new URLSearchParams();
     for (const name of Object.keys(sent)) {
         const value = read[name];
         if (value !== undefined) {
-            params.append(name, isSort(value) ? `${value.descending ? '-' : ''}${value.field}` : String(value));
+            params.append(name, isSort(value) ? `${value.descending ? '-' : ''}${value.field}` : written(value));
         }
     }
     return params;

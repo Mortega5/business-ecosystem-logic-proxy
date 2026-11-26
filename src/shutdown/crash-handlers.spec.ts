@@ -23,7 +23,7 @@ describe('installCrashHandlers', () => {
         const { handlers, logger, exit } = setup();
         handlers.get('unhandledRejection')?.('plain text');
         expect(logger.fatal).toHaveBeenCalledWith(
-            { err: expect.objectContaining({ message: 'plain text' }) },
+            { err: expect.objectContaining({ message: 'plain text' }) as unknown },
             'A promise was rejected and nobody handled it, exiting'
         );
         expect(exit).toHaveBeenCalledWith(1);

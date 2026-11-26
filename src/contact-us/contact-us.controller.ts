@@ -2,7 +2,7 @@ import { Body, Controller, HttpCode, Logger, Post, UseInterceptors } from '@nest
 import { Public } from '../auth/public.decorator';
 import { BadGatewayError } from '../common/domain-error';
 import { AppConfigService } from '../config/app-config.service';
-import { UpstreamClient, UpstreamError } from '../http-client/upstream-client';
+import { UpstreamClient } from '../http-client/upstream-client';
 import { BodyTextInterceptor } from '../tmf/body-text.interceptor';
 import { JsonObjectBodyPipe } from '../tmf/json-body.pipe';
 import { parseRequest } from '../tmf/schemas/parse';

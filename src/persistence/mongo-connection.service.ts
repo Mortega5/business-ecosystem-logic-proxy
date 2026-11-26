@@ -98,7 +98,7 @@ export class MongoConnectionService implements OnApplicationBootstrap, OnApplica
         const results = await Promise.allSettled(Object.values(this.connection.models).map((model) => model.createIndexes()));
         results.forEach((result, position) => {
             if (result.status === 'rejected') {
-                this.logger.error({ collection: Object.values(this.connection.models)[position]?.collection.name, err: result.reason }, 'The indexes of a collection could not be made');
+                this.logger.error({ collection: Object.values(this.connection.models)[position]?.collection.name, err: result.reason as unknown }, 'The indexes of a collection could not be made');
             }
         });
     }

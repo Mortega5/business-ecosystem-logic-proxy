@@ -1,5 +1,5 @@
 import { Catch, HttpException, Logger, type ArgumentsHost, type ExceptionFilter } from '@nestjs/common';
-import type { Request, Response } from 'express';
+import type { Response } from 'express';
 import { noteFailure } from '../logging/pino-options';
 import { DomainError } from './domain-error';
 

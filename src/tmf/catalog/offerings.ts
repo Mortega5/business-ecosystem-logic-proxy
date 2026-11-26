@@ -18,6 +18,8 @@ import { MarketplaceSearch } from '../marketplace-search';
 import { TmfProxy } from '../tmf-proxy';
 import type { UpstreamUser } from '../upstream-headers';
 import { LaunchRequirements } from './launch-requirements';
+
+const shown = (value: unknown): string => (typeof value === 'string' ? value : (JSON.stringify(value) ?? ''));
 import { OfferingParties } from './offering-parties';
 
 type Json = Record<string, unknown>;
@@ -298,7 +300,7 @@ export class Offerings {
         }
         const status = changes['lifecycleStatus'];
         if (status !== undefined && status !== null && !isValidStatusTransition(current['lifecycleStatus'], status)) {
-            throw new DomainError(`Cannot transition from lifecycle status ${String(current['lifecycleStatus'])} to ${String(status)}`, 400);
+            throw new DomainError(`Cannot transition from lifecycle status ${shown(current['lifecycleStatus'])} to ${shown(status)}`, 400);
         }
         validateNameAndDescription(changes, 'Product offering', false, this.config.limits);
         for (const field of FIXED_FIELDS) {
@@ -449,7 +451,7 @@ export class Offerings {
                 throw new DomainError('Missing required field href in bundled offering', 422);
             }
             const id = typeof entry['id'] === 'string' && isResourceId(entry['id']) ? entry['id'] : undefined;
-            const missing = new DomainError(`The bundled offering ${String(entry['id'] ?? '')} cannot be accessed or does not exists`, 422);
+            const missing = new DomainError(`The bundled offering ${shown(entry['id'])} cannot be accessed or does not exists`, 422);
             if (id === undefined) {
                 throw missing;
             }
@@ -475,7 +477,7 @@ export class Offerings {
         if (!['active', 'launched'].includes(statusOf(catalog['lifecycleStatus']))) {
             throw new DomainError('Offerings can only be created in a catalog that is active or launched', 400);
         }
-        const [first] = Array.isArray(catalog['category']) ? catalog['category'] : [];
+        const [first] = Array.isArray(catalog['category']) ? (catalog['category'] as unknown[]) : [];
         return isRecord(first) ? first : {};
     }
 
@@ -485,7 +487,7 @@ export class Offerings {
         }
         const unmet = await this.launch.unmet(req, offering, product);
         if (unmet !== undefined) {
-            this.logger.log(`The offering ${String(offering['id'] ?? 'to be created')} cannot be launched: ${unmet}`);
+            this.logger.log(`The offering ${shown(offering['id'] ?? 'to be created')} cannot be launched: ${unmet}`);
             throw new DomainError(`The product offering does not meet the requirements to be launched: ${unmet}`, 400);
         }
     }
@@ -503,7 +505,7 @@ export class Offerings {
             throw new DomainError('Invalid categories', 422);
         }
         const ids = new Set<string>();
-        for (const entry of [...list, ...keep]) {
+        for (const entry of [...(list as unknown[]), ...keep]) {
             if (!isRecord(entry) || typeof entry['id'] !== 'string' || !isResourceId(entry['id'])) {
                 throw new DomainError('Invalid category', 422);
             }

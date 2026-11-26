@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { checkedAssertion, jwksDocument, LEAR_EMPLOYEE, proxyKeys, verifierToken } from './fake-vc-verifier';
 import { IdpError } from './idp-http';
 import { VcProvider } from './vc-provider';
+import { bodyOf, urlOf } from '../../testing/fetch-input';
 
 const VERIFIER = 'https://verifier.example.org';
 const CALLBACK = 'https://bae.example.org/auth/vc/callback';
@@ -15,11 +16,11 @@ const verifier = (
 ) => {
     const calls: { url: string, body: URLSearchParams }[] = [];
     const fetcher = (async (input: RequestInfo | URL, init?: RequestInit) => {
-        const url = String(input);
+        const url = urlOf(input);
         if (url.endsWith('/.well-known/jwks')) {
             return new Response(JSON.stringify(jwksDocument()), { status: 200 });
         }
-        calls.push({ url, body: new URLSearchParams(String(init?.body)) });
+        calls.push({ url, body: new URLSearchParams(bodyOf(init)) });
         return new Response(JSON.stringify(answer), { status });
     }) as unknown as typeof fetch;
     return { calls, fetcher };

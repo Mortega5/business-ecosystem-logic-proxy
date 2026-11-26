@@ -26,6 +26,6 @@ describe('QuietNestLogger', () => {
 
         expect(inner.log).toHaveBeenCalledTimes(2);
         expect(inner.warn).toHaveBeenCalledWith('careful', 'RouterExplorer');
-        expect(inner.error).toHaveBeenCalledWith({ err: expect.any(Error) }, 'boom', 'ErrorFilter');
+        expect(inner.error).toHaveBeenCalledWith({ err: expect.any(Error) as unknown }, 'boom', 'ErrorFilter');
     });
 });

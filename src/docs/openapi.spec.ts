@@ -7,7 +7,6 @@ import { Test, type TestingModule } from '@nestjs/testing';
 import Ajv from 'ajv';
 import { LoggerModule } from 'nestjs-pino';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import express from 'express';
 import { AuthModule } from '../auth/auth.module';
 import { createApp } from '../bootstrap';
 import { AppConfigService } from '../config/app-config.service';

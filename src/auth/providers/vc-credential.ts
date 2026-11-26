@@ -102,7 +102,7 @@ interface Subject {
 /** The credential of the issuer of FIWARE: the person, with the roles it says, in an organisation that is the issuer. */
 const defaultSubject = (subject: Json, issuer: string, policy: CredentialPolicy): Subject => {
     const email = text(subject['email']);
-    const groups = Array.isArray(subject['roles']) ? subject['roles'] : [];
+    const groups = Array.isArray(subject['roles']) ? (subject['roles'] as unknown[]) : [];
     const first = groups[0];
     const names =
         isRecord(first) && Array.isArray(first['names'])

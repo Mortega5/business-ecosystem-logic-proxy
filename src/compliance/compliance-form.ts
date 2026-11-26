@@ -4,7 +4,7 @@ import { isRecord } from '../tmf/related-party';
 type Json = Record<string, unknown>;
 
 const text = (value: unknown): string =>
-    typeof value === 'string' ? value : value === undefined || value === null ? '' : String(value);
+    typeof value === 'string' ? value : typeof value === 'number' || typeof value === 'boolean' ? String(value) : '';
 const lower = (value: unknown): string => (typeof value === 'string' ? value.toLowerCase() : '');
 const list = (value: unknown): Json[] => (Array.isArray(value) ? value.filter(isRecord) : []);
 

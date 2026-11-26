@@ -85,7 +85,7 @@ export class PartyRegistry {
 
     private async findOrCreateIndividual(claims: IdentityClaims): Promise<string> {
         const found = await this.upstream.json<unknown>({ upstream: PARTY, path: '/individual', query: { 'externalReference.name': claims.id } });
-        const existing = Array.isArray(found) ? found[0] : undefined;
+        const existing = Array.isArray(found) ? (found as unknown[])[0] : undefined;
         if (existing !== undefined) {
             const id = idOf(existing);
             const changes = changesOf(claims);

@@ -5,7 +5,7 @@ import { OptionalAuth } from '../../auth/public.decorator';
 import { z } from 'zod';
 import { pagination, queryParams, sorting } from '../schemas/pagination';
 import { parseRequest } from '../schemas/parse';
-import { BadGatewayError, DomainError, ForbiddenError, NotFoundError } from '../../common/domain-error';
+import { BadGatewayError, ForbiddenError, NotFoundError } from '../../common/domain-error';
 import { AppConfigService } from '../../config/app-config.service';
 import { PRIVATE } from '../http-options';
 import { JsonBodyPipe } from '../json-body.pipe';

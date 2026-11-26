@@ -53,6 +53,6 @@ describe('outboundFetch', () => {
     it('writes down a call that could not be made, with the error, and throws it again', async () => {
         const error = vi.spyOn(Logger.prototype, 'error');
         await expect(outboundFetch('analytics', 'http://127.0.0.1:1/a')).rejects.toThrow();
-        expect(error.mock.calls[0]?.[0]).toMatchObject({ target: 'analytics', err: expect.any(Error) });
+        expect(error.mock.calls[0]?.[0]).toMatchObject({ target: 'analytics', err: expect.any(Error) as unknown });
     });
 });

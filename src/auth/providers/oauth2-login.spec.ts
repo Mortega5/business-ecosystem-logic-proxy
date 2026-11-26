@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { IdpError } from './idp-http';
 import { OAuth2Login, type OAuth2LoginOptions } from './oauth2-login';
+import { bodyOf, urlOf } from '../../testing/fetch-input';
 
 const REDIRECT = 'https://bae.example.org/auth/github/callback';
 
@@ -11,9 +12,9 @@ const setup = (
     const requests: { url: string, headers: Headers, body: URLSearchParams }[] = [];
     const fetcher = ((input: RequestInfo | URL, init?: RequestInit) => {
         requests.push({
-            url: String(input),
+            url: urlOf(input),
             headers: new Headers(init?.headers),
-            body: new URLSearchParams(String(init?.body))
+            body: new URLSearchParams(bodyOf(init))
         });
         return Promise.resolve(new Response(JSON.stringify(answer.body), { status: answer.status ?? 200 }));
     }) as typeof fetch;

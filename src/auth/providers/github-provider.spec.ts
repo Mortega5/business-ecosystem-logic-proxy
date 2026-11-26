@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { GithubProvider } from './github-provider';
 import { IdpError } from './idp-http';
+import { urlOf } from '../../testing/fetch-input';
 
 interface Call {
     url: string;
@@ -76,8 +77,8 @@ describe('GithubProvider', () => {
     it('logs in through GitHub: asks the user to authorize and gives the token with the user it belongs to', async () => {
         const urls: string[] = [];
         const fetcher = ((input: RequestInfo | URL) => {
-            urls.push(String(input));
-            const body = String(input).endsWith('/access_token')
+            urls.push(urlOf(input));
+            const body = urlOf(input).endsWith('/access_token')
                 ? { access_token: 'gho_token', token_type: 'bearer' }
                 : { id: 42, login: 'ana' };
             return Promise.resolve(new Response(JSON.stringify(body), { status: 200 }));

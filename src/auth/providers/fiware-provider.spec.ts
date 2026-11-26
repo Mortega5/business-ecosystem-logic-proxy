@@ -2,6 +2,7 @@ import jwt from 'jsonwebtoken';
 import { describe, expect, it } from 'vitest';
 import { FiwareProvider, type FiwareOptions } from './fiware-provider';
 import { IdpError } from './idp-http';
+import { bodyOf } from '../../testing/fetch-input';
 
 interface Call {
     url: string;
@@ -135,7 +136,7 @@ describe('FiwareProvider: refreshing', () => {
         }).refresh('r1');
 
         expect(calls[0]?.url).toBe('https://idm.example.org/oauth2/token');
-        expect((calls[0]?.init.headers as Record<string, string>)['authorization']).toBe(
+        expect((calls[0]?.init.headers as Record<string, string> | undefined)?.['authorization']).toBe(
             `Basic ${Buffer.from('bae:client-secret').toString('base64')}`
         );
         expect(Object.fromEntries(calls[0]?.init.body as URLSearchParams)).toEqual({
@@ -173,8 +174,8 @@ describe('FiwareProvider: refreshing', () => {
         const outcome = await idm.finishLogin(`${redirect}?code=abc&state=${checks.state}`, checks);
         const [exchange, userCall] = calls;
         expect(exchange?.url).toBe('https://idm.example.org/oauth2/token');
-        expect((exchange?.init.headers as Record<string, string>)['authorization']).toMatch(/^Basic /);
-        expect(String(exchange?.init.body)).toContain('client_secret=client-secret');
+        expect((exchange?.init.headers as Record<string, string> | undefined)?.['authorization']).toMatch(/^Basic /);
+        expect(bodyOf(exchange?.init)).toContain('client_secret=client-secret');
         expect(userCall?.url).toContain('/user?access_token=at');
         expect(outcome.tokens).toMatchObject({ accessToken: 'at', refreshToken: 'rt' });
         expect(outcome.claims).toMatchObject({ id: 'idm-ana', username: 'ana' });

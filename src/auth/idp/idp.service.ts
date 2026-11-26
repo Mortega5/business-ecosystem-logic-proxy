@@ -112,7 +112,7 @@ export class IdpService implements OnApplicationBootstrap {
     async update(idpId: string, form: IdpChangeForm): Promise<void> {
         this.settings();
         const current = await this.existing(idpId);
-        const changed: Idp = { ...current, name: form.name, server: form.server };
+        const changed: Idp = Object.assign({} as Idp, current, { name: form.name, server: form.server });
         delete changed.issuerDid;
         delete changed.description;
         if (form.issuerDid !== undefined) {

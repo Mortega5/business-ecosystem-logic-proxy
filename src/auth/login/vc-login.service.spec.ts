@@ -9,6 +9,7 @@ import { IdentityProviderRegistry } from '../providers/identity-provider-registr
 import { VcProvider } from '../providers/vc-provider';
 import { MemoryAuthStore } from '../store/memory-auth-store';
 import { VcLoginService } from './vc-login.service';
+import { bodyOf, urlOf } from '../../testing/fetch-input';
 
 const STATE = 'state-of-the-browser-0001';
 const CERT_STATE = 'cert:state-of-the-upload-01';
@@ -16,14 +17,14 @@ const ISSUER = 'did:web:certifier.example.org';
 
 const setup = (
     vc: Record<string, unknown> = {},
-    token: unknown | null = { access_token: verifierToken(LEAR_EMPLOYEE), refresh_token: 'r', expires_in: 600 }
+    token: unknown = { access_token: verifierToken(LEAR_EMPLOYEE), refresh_token: 'r', expires_in: 600 }
 ) => {
     const exchanges: URLSearchParams[] = [];
     const fetcher = (async (input: RequestInfo | URL, init?: RequestInit) => {
-        if (String(input).endsWith('/.well-known/jwks')) {
+        if (urlOf(input).endsWith('/.well-known/jwks')) {
             return new Response(JSON.stringify(jwksDocument()), { status: 200 });
         }
-        exchanges.push(new URLSearchParams(String(init?.body)));
+        exchanges.push(new URLSearchParams(bodyOf(init)));
         return new Response(JSON.stringify(token), { status: token === null ? 500 : 200 });
     }) as unknown as typeof fetch;
     const registry = new IdentityProviderRegistry();

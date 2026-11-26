@@ -149,7 +149,7 @@ export class ComplianceService {
                 redirect: 'error',
                 signal: AbortSignal.timeout(timeoutMs)
             });
-        } catch (error) {
+        } catch {
             this.logger.error({ specId }, 'The compliance service could not be reached');
             throw new DomainError('Compliance server unreachable', 504);
         }

@@ -16,6 +16,7 @@ const CREDENTIAL_TYPES = new Set(['gx:labelcredential', 'gx.labelcredential.w3c.
 const ISSUER_PREFIX = 'did:elsi:';
 const IMAGE_TYPES = new Set(['image/svg+xml', 'image/png', 'image/jpeg', 'image/gif']);
 
+const hasText = (value: unknown): boolean => (typeof value === 'string' ? value.trim() !== '' : value != null);
 const lower = (value: unknown): string => (typeof value === 'string' ? value.trim().toLowerCase() : '');
 
 /** Whether a product specification has a profile picture of a type that can be shown. */
@@ -102,7 +103,7 @@ export class LaunchRequirements {
             return `its seller ${sellerId} could not be read`;
         }
         const characteristics = Array.isArray(organization['partyCharacteristic']) ? organization['partyCharacteristic'] : [];
-        const hasCountry = characteristics.some((one) => isRecord(one) && lower(one['name']) === 'country' && one['value'] != null && String(one['value']).trim() !== '');
+        const hasCountry = characteristics.some((one) => isRecord(one) && lower(one['name']) === 'country' && hasText(one['value']));
         if (!hasCountry) {
             return `its seller ${sellerId} has no country`;
         }
@@ -144,7 +145,7 @@ export class LaunchRequirements {
             if (!isRecord(payload)) {
                 return 'the compliance credential is not valid';
             }
-            const nested = payload['verifiableCredential'] ?? payload['vc'] ?? payload;
+            const nested = (payload['verifiableCredential'] ?? payload['vc'] ?? payload) as unknown;
             const credential = isRecord(nested) && isRecord(nested['credentialSubject']) ? nested : undefined;
             if (credential === undefined) {
                 return 'the compliance credential has no subject';

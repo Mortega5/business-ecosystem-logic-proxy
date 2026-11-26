@@ -15,7 +15,7 @@ import { IdpService } from './idp.service';
 
 class MemoryRepository {
     records: Idp[] = [];
-    find = vi.fn(() => Promise.resolve(this.records.map((record) => ({ ...record }))));
+    find = vi.fn(() => Promise.resolve(this.records.map((record) => (Object.assign({}, record)))));
     search = vi.fn((text: string) => Promise.resolve(this.records.filter((record) => record.name.includes(text))));
     findOne = vi.fn(({ idpId }: { idpId: string }) =>
         Promise.resolve(this.records.find((record) => record.idpId === idpId))

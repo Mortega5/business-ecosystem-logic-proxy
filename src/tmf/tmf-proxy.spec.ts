@@ -1,7 +1,6 @@
 import { Controller, Get, Module, Req, Res } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import type { Request, Response } from 'express';
-import express from 'express';
 import { createServer, type IncomingHttpHeaders, type Server, type ServerResponse } from 'node:http';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from '../bootstrap';

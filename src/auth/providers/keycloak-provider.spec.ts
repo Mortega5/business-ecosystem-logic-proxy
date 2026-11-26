@@ -40,7 +40,7 @@ describe('KeycloakProvider: who a token belongs to', () => {
         const claims = await provider(answering(200, info, calls)).claimsOf(token);
 
         expect(calls[0]?.url).toBe('https://kc.example.org/realms/dome/protocol/openid-connect/userinfo');
-        expect((calls[0]?.init.headers as Record<string, string>)['authorization']).toBe(`Bearer ${token}`);
+        expect((calls[0]?.init.headers as Record<string, string> | undefined)?.['authorization']).toBe(`Bearer ${token}`);
         expect(claims).toEqual({
             id: 'kc-1',
             username: 'ana',

@@ -119,7 +119,7 @@ export const createIdentityProvider = (idp: IdpSettings, dependencies: ProviderD
             });
         }
         default:
-            throw new Error(`auth.idp.provider ${idp.provider} is not available yet`);
+            throw new Error(`auth.idp.provider ${(idp as { provider: string }).provider} is not available yet`);
     }
 };
 

@@ -70,7 +70,7 @@ export class BlogRepository {
         if (unset.length > 0) {
             update['$unset'] = Object.fromEntries(unset.map((field) => [field, '']));
         }
-        return (await this.model.findByIdAndUpdate(id, update, { new: true }).lean<BlogRecord>().exec()) ?? undefined;
+        return (await this.model.findByIdAndUpdate(id, update, { returnDocument: 'after' }).lean<BlogRecord>().exec()) ?? undefined;
     }
 
     /** Gives a slug to an entry that has none, if it still has none. */

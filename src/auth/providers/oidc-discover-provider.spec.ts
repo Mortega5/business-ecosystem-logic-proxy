@@ -145,7 +145,7 @@ describe('OidcDiscoverProvider: refreshing', () => {
         const tokens = await provider(server).refresh('r1');
 
         const call = server.calls.find((entry) => entry.url === `${ISSUER}/token`);
-        expect((call?.init.headers as Record<string, string>)['authorization']).toBe(`Basic ${Buffer.from('bae:client%20secret').toString('base64')}`);
+        expect((call?.init.headers as Record<string, string> | undefined)?.['authorization']).toBe(`Basic ${Buffer.from('bae:client%20secret').toString('base64')}`);
         expect(Object.fromEntries(call?.init.body as URLSearchParams)).toEqual({ grant_type: 'refresh_token', refresh_token: 'r1' });
         expect(tokens).toMatchObject({ accessToken: 'a2', refreshToken: 'r2' });
     });
@@ -156,7 +156,7 @@ describe('OidcDiscoverProvider: refreshing', () => {
         await provider(server, { tokenAuthMethod: 'client_secret_post' }).refresh('r1');
 
         const call = server.calls.find((entry) => entry.url === `${ISSUER}/token`);
-        expect((call?.init.headers as Record<string, string>)['authorization']).toBeUndefined();
+        expect((call?.init.headers as Record<string, string> | undefined)?.['authorization']).toBeUndefined();
         expect(Object.fromEntries(call?.init.body as URLSearchParams)).toMatchObject({ client_id: 'bae', client_secret: 'client secret' });
     });
 

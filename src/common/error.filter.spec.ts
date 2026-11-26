@@ -1,6 +1,5 @@
 import { BadRequestException, Controller, Get, Logger, Module, ServiceUnavailableException } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
-import express from 'express';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createApp } from '../bootstrap';
 import { AppConfigModule } from '../config/app-config.module';
@@ -95,7 +94,7 @@ describe('error filter', () => {
         await get('/errors/missing');
         expect(warn).toHaveBeenCalledTimes(1);
         expect(warn).toHaveBeenCalledWith(
-            { err: expect.objectContaining({ message: 'The catalog could not be reached' }), status: 502 },
+            { err: expect.objectContaining({ message: 'The catalog could not be reached' }) as unknown, status: 502 },
             'The request failed at a third party or at the proxy'
         );
         warn.mockRestore();
@@ -105,7 +104,7 @@ describe('error filter', () => {
         const error = vi.spyOn(Logger.prototype, 'error');
         await get('/errors/unexpected');
         expect(error).toHaveBeenCalledWith(
-            { err: expect.objectContaining({ message: 'db password is hunter2' }) },
+            { err: expect.objectContaining({ message: 'db password is hunter2' }) as unknown },
             'The request failed with an unexpected error'
         );
         error.mockRestore();

@@ -85,6 +85,8 @@ export class OidcLogin {
         const configuration = await client.discovery(url, clientId, undefined, auth, {
             timeout: Math.ceil(timeoutMs / 1000),
             ...(custom === undefined ? {} : { [client.customFetch]: custom }),
+            // Only for an identity provider that the administrator configured over plain http, which the library asks to say it knows
+            // oxlint-disable-next-line typescript/no-deprecated
             ...(url.protocol === 'http:' ? { execute: [client.allowInsecureRequests] } : {})
         });
         if (custom !== undefined) {

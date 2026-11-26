@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { I4TrustProvider, type I4TrustLoginOptions } from './i4trust-provider';
 import { IdpError } from './idp-http';
 import { TEST_CERTIFICATE, TEST_KEY } from './ishare-fixtures';
+import { bodyOf } from '../../testing/fetch-input';
 
 const jwt = (claims: object): string =>
     `${Buffer.from('{"alg":"RS256"}').toString('base64url')}.${Buffer.from(JSON.stringify(claims)).toString('base64url')}.signature`;
@@ -93,7 +94,7 @@ describe('I4TrustProvider', () => {
         const idp = (idToken = jwt({ sub: 'EU.EORI.1', preferred_username: 'ana' })) => {
             const calls: { url: string, headers: Headers, body: URLSearchParams }[] = [];
             const fetcher = (async (url: string, init: RequestInit) => {
-                calls.push({ url, headers: new Headers(init.headers), body: new URLSearchParams(String(init.body)) });
+                calls.push({ url, headers: new Headers(init.headers), body: new URLSearchParams(bodyOf(init)) });
                 return url.endsWith('/authorize')
                     ? new Response(null, { status: 302, headers: { location: '/login?session=1' } })
                     : new Response(JSON.stringify({ access_token: 'at', id_token: idToken }), { status: 200 });

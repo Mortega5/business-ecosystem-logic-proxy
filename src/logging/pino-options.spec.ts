@@ -75,7 +75,7 @@ describe('buildPinoOptions', () => {
         const { lines, stream } = captureStream();
         const options = buildLoggerOptions(LOGGING);
         pino(options, stream).info('hello');
-        expect(lines[0]).toMatchObject({ level: 'info', service: 'bae-logic-proxy', version: expect.any(String), msg: 'hello' });
+        expect(lines[0]).toMatchObject({ level: 'info', service: 'bae-logic-proxy', version: expect.any(String) as unknown, msg: 'hello' });
         expect(buildLoggerOptions({ ...LOGGING, format: 'pretty' }).formatters).toBeUndefined();
     });
 

@@ -35,9 +35,19 @@ const canLogin = (provider: IdentityProvider): provider is IdentityProvider & Lo
     typeof (provider as Partial<LoginCapable>).beginLogin === 'function' &&
     typeof (provider as Partial<LoginCapable>).finishLogin === 'function';
 
+const hasBackslashOrControl = (value: string): boolean => {
+    for (let at = 0; at < value.length; at++) {
+        const code = value.charCodeAt(at);
+        if (code < 0x20 || code === 0x5c) {
+            return true;
+        }
+    }
+    return false;
+};
+
 /** A path of this site and nothing else, so that a login cannot send the user to another one. */
 export const sitePath = (value: unknown): string =>
-    typeof value === 'string' && /^\/(?![/\\])[^\u0000-\u001f\\]*$/.test(value) ? value : '/';
+    typeof value === 'string' && value.startsWith('/') && !/^.[/\\]/.test(value) && !hasBackslashOrControl(value) ? value : '/';
 
 export interface LoginDone {
     profile: UserProfile;
