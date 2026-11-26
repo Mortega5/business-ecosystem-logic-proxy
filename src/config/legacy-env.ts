@@ -272,12 +272,12 @@ const endpointRules: LegacyRule[] = [
     }))
 ];
 
-// The legacy application notifies the contact form at one URL; here it is an upstream like the others
-const contactUsRule: LegacyRule = {
-    key: 'upstreams.contactUs',
-    variables: ['BAE_LP_CONTACT_US_NOTIFICATION_URL'],
+// The legacy application names these two at one URL each; here they are upstreams like the others
+const urlRule = (key: string, variable: string): LegacyRule => ({
+    key,
+    variables: [variable],
     build: (env) => {
-        const value = env.BAE_LP_CONTACT_US_NOTIFICATION_URL;
+        const value = env[variable];
         if (!present(value)) {
             return undefined;
         }
@@ -289,7 +289,10 @@ const contactUsRule: LegacyRule = {
             path: url.pathname === '/' ? '' : url.pathname
         };
     }
-};
+});
+
+const contactUsRule = urlRule('upstreams.contactUs', 'BAE_LP_CONTACT_US_NOTIFICATION_URL');
+const billingEngineRule = urlRule('upstreams.billingEngine', 'BAE_LP_BILLING_ENGINE_URL');
 
 const RULES: LegacyRule[] = [
     { key: 'app.port', variables: ['BAE_LP_PORT', 'BAE_LP_HTTPS_PORT'], build: buildPort },
@@ -315,6 +318,7 @@ const RULES: LegacyRule[] = [
     ...commaListRules,
     ...portalExtraRules,
     contactUsRule,
+    billingEngineRule,
     ...endpointRules
 ];
 

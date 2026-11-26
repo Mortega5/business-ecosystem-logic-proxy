@@ -202,6 +202,12 @@ describe('legacy endpoint variables', () => {
         expect(legacyEnvToObject({}).values).toEqual({});
     });
 
+    it('turns the address of the billing engine into an upstream', () => {
+        expect(legacyEnvToObject({ BAE_LP_BILLING_ENGINE_URL: 'http://engine:8080/billing/previewPrice' }).values).toEqual({
+            upstreams: { billingEngine: { host: 'engine', port: '8080', scheme: 'http', path: '/billing/previewPrice' } }
+        });
+    });
+
     it('configures the standalone upstreams', () => {
         const { values } = legacyEnvToObject(endpoint('CHARGING', { HOST: 'charging.svc.cluster.local', PORT: '8006' }));
         expect(values).toEqual({ upstreams: { charging: { host: 'charging.svc.cluster.local', port: '8006', path: '' } } });

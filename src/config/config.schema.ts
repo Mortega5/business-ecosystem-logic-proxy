@@ -58,7 +58,9 @@ const upstreamsSchema = z.strictObject({
     revenue: upstreamEntry,
     search: upstreamEntry,
     // Where the contact form is notified, when it is not the charging backend
-    contactUs: upstreamEntry.optional()
+    contactUs: upstreamEntry.optional(),
+    // The billing engine that prices an order, when the marketplace has one
+    billingEngine: upstreamEntry.optional()
 });
 
 export const ConfigSchema = z.object({
