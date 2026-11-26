@@ -10,7 +10,7 @@ import { VcProvider } from './vc-provider';
 
 const dependencies: ProviderDependencies = {
     timeoutMs: 1000,
-    roles: { admin: 'admin', customer: 'Buyer', seller: 'Seller', orgAdmin: 'orgAdmin' },
+    roles: { admin: 'admin', customer: 'Buyer', seller: 'Seller', orgAdmin: 'orgAdmin', certifier: 'certifier' },
     organizationName: async () => undefined
 };
 const vc = {
@@ -27,7 +27,6 @@ const vc = {
     verifierJwksPath: '/.well-known/jwks',
     operators: [],
     certIssuers: [],
-    certifierRole: 'certifier',
     bindPollToSession: true
 };
 const auth = (override: Record<string, unknown> = {}, idp: Record<string, unknown> = {}) =>

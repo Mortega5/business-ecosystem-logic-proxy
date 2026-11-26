@@ -18,8 +18,7 @@ const send = vi.fn(async (_req: Request, target: { method?: string }) => {
 const service = new CertificateService(
     { send } as unknown as TmfProxy,
     {
-        auth: { roles: { admin: 'admin' } },
-        compliance: { certifierRole: 'certifier' }
+        auth: { roles: { admin: 'admin', certifier: 'certifier' } }
     } as unknown as AppConfigService
 );
 

@@ -101,7 +101,7 @@ const VALUES: [string, string][] = [
     ['fileService.maxSizeMb', 'BAE_LP_FILE_SERVICE_MAX_SIZE_MB'],
     ['fileService.acceptedTypes', 'BAE_LP_FILE_SERVICE_ACCEPTED_TYPES'],
     ['compliance.serverUrl', 'BAE_LP_COMPLIANCE_SERVER_URL'],
-    ['compliance.certifierRole', 'BAE_LP_OAUTH2_ORG_CERTIFIER_ROLE'],
+    ['auth.roles.certifier', 'BAE_LP_OAUTH2_ORG_CERTIFIER_ROLE'],
     ['analytics.url', 'BAE_LP_ANALYTICS_URL'],
     ['analytics.guestTokenPath', 'BAE_LP_ANALYTICS_SUPERSET_GUEST_TOKEN_PATH'],
     ['analytics.dashboards.businessInsightsNonLear', 'BAE_LP_ANALYTICS_DASHBOARD_BUSINESS_INSIGHTS_NON_LEAR'],
@@ -117,8 +117,7 @@ const VALUES: [string, string][] = [
     ['auth.vc.verifierTokenPath', 'BAE_LP_SIOP_VERIFIER_TOKEN_PATH'],
     ['auth.vc.verifierJwksPath', 'BAE_LP_SIOP_VERIFIER_JWKS_PATH'],
     // The variable is called SIO and not SIOP, as v11 had it
-    ['auth.vc.signAlgorithm', 'BAE_LP_SIO_SIGN_ALGORITHM'],
-    ['auth.vc.certifierRole', 'BAE_LP_OAUTH2_ORG_CERTIFIER_ROLE']
+    ['auth.vc.signAlgorithm', 'BAE_LP_SIO_SIGN_ALGORITHM']
 ];
 
 // Anything other than "true" turns a switch off

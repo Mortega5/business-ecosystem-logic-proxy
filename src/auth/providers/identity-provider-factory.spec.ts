@@ -16,7 +16,7 @@ type Idp = AppConfig['auth']['idp'];
 
 const dependencies: ProviderDependencies = {
     timeoutMs: 1000,
-    roles: { admin: 'admin', customer: 'Buyer', seller: 'Seller', orgAdmin: 'orgAdmin' },
+    roles: { admin: 'admin', customer: 'Buyer', seller: 'Seller', orgAdmin: 'orgAdmin', certifier: 'certifier' },
     organizationName: async () => undefined
 };
 const complete = {

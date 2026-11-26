@@ -4,7 +4,7 @@ import { buildUpstreamHeaders, type HeaderPolicy, type UpstreamUser } from './up
 const policy: HeaderPolicy = {
     propagateToken: true,
     allowLocalEori: false,
-    roles: { admin: 'admin', customer: 'Buyer', seller: 'Seller', orgAdmin: 'orgAdmin' }
+    roles: { admin: 'admin', customer: 'Buyer', seller: 'Seller', orgAdmin: 'orgAdmin', certifier: 'certifier' }
 };
 
 const ana: UpstreamUser = {

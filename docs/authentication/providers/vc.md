@@ -51,7 +51,7 @@ access token; the profile is in the authentication store.
 | | `auth.vc.verifierIssuer` | When set, a token has to be issued by it (`iss`). Not checked when it is not set |
 | `BAE_LP_SIOP_OPERATORS` | `auth.vc.operators` | Comma separated: issuers, or organisation identifiers, whose users are administrators of the platform |
 | `BAE_LP_SIOP_CERT_ISSUERS` | `auth.vc.certIssuers` | Comma separated: the DIDs of the issuers trusted to certify a product (see below). With none, no certificate is accepted |
-| `BAE_LP_OAUTH2_ORG_CERTIFIER_ROLE` | `auth.vc.certifierRole` | Name of the role of a certifier (`certifier` by default) |
+| `BAE_LP_OAUTH2_ORG_CERTIFIER_ROLE` | `auth.roles.certifier` | Name of the role of a certifier (`certifier` by default) |
 | | `auth.vc.bindPollToSession` | `true` by default: the poll needs the session cookie of the browser |
 
 `GET /config` gives the portal a `siop` object: `{ "enabled": false }` when the login is off, and with the login on `enabled`,

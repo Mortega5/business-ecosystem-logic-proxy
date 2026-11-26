@@ -273,7 +273,7 @@ describe('authentication configuration', () => {
         expect(load({}).auth).toEqual({
             propagateToken: true,
             allowLocalEori: false,
-            roles: { admin: 'admin', customer: 'Buyer', seller: 'Seller', orgAdmin: 'orgAdmin' },
+            roles: { admin: 'admin', customer: 'Buyer', seller: 'Seller', orgAdmin: 'orgAdmin', certifier: 'certifier' },
             replacedTokenGraceMs: 30000,
             idpTimeoutMs: 10000,
             idp: { provider: 'fiware', oidcEnabled: true, tokenAuthMethod: 'client_secret_basic' },
@@ -293,7 +293,6 @@ describe('authentication configuration', () => {
                 verifierJwksPath: '/.well-known/jwks',
                 operators: [],
                 certIssuers: [],
-                certifierRole: 'certifier',
                 bindPollToSession: true
             }
         });
@@ -513,7 +512,7 @@ describe('the blog, the analytics, the compliance and the DOME extension', () =>
     const load = (env: NodeJS.ProcessEnv) => loadStaticConfig({ defaultsPath: DEFAULTS_PATH, env });
 
     it('has the compliance settings of v11 and takes the address of its service from the legacy variable', () => {
-        expect(load({}).compliance).toMatchObject({ enabled: true, serverUrl: '', timeoutMs: 120000, maxFiles: 20, maxFileMb: 20, fileOrigins: [], certifierRole: 'certifier' });
+        expect(load({}).compliance).toMatchObject({ enabled: true, serverUrl: '', timeoutMs: 120000, maxFiles: 20, maxFileMb: 20, fileOrigins: [] });
         expect(load({ BAE_LP_COMPLIANCE_SERVER_URL: 'https://compliance.example.org' }).compliance.serverUrl).toBe('https://compliance.example.org');
         expect(load({ BAE_COMPLIANCE__ENABLED: 'false' }).compliance.enabled).toBe(false);
     });
@@ -552,7 +551,6 @@ describe('the login with verifiable credentials', () => {
             verifierJwksPath: '/.well-known/jwks',
             operators: [],
             certIssuers: [],
-            certifierRole: 'certifier',
             bindPollToSession: true
         });
     });
@@ -564,8 +562,7 @@ describe('the login with verifiable credentials', () => {
             BAE_LP_SIO_SIGN_ALGORITHM: 'ES384',
             BAE_LP_SIOP_VERIFIER_TOKEN_PATH: '/oidc/token',
             BAE_LP_SIOP_OPERATORS: 'did:elsi:A, VATES-1,',
-            BAE_LP_SIOP_CERT_ISSUERS: 'did:web:certifier.example.org',
-            BAE_LP_OAUTH2_ORG_CERTIFIER_ROLE: 'auditor'
+            BAE_LP_SIOP_CERT_ISSUERS: 'did:web:certifier.example.org'
         }).auth.vc;
         expect(vc).toMatchObject({
             enabled: true,
@@ -577,9 +574,9 @@ describe('the login with verifiable credentials', () => {
             signAlgorithm: 'ES384',
             verifierTokenPath: '/oidc/token',
             operators: ['did:elsi:A', 'VATES-1'],
-            certIssuers: ['did:web:certifier.example.org'],
-            certifierRole: 'auditor'
+            certIssuers: ['did:web:certifier.example.org']
         });
+        expect(load({ BAE_LP_OAUTH2_ORG_CERTIFIER_ROLE: 'auditor' }).auth.roles.certifier).toBe('auditor');
     });
 
     it('turns on only with "true", and refuses to be on without what it needs', () => {

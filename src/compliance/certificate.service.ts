@@ -104,7 +104,7 @@ export class CertificateService {
         if (user === undefined) {
             return false;
         }
-        const certifier = this.config.compliance.certifierRole;
+        const certifier = this.config.auth.roles.certifier;
         return (
             hasRole(user.roles, this.config.auth.roles.admin) ||
             hasRole(user.roles, certifier) ||

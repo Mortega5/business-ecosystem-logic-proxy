@@ -27,7 +27,7 @@ const VALUE: AppConfig = {
     auth: {
         propagateToken: true,
         allowLocalEori: false,
-        roles: { admin: 'admin', customer: 'Buyer', seller: 'Seller', orgAdmin: 'orgAdmin' },
+        roles: { admin: 'admin', customer: 'Buyer', seller: 'Seller', orgAdmin: 'orgAdmin', certifier: 'certifier' },
         replacedTokenGraceMs: 30000,
         idpTimeoutMs: 10000,
         idp: { provider: 'fiware', oidcEnabled: true, tokenAuthMethod: 'client_secret_basic' },
@@ -46,7 +46,6 @@ const VALUE: AppConfig = {
             verifierJwksPath: '/.well-known/jwks',
             operators: [],
             certIssuers: [],
-            certifierRole: 'certifier',
             bindPollToSession: true
         },
         session: { maxAgeMs: 86400000, cookieSecure: 'auto', cookieSameSite: 'lax' }
@@ -65,7 +64,7 @@ const VALUE: AppConfig = {
         dashboards: { businessInsightsNonLear: '', businessInsightsLear: '', usageMonitor: '' },
         timeoutMs: 10000
     },
-    compliance: { enabled: true, serverUrl: '', timeoutMs: 120000, maxFiles: 20, maxFileMb: 20, fileOrigins: [], certifierRole: 'certifier' },
+    compliance: { enabled: true, serverUrl: '', timeoutMs: 120000, maxFiles: 20, maxFileMb: 20, fileOrigins: [] },
     datasets: { enabled: false },
     apiAccess: { enabled: false },
     blueprints: { enabled: true },

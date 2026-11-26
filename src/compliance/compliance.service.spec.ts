@@ -42,7 +42,6 @@ const settings = (extra: Record<string, unknown> = {}) => ({
     maxFiles: 2,
     maxFileMb: 1,
     fileOrigins: [],
-    certifierRole: 'certifier',
     ...extra
 });
 const serviceWith = (dome: Record<string, unknown> = {}) =>

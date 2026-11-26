@@ -41,7 +41,7 @@ export class PortalConfigService {
     ) {}
 
     async read(): Promise<Json> {
-        const { auth, compliance, portal, quotes, catalog, dsp, fileService } = this.config;
+        const { auth, portal, quotes, catalog, dsp, fileService } = this.config;
         const [features, searchFilters, contributed] = await Promise.all([this.flags.all(), this.searchFilters(), this.contributors.collect()]);
         const own: Json = {
             roles: {
@@ -49,7 +49,7 @@ export class PortalConfigService {
                 customer: auth.roles.customer,
                 admin: auth.roles.admin,
                 orgAdmin: auth.roles.orgAdmin,
-                certifier: compliance.certifierRole
+                certifier: auth.roles.certifier
             },
             chat: portal.chatUrl,
             knowledgeBaseUrl: portal.knowledgeBaseUrl,

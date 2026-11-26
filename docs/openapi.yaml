@@ -1802,7 +1802,7 @@ paths:
       operationId: uploadComplianceCredential
       summary: Put the compliance credential in a product
       description: |
-        Only while the compliance is on (`compliance.enabled`; otherwise 404). For administrators, for whoever has the role of certifier (`compliance.certifierRole`) and for the members of an organisation that has it. The credential becomes the characteristic `Compliance:VC` of the product, in place of the one it had, and is checked when the product is launched. It has to be a signed token (JWT) of at most 64 KB. Sellers cannot write that characteristic themselves.
+        Only while the compliance is on (`compliance.enabled`; otherwise 404). For administrators, for whoever has the role of certifier (`auth.roles.certifier`) and for the members of an organisation that has it. The credential becomes the characteristic `Compliance:VC` of the product, in place of the one it had, and is checked when the product is launched. It has to be a signed token (JWT) of at most 64 KB. Sellers cannot write that characteristic themselves.
       security:
         - bearerAuth: []
       parameters:

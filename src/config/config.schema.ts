@@ -131,7 +131,9 @@ export const ConfigSchema = z.object({
             admin: z.string().min(1),
             customer: z.string().min(1),
             seller: z.string().min(1),
-            orgAdmin: z.string().min(1)
+            orgAdmin: z.string().min(1),
+            // Whoever has it, besides the administrators, uploads the compliance credential of a product
+            certifier: z.string().min(1)
         }),
         // After a refresh, how long the token that was replaced still answers with the renewed profile: it is for the requests
         // that were already on their way with it, so it is short
@@ -221,7 +223,6 @@ export const ConfigSchema = z.object({
                 operators: z.array(z.string().min(1)),
                 // Issuers trusted to certify a product; with none, no certificate is accepted
                 certIssuers: z.array(z.string().min(1)),
-                certifierRole: z.string().min(1),
                 // The first browser that asks for the answer of a verifier is the only one that gets it; it needs the session cookie to
                 // reach the proxy in each poll
                 bindPollToSession: booleanLike
@@ -296,9 +297,7 @@ export const ConfigSchema = z.object({
         // origins they may be at (empty: any public address)
         maxFiles: z.coerce.number().int().positive(),
         maxFileMb: z.coerce.number().int().positive(),
-        fileOrigins: z.array(z.string().min(1)),
-        // Whoever has this role, besides the administrators, uploads the credential of a product
-        certifierRole: z.string().min(1)
+        fileOrigins: z.array(z.string().min(1))
     }),
     // What the portal can offer, as the starting value of the flags that an administrator switches from the portal
     datasets: z.object({ enabled: booleanLike }),

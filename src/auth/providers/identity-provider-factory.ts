@@ -156,7 +156,7 @@ export const createMainIdentityProvider = (
         verifierTokenPath: vc.verifierTokenPath,
         verifierJwksPath: vc.verifierJwksPath,
         ...(vc.verifierIssuer === undefined ? {} : { verifierIssuer: vc.verifierIssuer }),
-        policy: { roles: { ...auth.roles, certifier: vc.certifierRole }, operators: vc.operators },
+        policy: { roles: auth.roles, operators: vc.operators },
         timeoutMs: dependencies.timeoutMs,
         ...(dependencies.fetcher === undefined ? {} : { fetcher: dependencies.fetcher })
     });

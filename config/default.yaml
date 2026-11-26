@@ -39,6 +39,7 @@ auth:
     customer: Buyer
     seller: Seller
     orgAdmin: orgAdmin
+    certifier: certifier
   replacedTokenGraceMs: 30000
   profileTtlMs: 7200000
   refreshMarginSeconds: 5
@@ -63,7 +64,6 @@ auth:
     verifierJwksPath: /.well-known/jwks
     operators: []
     certIssuers: []
-    certifierRole: certifier
     bindPollToSession: true
   session:
     maxAgeMs: 86400000
@@ -112,7 +112,6 @@ compliance:
   maxFiles: 20
   maxFileMb: 20
   fileOrigins: []
-  certifierRole: certifier
 
 datasets:
   enabled: false
