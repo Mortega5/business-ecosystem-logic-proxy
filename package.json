@@ -18,7 +18,7 @@
     "currency-codes": "^2.2.0",
     "express": "^4.x",
     "express-session": "^1.17.3",
-    "jsonwebtoken": "^8.5.1",
+    "jsonwebtoken": "^9.0.3",
     "libphonenumber-js": "^1.12.7",
     "mongodb": "6.1.0",
     "mongoose": "^9.11.4",
