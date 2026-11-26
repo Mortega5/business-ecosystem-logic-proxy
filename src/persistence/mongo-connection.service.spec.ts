@@ -1,6 +1,8 @@
 import { Global, Module } from '@nestjs/common';
 import { Test, type TestingModule } from '@nestjs/testing';
+import { getConnectionToken } from '@nestjs/mongoose';
 import { LoggerModule } from 'nestjs-pino';
+import { Schema, type Connection } from 'mongoose';
 import { afterEach, describe, expect, it } from 'vitest';
 import { AppConfigService } from '../config/app-config.service';
 import { ManagedMongod } from '../testing/managed-mongod';
@@ -67,6 +69,16 @@ describe('MongoConnectionService', () => {
         const repository = module.get(ConfigDocumentRepository);
         await repository.upsert('feature-flags', { purchaseEnabled: true });
         await expect(repository.findById('feature-flags')).resolves.toMatchObject({ purchaseEnabled: true });
+    }, 40_000);
+
+    it('makes the indexes of the models once it is connected', async () => {
+        const { mongod, module, service } = await setup();
+        const connection = module.get<Connection>(getConnectionToken());
+        connection.model('IndexProbe', new Schema({ key: { type: String } }, { collection: 'index_probe' }).index({ key: 1 }, { unique: true }));
+
+        await mongod.start();
+        await waitFor(() => service.isUp(), 20_000);
+        await waitFor(async () => (await connection.collection('index_probe').indexes().catch(() => [])).some((index) => index.unique === true), 10_000);
     }, 40_000);
 
     it('notices an outage while running and recovers when Mongo comes back', async () => {

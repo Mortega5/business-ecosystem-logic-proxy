@@ -79,6 +79,7 @@ export class MongoConnectionService implements OnApplicationBootstrap, OnApplica
                     ...(authSource === undefined ? {} : { authSource })
                 });
                 this.resolveUp();
+                await this.createIndexes();
                 return;
             } catch (error) {
                 const delayMs = Math.min(retryInitialDelayMs * 2 ** (attempt - 1), retryMaxDelayMs);
@@ -86,6 +87,20 @@ export class MongoConnectionService implements OnApplicationBootstrap, OnApplica
                 await this.wait(delayMs);
             }
         }
+    }
+
+    /**
+     * The indexes of the models (the unique ones, the text one and the one that removes what has expired) are made once the connection is up,
+     * since mongoose does not make them by itself here (`autoIndex` is off). Only creates: one that exists with another definition, or that data
+     * already breaks, is said in the log and left as it is.
+     */
+    private async createIndexes(): Promise<void> {
+        const results = await Promise.allSettled(Object.values(this.connection.models).map((model) => model.createIndexes()));
+        results.forEach((result, position) => {
+            if (result.status === 'rejected') {
+                this.logger.error({ collection: Object.values(this.connection.models)[position]?.collection.name, err: result.reason }, 'The indexes of a collection could not be made');
+            }
+        });
     }
 
     private wait(ms: number): Promise<void> {
