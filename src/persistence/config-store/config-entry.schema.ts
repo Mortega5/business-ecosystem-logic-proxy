@@ -7,3 +7,6 @@ export class ConfigEntry {
 }
 
 export const ConfigEntrySchema = SchemaFactory.createForClass(ConfigEntry);
+
+// Partial so that documents kept without an `id` do not count as duplicates of each other (they are all `null` to a plain unique index)
+ConfigEntrySchema.index({ id: 1 }, { unique: true, partialFilterExpression: { id: { $type: 'string' } } });

@@ -109,13 +109,27 @@ describe('MongooseConfigDocumentRepository', () => {
         expect(await collection.countDocuments({})).toBe(0);
     });
 
-    it('never builds indexes on its own', async () => {
+    it('leaves the indexes to the connection, which makes a unique one on the id', async () => {
         expect(moduleRef.get<Connection>(getConnectionToken()).config.autoIndex).toBe(false);
 
-        await repository.upsert('feature-flags', { purchaseEnabled: true });
-        await new Promise((resolve) => setTimeout(resolve, 200));
+        await waitFor(async () => (await collection.indexes()).some((index) => index.unique === true), 10_000);
+        const unique = (await collection.indexes()).find((index) => index.unique === true);
+        expect(unique?.key).toEqual({ id: 1 });
+        expect(unique?.partialFilterExpression).toEqual({ id: { $type: 'string' } });
+    });
 
-        const indexes = await collection.indexes();
-        expect(indexes.map((index) => index.name)).toEqual(['_id_']);
+    it('refuses a second document with the same id', async () => {
+        await waitFor(async () => (await collection.indexes()).some((index) => index.unique === true), 10_000);
+        await collection.insertOne({ id: 'feature-flags' });
+
+        await expect(collection.insertOne({ id: 'feature-flags' })).rejects.toThrow('E11000');
+    });
+
+    it('accepts several documents that have no id, as the ones that were stored before it was required', async () => {
+        await waitFor(async () => (await collection.indexes()).some((index) => index.unique === true), 10_000);
+
+        await collection.insertMany([{ purchaseEnabled: true }, { quotesEnabled: true }]);
+
+        expect(await collection.countDocuments({})).toBe(2);
     });
 });

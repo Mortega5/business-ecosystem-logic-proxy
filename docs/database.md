@@ -100,6 +100,7 @@ Each has a unique index on `id`. Do not delete them by hand: without them the pr
 | Collection | Index | Purpose |
 |---|---|---|
 | `auth_cache` | TTL on `expiresAt` | Removes expired entries |
+| `config` | Unique on `id`, only for the documents that have one | One document per setting, even when two instances save it for the first time at once. A document without `id` is left out |
 | `blogs` | Unique on `slugNormalized`, only when the slug exists | One slug per entry, whatever its case |
 | `cartitems` | Unique on `user` and `itemId` | One line per item in a cart |
 | `idps` | Unique on `idpId`, and text on `name` | One provider per id, and search by name. MongoDB allows one text index per collection, so a search does not look at `description` |
