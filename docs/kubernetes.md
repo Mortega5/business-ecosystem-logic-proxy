@@ -273,6 +273,7 @@ Keys read by the application:
 | `mongo.retryMaxDelayMs` | `BAE_MONGO__RETRY_MAX_DELAY_MS` | integer | `30000` | |
 | `http.uploadLimit` | `BAE_HTTP__UPLOAD_LIMIT` | size | `50mb` | Largest file upload (multipart body) a route accepts; a bigger one is refused with 413 |
 | `http.trustedProxies` | `BAE_HTTP__TRUSTED_PROXIES` | list of addresses | `[]` | Proxies whose `X-Forwarded-For` is believed to know the address of the client; none means it is never believed |
+| `http.keepAliveTimeoutMs` | `BAE_HTTP__KEEP_ALIVE_TIMEOUT_MS` | milliseconds | `65000` | How long the server keeps a connection that has no request. It has to be longer than the idle timeout of the load balancer or ingress in front of it (60 seconds is usual), or the balancer sends a request over a connection that the server is closing and answers `502`. The time to read the headers of a request is set to this plus 5 seconds, and never below 60 seconds |
 | `http.bodyLimit` | `BAE_HTTP__BODY_LIMIT` | size | `5mb` | Largest body a route that reads one accepts; a bigger one is refused with 413 |
 | `http.cors.origins` | `BAE_HTTP__CORS__ORIGINS` | list of origins or `"*"` | `["*"]` | Origins that may call the API from a browser; `*` is what version 11 did |
 | `http.cors.exposeRedirect` | `BAE_HTTP__CORS__EXPOSE_REDIRECT` | boolean | `false` | Exposes `X-Redirect-URL` to the browser |

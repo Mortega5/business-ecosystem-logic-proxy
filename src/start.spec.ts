@@ -9,7 +9,7 @@ import { start } from './start';
 import { freePort } from './testing/free-port';
 import { createSelfSignedCertificate } from './testing/self-signed-certificate';
 import { request as httpsRequest } from 'node:https';
-import { request as httpRequest } from 'node:http';
+import { request as httpRequest, type Server } from 'node:http';
 import type { TLSSocket } from 'node:tls';
 
 @Public()
@@ -75,6 +75,22 @@ describe('start', () => {
         expect(await (await fetch(`${url}/new`)).json()).toEqual({ from: 'nest' });
         expect((await fetch(`${url}/nothing/here`, { headers: { accept: 'application/json' } })).status).toBe(404);
         await app.close();
+    });
+
+    it('keeps idle connections for the configured time, and gives the headers longer than that', async () => {
+        const { logStream } = capture();
+
+        const { app } = await start({ env: await envFor(), rootModule: TestRootModule, logStream });
+        const server = app.getHttpServer() as Server;
+        expect(server.keepAliveTimeout).toBe(65_000);
+        expect(server.headersTimeout).toBe(70_000);
+        await app.close();
+
+        const short = await start({ env: await envFor({ BAE_HTTP__KEEP_ALIVE_TIMEOUT_MS: '3000' }), rootModule: TestRootModule, logStream });
+        const shortServer = short.app.getHttpServer() as Server;
+        expect(shortServer.keepAliveTimeout).toBe(3_000);
+        expect(shortServer.headersTimeout).toBe(60_000);
+        await short.app.close();
     });
 
     it('warns about legacy variables it still applies, naming their replacement', async () => {

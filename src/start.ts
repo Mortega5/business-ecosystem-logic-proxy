@@ -1,3 +1,4 @@
+import type { Server } from 'node:http';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import pino from 'pino';
 import { createApp } from './bootstrap';
@@ -8,6 +9,9 @@ import { servePortal } from './portal/portal-static';
 import { buildHttpsOptions } from './https/https-options';
 import { configureSecurity } from './security/configure-security';
 import { buildLoggerOptions } from './logging/pino-options';
+
+const DEFAULT_HEADERS_TIMEOUT_MS = 60_000;
+const HEADERS_MARGIN_MS = 5_000;
 
 export interface RunningServer {
     app: NestExpressApplication;
@@ -45,6 +49,11 @@ export const start = async (options: StartOptions): Promise<RunningServer> => {
 
         const app = await createApp(options.rootModule, buildHttpsOptions(config.app.https));
         // The client address (req.ip) comes from X-Forwarded-For only for the proxies the configuration trusts
+        // Behind a load balancer the server has to close an idle connection after the balancer does, or the balancer sends a request over
+        // one that is being closed and answers 502. Node needs the time to read the headers to be longer than that wait
+        const server = app.getHttpServer() as Server;
+        server.keepAliveTimeout = config.http.keepAliveTimeoutMs;
+        server.headersTimeout = Math.max(DEFAULT_HEADERS_TIMEOUT_MS, config.http.keepAliveTimeoutMs + HEADERS_MARGIN_MS);
         configureSecurity(app, config);
         servePortal(app);
         app.set('trust proxy', config.http.trustedProxies.length === 0 ? false : config.http.trustedProxies);

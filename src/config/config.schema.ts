@@ -93,6 +93,8 @@ export const ConfigSchema = z.object({
         }),
     http: z.object({
         trustedProxies: z.array(z.string().min(1)),
+        // How long the server keeps a connection that has gone idle; it has to be longer than the idle timeout of what sits in front of it
+        keepAliveTimeoutMs: z.coerce.number().int().positive(),
         bodyLimit: z.string().min(1),
         uploadLimit: z.string().refine((value) => parseSize(value) !== undefined, 'must be a size such as 50mb'),
         cors: z.object({
