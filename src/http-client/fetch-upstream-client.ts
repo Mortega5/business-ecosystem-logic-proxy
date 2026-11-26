@@ -55,7 +55,8 @@ export class FetchUpstreamClient extends UpstreamClient {
                 signal: AbortSignal.timeout(request.timeoutMs ?? upstream.timeoutMs)
             });
             const body = await response.text();
-            const level = response.status >= 500 ? 'warn' : 'info';
+            // The access line of the request already says that it went well
+            const level = response.status >= 500 ? 'warn' : response.status >= 400 ? 'info' : 'debug';
             const detail = response.status >= 400 ? upstreamErrorDetail(body) : undefined;
             this.logger[level](
                 { ...logged, statusCode: response.status, durationMs: elapsed(), ...(detail === undefined ? {} : { upstreamError: detail }) },

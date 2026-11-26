@@ -19,7 +19,7 @@ let port: number;
 let seen: Seen | undefined;
 let handler: (req: IncomingMessage, res: ServerResponse) => void;
 
-const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn(), setContext: vi.fn() };
+const logger = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn(), setContext: vi.fn() };
 
 const clientFor = (baseUrl: string, timeoutMs = 1000): FetchUpstreamClient => {
     const url = new URL(baseUrl);
@@ -138,11 +138,12 @@ describe('FetchUpstreamClient.send', () => {
 });
 
 describe('FetchUpstreamClient logging', () => {
-    it('logs completed calls with upstream, status and duration and masks sensitive parameters', async () => {
+    it('logs completed calls at debug with upstream, status and duration and masks sensitive parameters', async () => {
         await clientFor(`http://127.0.0.1:${port}`).send({ upstream: 'charging', path: '/x', query: { code: 'secret' } });
 
-        expect(logger.info).toHaveBeenCalledTimes(1);
-        const [fields, message] = logger.info.mock.calls[0] as [Record<string, unknown>, string];
+        expect(logger.debug).toHaveBeenCalledTimes(1);
+        expect(logger.info).not.toHaveBeenCalled();
+        const [fields, message] = logger.debug.mock.calls[0] as [Record<string, unknown>, string];
         expect(message).toBe('upstream request completed');
         expect(fields).toMatchObject({ upstream: 'charging', method: 'GET', statusCode: 200 });
         expect(typeof fields.durationMs).toBe('number');
