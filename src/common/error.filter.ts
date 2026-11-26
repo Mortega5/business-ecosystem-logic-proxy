@@ -1,14 +1,14 @@
 import { Catch, HttpException, Logger, type ArgumentsHost, type ExceptionFilter } from '@nestjs/common';
 import type { Request, Response } from 'express';
-import { sanitizeUrl } from '../logging/pino-options';
+import { noteFailure } from '../logging/pino-options';
 import { DomainError } from './domain-error';
 
 // What the body parser throws (an `http-errors` error): a 4xx that is meant to be told to the client
-const clientError = (exception: unknown): { status: number; message: string } | undefined => {
+const clientError = (exception: unknown): { status: number, message: string } | undefined => {
     if (typeof exception !== 'object' || exception === null) {
         return undefined;
     }
-    const { status, expose, message } = exception as { status?: unknown; expose?: unknown; message?: unknown };
+    const { status, expose, message } = exception as { status?: unknown, expose?: unknown, message?: unknown };
     return typeof status === 'number' && status >= 400 && status < 500 && expose === true && typeof message === 'string'
         ? { status, message }
         : undefined;
@@ -21,16 +21,6 @@ const UNEXPECTED = 'Unexpected error. The error has been notified to the adminis
 export class ErrorFilter implements ExceptionFilter {
     private readonly logger = new Logger(ErrorFilter.name);
 
-    /** What a third party or the proxy itself failed at is a warning with its reason; a refusal to a user who is not allowed is a notice. */
-    private logRefusal(error: DomainError, req: Request): void {
-        const what = `${req.method} ${sanitizeUrl(req.originalUrl)} answered ${error.status}: ${error.message}`;
-        if (error.status >= 500) {
-            this.logger.warn(what);
-        } else if (error.status === 401 || error.status === 403) {
-            this.logger.log(what);
-        }
-    }
-
     catch(exception: unknown, host: ArgumentsHost): void {
         const res = host.switchToHttp().getResponse<Response>();
         if (res.headersSent) {
@@ -38,18 +28,28 @@ export class ErrorFilter implements ExceptionFilter {
             return;
         }
 
+        // The access log line of the request carries the reason of every error answer; a failure of the proxy or of a
+        // third party also gets a line of its own with the error, its cause included
         if (exception instanceof DomainError) {
-            this.logRefusal(exception, host.switchToHttp().getRequest<Request>());
+            noteFailure(res, exception.message);
+            if (exception.status >= 500) {
+                this.logger.warn(
+                    { err: exception, status: exception.status },
+                    'The request failed at a third party or at the proxy'
+                );
+            }
             res.status(exception.status).json({ error: exception.message });
             return;
         }
 
         if (exception instanceof HttpException) {
             const status = exception.getStatus();
+            noteFailure(res, exception.message);
             if (status < 500) {
                 res.status(status).json({ error: exception.message });
                 return;
             }
+            this.logger.warn({ err: exception, status }, 'The request failed with an HTTP exception');
             // An HTTP exception of 5xx keeps the body it was thrown with, such as the answer of a failing health check
             const body = exception.getResponse();
             res.status(status).json(typeof body === 'string' ? { error: body } : body);
@@ -58,11 +58,16 @@ export class ErrorFilter implements ExceptionFilter {
 
         const rejected = clientError(exception);
         if (rejected !== undefined) {
+            noteFailure(res, rejected.message);
             res.status(rejected.status).json({ error: rejected.message });
             return;
         }
 
-        this.logger.error(exception instanceof Error ? (exception.stack ?? exception.message) : String(exception));
+        noteFailure(res, 'Unexpected error');
+        this.logger.error(
+            { err: exception instanceof Error ? exception : new Error(String(exception)) },
+            'The request failed with an unexpected error'
+        );
         res.status(500).json({ error: UNEXPECTED });
     }
 }

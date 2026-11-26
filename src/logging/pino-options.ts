@@ -82,11 +82,19 @@ const serializeResponse = (res: SerializedResponse) => ({
     contentLength: res.headers?.['content-length']
 });
 
-// Runs when the line is written, after authentication has populated req.user.
-const accessLogProps = (req: IncomingMessage) => {
+/** Leaves the reason of an error answer for the access log line of the request. */
+export const noteFailure = (res: { locals?: Record<string, unknown> }, reason: string): void => {
+    res.locals ??= {};
+    res.locals['failure'] = reason;
+};
+
+// Runs when the line is written, after authentication has populated req.user and the filter has noted the failure.
+const accessLogProps = (req: IncomingMessage, res: ServerResponse) => {
     const { user, apiUrl } = req as ExpressRequest;
     const api = apiUrl?.split('/')[1];
+    const failure = (res as { locals?: Record<string, unknown> }).locals?.['failure'];
     return {
+        ...(typeof failure === 'string' ? { failure } : {}),
         ...(user?.partyId === undefined ? {} : { partyId: user.partyId }),
         ...(api === undefined || api === '' ? {} : { api })
     };

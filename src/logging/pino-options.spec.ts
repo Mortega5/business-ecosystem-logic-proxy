@@ -2,14 +2,14 @@ import { mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Writable } from 'node:stream';
-import { Controller, Get, Module, type INestApplication } from '@nestjs/common';
+import { Controller, Get, HttpException, Module, Res, type INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { LoggerModule } from 'nestjs-pino';
 import pino from 'pino';
 import pinoHttp from 'pino-http';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { AppConfig } from '../config/config.schema';
-import { buildPinoOptions, sanitizeUrl } from './pino-options';
+import { buildPinoOptions, noteFailure, sanitizeUrl } from './pino-options';
 
 const LOGGING: AppConfig['logging'] = { level: 'info', format: 'json', prettyOptions: {} };
 
@@ -100,6 +100,12 @@ class SampleController {
     missing() {
         throw new Error('boom');
     }
+
+    @Get('refused')
+    refused(@Res({ passthrough: true }) res: { locals?: Record<string, unknown> }) {
+        noteFailure(res, 'You are not the owner');
+        throw new HttpException('You are not the owner', 403);
+    }
 }
 
 @Module({ controllers: [SampleController] })
@@ -171,5 +177,16 @@ describe('request logging', () => {
 
         expect(res.status).toBe(500);
         expect(lines.some((l) => l.level === 50 && l.res !== undefined)).toBe(true);
+    });
+
+    it('adds the reason of an error answer to its access line', async () => {
+        const res = await call('/catalog/refused');
+
+        expect(res.status).toBe(403);
+        expect(lines.find((l) => l.msg === 'request completed')).toMatchObject({
+            level: 40,
+            failure: 'You are not the owner',
+            res: { statusCode: 403 }
+        });
     });
 });

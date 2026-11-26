@@ -73,7 +73,7 @@ afterAll(async () => {
     await app.close();
 });
 
-const get = async (path: string): Promise<{ status: number; body: unknown }> => {
+const get = async (path: string): Promise<{ status: number, body: unknown }> => {
     const res = await fetch(`${url}${path}`);
     return { status: res.status, body: await res.json().catch(() => undefined) };
 };
@@ -88,18 +88,29 @@ describe('error filter', () => {
         });
     });
 
-    it('writes down what failed at a third party and who was refused, with the reason and no token', async () => {
+    it('writes down what failed at a third party with the error, and nothing of what the user did wrong', async () => {
         const warn = vi.spyOn(Logger.prototype, 'warn');
-        const log = vi.spyOn(Logger.prototype, 'log');
         await get('/errors/upstream?access_token=secret');
         await get('/errors/forbidden');
         await get('/errors/missing');
-        expect(warn).toHaveBeenCalledWith('GET /errors/upstream?access_token=%5BRedacted%5D answered 502: The catalog could not be reached');
-        expect(log).toHaveBeenCalledWith('GET /errors/forbidden answered 403: You are not the owner');
         expect(warn).toHaveBeenCalledTimes(1);
-        expect(log).toHaveBeenCalledTimes(1);
+        expect(warn).toHaveBeenCalledWith(
+            { err: expect.objectContaining({ message: 'The catalog could not be reached' }), status: 502 },
+            'The request failed at a third party or at the proxy',
+            'ErrorFilter'
+        );
         warn.mockRestore();
-        log.mockRestore();
+    });
+
+    it('writes down an unexpected error as an error object, with its stack', async () => {
+        const error = vi.spyOn(Logger.prototype, 'error');
+        await get('/errors/unexpected');
+        expect(error).toHaveBeenCalledWith(
+            { err: expect.objectContaining({ message: 'db password is hunter2', stack: expect.any(String) }) },
+            'The request failed with an unexpected error',
+            'ErrorFilter'
+        );
+        error.mockRestore();
     });
 
     it('keeps the status of a client-side HTTP exception', async () => {
