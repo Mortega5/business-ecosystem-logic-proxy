@@ -18,9 +18,9 @@ services:
         environment:
             - NODE_ENV=development  # Deployment in development or in production
 
+            - BAE_AUTH__SESSION__SECRET=change-me-to-at-least-32-random-characters  # Required: signs the cookie of the session; every instance needs the same one
             - BAE_LP_PORT=8000  # Port where the node service is going to run in the container
             - BAE_LP_HOST=proxy.docker  # Host where the node service if going to run in the container
-            # - BAE_SERVICE_HOST=https://store.lab.fiware.org/  # If provided, this URL specifies the actual URL that is used to access the BAE, when the component is proxied (e.g Apache)
             # - BAE_LP_HTTPS_ENABLED=true  # If provided specifies whether the service is running in HTTPS, default: false
             # - BAE_LP_HTTPS_CERT=cert/cert.crt  # Certificate for the SSL configuration (when HTTPS enabled is true)
             # - BAE_LP_HTTPS_CA=cert/ca.crt  # CA certificate for the SSL configuration (when HTTPS enabled is true)

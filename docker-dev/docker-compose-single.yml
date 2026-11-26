@@ -29,8 +29,8 @@ services:
             - BAE_LP_SIOP_VERIFIER_TOKEN_PATH=/token
             - BAE_LP_SIOP_VERIFIER_JWKS_PATH=/.well-known/jwks
             - BAE_LP_SIOP_CALLBACK_PATH=http://proxy.docker:8004/auth/vc/callback
-            - BAE_LP_SIOP_ALLOWED_ROLES=seller,customer
-            - MIGRATE_DATA=True
+            # Development only: the secret that signs the cookie of the session, at least 32 characters
+            - BAE_AUTH__SESSION__SECRET=dev-session-secret-change-me-0123456789abcdef
         volumes:
             - ../:/business-ecosystem-logic-proxy
 
