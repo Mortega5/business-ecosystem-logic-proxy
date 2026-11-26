@@ -13,7 +13,8 @@ import { UpstreamClient, UpstreamError, type UpstreamRequest, type UpstreamRespo
 const buildUrl = (baseUrl: string, request: UpstreamRequest): URL => {
     const base = new URL(baseUrl);
     const basePath = base.pathname.replace(/\/+$/, '');
-    const url = new URL(`${baseUrl.replace(/\/+$/, '')}${assertSafePath(`/${request.path.replace(/^\/+/, '')}`)}`);
+    // An empty path is the address of the upstream exactly as it was configured, with its slash or without it: some servers tell the two apart
+    const url = request.path === '' ? new URL(baseUrl) : new URL(`${baseUrl.replace(/\/+$/, '')}${assertSafePath(`/${request.path.replace(/^\/+/, '')}`)}`);
     if (url.origin !== base.origin || !(url.pathname === basePath || url.pathname.startsWith(`${basePath}/`))) {
         throw new DomainError('Invalid request path', 400);
     }

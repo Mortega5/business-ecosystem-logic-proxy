@@ -79,6 +79,22 @@ describe('FetchUpstreamClient.send', () => {
         expect(response.headers.get('content-type')).toBe('application/json');
     });
 
+    it('sends an empty path to the address as it was configured, with no slash added', async () => {
+        const client = clientFor(`http://127.0.0.1:${port}/preview`);
+
+        await client.send({ upstream: 'charging', path: '' });
+
+        expect(seen?.url).toBe('/preview');
+    });
+
+    it('keeps the slash that the configured address ends with when the path is empty', async () => {
+        const client = clientFor(`http://127.0.0.1:${port}/orders/preview/`);
+
+        await client.send({ upstream: 'charging', path: '' });
+
+        expect(seen?.url).toBe('/orders/preview/');
+    });
+
     it('sends the body of a POST untouched', async () => {
         const client = clientFor(`http://127.0.0.1:${port}`);
 
